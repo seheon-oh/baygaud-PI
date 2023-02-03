@@ -6,17 +6,17 @@
 
 	- Python3.10
 	- Python3 virtual environment module: venv (normally, venv is installed along with python3)
-	- The latest version of dynasty 2.0.3 will be installed for bayesian analysis employing nested sampling.
+	- The latest version of dynesty 2.0.3 will be installed for Bayesian analysis utilizing nested sampling.
 	- Tested for Ubuntu 18.04 LT and macOS Monterey 12.6 on Apple M1
 
 # Installation
 
-1. Make a directory of python3 virtual environment for baygaud-PI. For example, 
+1. Make a directory for the python3 virtual environment for baygaud-PI. For example, 
 
 		[seheon@sejong00] makedir /home/seheon/research/baygaud_PI
 	 
 
-2. Download baygaud-master.zip and unzip in the directory,
+2. Download 'baygaud-master.zip' and unzip it in the directory,
 
 		[seheon@sejong00] mv baygaud-master.zip /home/seheon/research/baygaud_PI
   		[seheon@sejong00] unzip  /home/seheon/research/baygaud_PI/baygaud-master.zip
@@ -26,7 +26,7 @@
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
 	
 
-3. Setup "python3 virtual environment" in the 'baygaud' directory created.
+3. Set up a 'python3 virtual environment' in the 'baygaud' directory created.
 
 		[seheon@sejong00] python3 -m venv /home/seheon/research/baygaud_PI
 		
@@ -45,9 +45,9 @@
 		(baygaud) [seheon@sejong00]
 		
 		
-		--> Install the python packages for baygaud-PI. For dependency, these packages are only
-		compatible in the virtual environment that is currently created. The required package list,
-		'requirements.txt' is given in 'baygaud_PI' directory.
+		--> Install the python packages for baygaud-PI. Note that these packages are only compatible
+		within the virtual environment that has been created. The required package list, 'requirements.txt',
+		is included in the 'baygaud_PI' directory.
 
 		(baygaud) [seheon@sejong00] cd baygaud-master
 		(baygaud) [seheon@sejong00] ls
@@ -108,7 +108,7 @@
 
 2. Setting up baygaud-PI parameters
 
-		--> Open  ‘_baygaud_params.py’ file using vim or other text editors. Update keywords upon
+		--> Open ‘_baygaud_params.py’ file using vim or other text editors. Update keywords upon
 		your system accordingly. Find "UPDATE HERE" lines and edit them as yours. Short descriptions
 		(recommendation) are given below.
 		
@@ -128,23 +128,25 @@
 
 		(baygaud_PI) [seheon@sejong00] python3 baygaud.py
 
-		--> Check the running processes (using multi-cores) on the machine. 
-		--> Check the output directory where the baygaud fitting results are written in binary format. 
-
+		--> Check the running processes (utilizing multiple cores) on the machine.
+		--> Check the output directory where the baygaud fitting results are stored in binary format.
+		
 		# Output directory in ‘_baygaud_params.py’
 		
 		'_segdir':'/home/seheon/research/mhongoose/ngc2403/baygaud_segs_output',
 
-		--> In _segdir directory, all the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel)
+		--> In the _segdir directory, all of the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel)
 		are saved in binary format. For example,
+		
 			G03_x10.ys10ye390.npy <-- python binary format
 
 		|| G03 : max_ngauss=3
 		|| x10 : column x-number=10 ← segment info
 		|| ys10ye390 : row range, ys(start)=10 ~ ye(end)=390  ← segment info
 
-		--> In case, baygaud process stops unexpectedly for some reasons, the analysis results completed
-		for segments are stored. So you can resume baygaud from there but you need to adjust:
+		--> In the event that the baygaud process stops unexpectedly for any reason, the completed analysis
+		results for segments are saved. As a result, you can resume Baygaud from that point, but you need
+		to make adjustments:
 
 		'naxis1_s0= xxx'
 		'naxis1_e0= xxx'
@@ -156,23 +158,24 @@
 
 4. Running baygaud_classify.py
 
-		--> After all or some of the baygaud processes are completed, you can combine the segments to produce 2D FITS maps.
+		--> After completing some or all of the Baygaud processes, you can combine the segments to create 2D FITS maps.
 		
 		(baygaud_PI) [seheon@sejong00] python3 baygaud_classify.py
 		
-		--> This routine combines the segmented baygaud output (in binary format), and produces 2D maps in ‘FITS’ format
-		which include the profile decomposition results. This will also produce the combined baygaud fit results in both
-		‘fits’ and ‘binary’ formats like ‘Baygaud_gfit_results.fits’ and ‘baygaud_gfit_results.npy’. Either of these files
-		can be kept for backup.
+		--> This routine merges the segmented Baygaud output (in binary format) to create 2D maps
+		in FITS format that contain the profile decomposition results. It also generates combined
+		baygaud fit results in both FITS and binary formats, such as 'baygaud_gfit_results.fits'
+		and 'baygaud_gfit_results.npy'. Either file can be saved for backup purposes.
 
 		--> In the working directory, as in _baygaud_params.py above,
 		
 		# working directory where the input data cube is
 		'wdir':'/home/seheon/research/mhongoose/ngc2403'
 		
-		--> A directory, 'baygaud_combined' will be created where the decomposed Gaussian components are. These Gaussian
-		components (i.e., bulk, cool, wram, hot, non_bulk, psgfit, and sgfit or whatever else the one defined by the user)
-		are classified by their kinematic properties setup as in_baygaud_params.py file.
+		--> A directory named 'baygaud_combined' will be created where the decomposed Gaussian components
+		are stored. These Gaussian components (such as bulk, cool, warm, hot, non_bulk, psgfit, and sgfit,
+		or any others defined by the user) are classified based on their kinematic properties set in the
+		'in_baygaud_params.py' file.
 		
 		bulk
 		cool
@@ -186,13 +189,13 @@
 
 5. Running baygaud_viwer.py
 
-		--> You can view the results of Baygaud's multi-Gaussian profile analysis for individual
+		--> You can view the results of baygaud's multi-Gaussian profile analysis for individual
 		velocity profiles using the 'baygaud_viewer.py' code. This code reads the optimal number
 		of Gaussian profiles derived by 'baygaud_classify.py' and displays the decomposed Gaussian
 		components overlaid on each spectral line.
 
 		When a 2D map (such as a single Gaussian velocity field, velocity dispersion, integrated
-		intensity, N-Gauss, or S/N) extracted by Baygaud-PI (selected in the menu) is displayed,
+		intensity, N-Gauss, or S/N) extracted by baygaud-PI (selected in the menu) is displayed,
 		you can move your mouse cursor over the map to locate a specific spectral line.
 
 
