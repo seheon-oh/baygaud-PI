@@ -122,7 +122,18 @@
 		'naxis1_e0':204,
 		'naxis2_s0':200,
 		'naxis2_e0':204,
-	
+		
+![Screen Shot 2023-02-03 at 11 39 05 PM](https://user-images.githubusercontent.com/100483350/216631276-20c9c5ba-a4d7-4ab1-bffb-5f018ee54964.png)
+
+![Screen Shot 2023-02-03 at 11 39 12 PM](https://user-images.githubusercontent.com/100483350/216631310-e4fd11d9-1e39-4726-a7cd-a34dd1dba088.png)
+
+![Screen Shot 2023-02-03 at 11 39 20 PM](https://user-images.githubusercontent.com/100483350/216631330-681baab0-46e0-4ff8-8cb8-7ff0242400c7.png)
+
+![Screen Shot 2023-02-03 at 11 39 28 PM](https://user-images.githubusercontent.com/100483350/216631379-95703f0f-96fc-46a4-8330-ea4f16b7d461.png)
+
+![Screen Shot 2023-02-03 at 11 39 34 PM](https://user-images.githubusercontent.com/100483350/216631399-29b2946e-611f-4b97-ab85-71af7d05c846.png)
+
+
 	
 3. Running baygaud.py
 
