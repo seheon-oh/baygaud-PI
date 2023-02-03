@@ -21,7 +21,6 @@
 		[seheon@sejong00] mv baygaud-master.zip /home/seheon/research/baygaud_PI
   		[seheon@sejong00] unzip  /home/seheon/research/baygaud_PI/baygaud-master.zip
 
-	
 		--> Check the files,
 		[seheon@sejong00] ls /home/seheon/research/baygaud_PI/baygaud-master/
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
@@ -52,8 +51,6 @@
 		(baygaud) [seheon@sejong00] ls
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
 
-		
-	
 		(baygaud) [seheon@sejong00] pip install -r requirements.txt
 		
 		--> Now it should install the modules required for the baygaud-PI python3 environment. It takes a while…
