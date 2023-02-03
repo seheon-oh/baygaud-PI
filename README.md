@@ -115,7 +115,7 @@
 		|| In RED : should be updated upon your sample galaxy
 		|| In BLUE : should be updated upon your computer
 		|| In GREEN : can be adjusted for improving the performance (speed issues etc.)
-		
+		|| In YELLOW : <--- UPDATE HERE : should be adjusted
 		--> For a quick test, try a small section like,
 		# district
 		'naxis1_s0':200,
