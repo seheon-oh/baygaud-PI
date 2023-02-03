@@ -45,7 +45,9 @@
 		(baygaud) [seheon@sejong00]
 		
 		
-		--> Install the python packages for baygaud-PI. For dependency, these packages are only compatible in the virtual environment that is currently created. The required package list, 'requirements.txt' is given in 'baygaud_PI' directory.
+		--> Install the python packages for baygaud-PI. For dependency, these packages are only
+		compatible in the virtual environment that is currently created. The required package list,
+		'requirements.txt' is given in 'baygaud_PI' directory.
 
 		(baygaud) [seheon@sejong00] cd baygaud-master
 		(baygaud) [seheon@sejong00] ls
@@ -53,12 +55,14 @@
 
 		(baygaud) [seheon@sejong00] pip install -r requirements.txt
 		
-		--> Now it should install the modules required for the baygaud-PI python3 environment. It takes a while…
+		--> Now it should install the modules required for the baygaud-PI python3 environment.
+		It takes a while…
 
 		--> Install python-tk for baygaud_viewer.py		
 		(baygaud) [seheon@sejong00] sudo apt install python-tk
 
-		--> After installing all the required packages for baygaud-PI, it is ready for running baygaud-PI now.
+		--> After installing all the required packages for baygaud-PI, it is ready for running
+		baygaud-PI now.
 
 
 # Quick Start
@@ -104,7 +108,9 @@
 
 2. Setting up baygaud-PI parameters
 
-		--> Open  ‘_baygaud_params.py’ file using vim or other text editors. Update keywords upon your system accordingly. Find "UPDATE HERE" lines and edit them as yours. Short descriptions (recommendation) are given below.
+		--> Open  ‘_baygaud_params.py’ file using vim or other text editors. Update keywords upon
+		your system accordingly. Find "UPDATE HERE" lines and edit them as yours. Short descriptions
+		(recommendation) are given below.
 		
 		|| In RED : should be updated upon your sample galaxy
 		|| In BLUE : should be updated upon your computer
@@ -129,14 +135,16 @@
 		
 		'_segdir':'/home/seheon/research/mhongoose/ngc2403/baygaud_segs_output',
 
-		--> In _segdir directory, all the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel) are saved in binary format. For example,
+		--> In _segdir directory, all the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel)
+		are saved in binary format. For example,
 			G03_x10.ys10ye390.npy <-- python binary format
 
 		|| G03 : max_ngauss=3
 		|| x10 : column x-number=10 ← segment info
 		|| ys10ye390 : row range, ys(start)=10 ~ ye(end)=390  ← segment info
 
-		--> In case, baygaud process stops unexpectedly for some reasons, the analysis results completed for segments are stored. So you can resume baygaud from there but you need to adjust:
+		--> In case, baygaud process stops unexpectedly for some reasons, the analysis results completed
+		for segments are stored. So you can resume baygaud from there but you need to adjust:
 
 		'naxis1_s0= xxx'
 		'naxis1_e0= xxx'
