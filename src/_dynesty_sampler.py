@@ -46,10 +46,19 @@ def derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, ngauss):
     ndim = 3*ngauss + 2
     nparams = ndim
 
-    naxis1 = _params['naxis1']
-    naxis2 = _params['naxis2']
-    nsteps_x = _params['nsteps_x_rms']
-    nsteps_y = _params['nsteps_y_rms']
+    naxis1 = int(_params['naxis1'])
+    naxis2 = int(_params['naxis2'])
+
+    naxis1_s0 = int(_params['naxis1_s0'])
+    naxis1_e0 = int(_params['naxis1_e0'])
+    naxis2_s0 = int(_params['naxis2_s0'])
+    naxis2_e0 = int(_params['naxis2_e0'])
+
+    naxis1_seg = naxis1_e0 - naxis1_s0
+    naxis2_seg = naxis2_e0 - naxis2_s0
+
+    nsteps_x = int(_params['nsteps_x_rms'])
+    nsteps_y = int(_params['nsteps_y_rms'])
 
     _rms = np.zeros(nsteps_x*nsteps_y+1, dtype=np.float32)
     _bg = np.zeros(nsteps_x*nsteps_y+1, dtype=np.float32)
@@ -63,10 +72,12 @@ def derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, ngauss):
     for x in range(0, nsteps_x):
         for y in range(0, nsteps_y):
 
-            i = int(0.5*(naxis1/nsteps_x) + x*(naxis1/nsteps_x))
-            j = int(0.5*(naxis2/nsteps_y) + y*(naxis2/nsteps_y))
+            i = int(0.5*(naxis1_seg/nsteps_x) + x*(naxis1_seg/nsteps_x)) + naxis1_s0
+            j = int(0.5*(naxis2_seg/nsteps_y) + y*(naxis2_seg/nsteps_y)) + naxis2_s0
 
-            if(_cube_mask_2d[j, i] > 0): # if not masked: 
+            print("[--> measure background rms at (i:%d j:%d)...]" % (i, j))
+
+            if(_cube_mask_2d[j, i] > 0 and not np.isnan(_inputDataCube[:, j, i]).any()): # if not masked: 
 
                 _f_max = np.max(_inputDataCube[:, j, i]) # peak flux : being used for normalization
                 _f_min = np.min(_inputDataCube[:, j, i]) # lowest flux : being used for normalization

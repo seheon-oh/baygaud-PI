@@ -69,10 +69,10 @@ _params = {
 #+++++++++++++++++++++++++++++++++
 
 # District to be fitted
-'naxis1_s0':20,  # <---- UPDATE HERE
+'naxis1_s0':12,  # <---- UPDATE HERE
 'naxis1_e0':24, # <---- UPDATE HERE
-'naxis2_s0':20,  # <---- UPDATE HERE
-'naxis2_e0':22, # <---- UPDATE HERE
+'naxis2_s0':14,  # <---- UPDATE HERE
+'naxis2_e0':26, # <---- UPDATE HERE
 
 # Number of steps to sample for deriving the backround rms
 # Derive the background rms values of nsteps_x_rms * nsteps_y_rms line profiles 
@@ -80,8 +80,8 @@ _params = {
 # --> x_gab = (naxis1_e0 - naxis1_s0) / nsteps_x_rms 
 # --> y_gab = (naxis2_e0 - naxis2_s0) / nsteps_y_rms 
 # The median value of nsteps_x_rms * nsteps_y_rms line profiles is derived and used for peak S/N measurements of the line profiles processed (BUT more accurate background rms values will be derived from the bayesian fits in the course of the processing)
-'nsteps_x_rms':1, # <---- UPDATE HERE
-'nsteps_y_rms':1, # <---- UPDATE HERE
+'nsteps_x_rms':4, # <---- UPDATE HERE
+'nsteps_y_rms':4, # <---- UPDATE HERE
 
 #  ______________________________________________________  #
 # [______________________________________________________] #
@@ -206,7 +206,7 @@ _params = {
 # parallellisation parameters
 'ncolm_per_core':'',
 'nsegments_nax2':'',
-'num_cpus':4,  # <---- UPDATE HERE
+'num_cpus':12,  # <---- UPDATE HERE
 }
 
 #-- END OF SUB-ROUTINE____________________________________#
