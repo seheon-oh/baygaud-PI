@@ -118,10 +118,10 @@
 		|| In YELLOW : <--- UPDATE HERE : should be adjusted
 		--> For a quick test, try a small section like,
 		# district
-		'naxis1_s0':200,
-		'naxis1_e0':204,
-		'naxis2_s0':200,
-		'naxis2_e0':204,
+		'naxis1_s0':20,
+		'naxis1_e0':24,
+		'naxis2_s0':20,
+		'naxis2_e0':24,
 		
 ![Screen Shot 2023-02-03 at 11 39 05 PM](https://user-images.githubusercontent.com/100483350/216631276-20c9c5ba-a4d7-4ab1-bffb-5f018ee54964.png)
 
