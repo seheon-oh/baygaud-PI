@@ -181,7 +181,14 @@
 
 5. Running baygaud_viwer.py
 
-		--> You can check the baygaud's multi-Gaussian profile analysis results for individual velocity profiles using 'baygaud_viewer.py'. This code reads the optimal number of Gaussian profiles which are derived by 'baygaud_classify.py', and displays the decompsed Gaussian components overlaid on each spectral line. Once a 2D map (e.g., signle Gaussian velocity field, velocity dispersion, integrated intensity, N-Gauss, or S/N) extracted by baygaud-PI (selected in the menu) is popped-up, you can move your mouse-cursor on the map to locate a spectral line. 
+		--> You can check the baygaud's multi-Gaussian profile analysis results for individual velocity profiles 
+		using 'baygaud_viewer.py'. This code reads the optimal number of Gaussian profiles which are derived by 
+		'baygaud_classify.py', and displays the decompsed Gaussian components overlaid on each spectral line. 
+
+
+		Once a 2D map (e.g., signle Gaussian velocity field, velocity dispersion, integrated intensity, N-Gauss, 
+		or S/N) extracted by baygaud-PI (selected in the menu) is popped-up, you can move your mouse-cursor on 
+		the map to locate a spectral line. 
 
 
 # Cite
