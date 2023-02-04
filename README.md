@@ -181,7 +181,7 @@
 		--> A directory named 'baygaud_combined' will be created where the decomposed Gaussian components
 		are stored. These Gaussian components (such as bulk, cool, warm, hot, non_bulk, psgfit, and sgfit,
 		or any others defined by the user) are classified based on their kinematic properties set in the
-		'in_baygaud_params.py' file.
+		'_baygaud_params.py' file.
 		
 		bulk
 		cool
