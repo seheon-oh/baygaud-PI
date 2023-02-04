@@ -11,7 +11,7 @@
 
 # Installation
 
-1. Make a directory for the python3 virtual environment for baygaud-PI. For example, 
+1. Make a directory for the python3.10 virtual environment for baygaud-PI. For example, 
 
 		[seheon@sejong00] makedir /home/seheon/research/baygaud_PI
 	 
@@ -26,9 +26,9 @@
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
 	
 
-3. Set up a 'python3 virtual environment' in the 'baygaud' directory created.
+3. Set up a 'python3.10 virtual environment' in the 'baygaud' directory created.
 
-		[seheon@sejong00] python3 -m venv /home/seheon/research/baygaud_PI
+		[seheon@sejong00] python3.10 -m venv /home/seheon/research/baygaud_PI
 		
 		--> Then, activate the virtual environment.
 		
@@ -40,12 +40,12 @@
 		
 		[seheon@sejong00] deactivate
 		
-		--> Now, you enter the python virtual environment, named 'baygaud'
+		--> Now, you enter the python3.10 virtual environment, named 'baygaud'
 		
 		(baygaud) [seheon@sejong00]
 		
 		
-		--> Install the python packages for baygaud-PI. Note that these packages are only compatible
+		--> Install the python3.10 packages for baygaud-PI. Note that these packages are only compatible
 		within the virtual environment that has been created. The required package list, 'requirements.txt',
 		is included in the 'baygaud_PI' directory.
 
@@ -53,13 +53,13 @@
 		(baygaud) [seheon@sejong00] ls
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
 
-		(baygaud) [seheon@sejong00] pip install -r requirements.txt
+		(baygaud) [seheon@sejong00] python3.10 -m pip install -r requirements.txt
 		
-		--> Now it should install the modules required for the baygaud-PI python3 environment.
+		--> Now it should install the modules required for the baygaud-PI python3.10 environment.
 		It takes a while…
 
-		--> Install python-tk for baygaud_viewer.py		
-		(baygaud) [seheon@sejong00] sudo apt install python-tk
+		--> Install python3-tk for baygaud_viewer.py		
+		(baygaud) [seheon@sejong00] sudo apt install python3-tk
 
 		--> After installing all the required packages for baygaud-PI, it is ready for running
 		baygaud-PI now.
@@ -69,34 +69,29 @@
 
 1. Setting up data (HI data cube)
 
-		--> Make a directory where the data files including the HI data cube in FITS format are located.
+		--> Make your own directory where the data files including the HI data cube in FITS format are located.
+
+		--> Put the input data files (FITS) into the data directory. 
+
+		--> As an example, a test cube ('ngc2403.regrid.testcube.0.fits') is provided in 'demo/testcube' directory:
 
 		|| Data directory
-		[seheon@sejong00] makedir /home/seheon/research/mhongoose/ngc2403
+		[seheon@sejong00] ls /home/seheon/research/code/_python/baygaud_py/baygaud_PI/demo/test_cube
 
-		--> Copy the input data files (FITS) into the data directory (‘/home/seheon/research/mhongoose/ngc2403’).
+		ngc2403.regrid.testcube.0.fits
 
-		--> Then, make a directory for the baygaud 'segment output'.
-		
-		[seheon@sejong00] makedir /home/seheon/research/mhongoose/ngc2403/baygaud_segs_output
+		--> For example (see '_baygaud_params.py' in 'src'),
 
-		--> Check the data files are in the data directory,
-		[seheon@sejong00] ls /home/seheon/research/mhongoose/ngc2403
-
-		2403_mosaic_5kms_r05_HI_mwfilt_cube.fits	2403_mosaic_5kms_r05_HI_mwfilt_mask.fits
-		2403_mosaic_5kms_r05_HI_mwfilt_cube.kms.fits	baygaud_segs_output
-		2403_mosaic_5kms_r05_HI_mwfilt_mask-2d.fits	
-
-		--> For example (see _baygaud_params.py below),
-
-		|| Data directory; segment output directory
-		'wdir':'/home/seheon/research/mhongoose/ngc2403',
-		'_segdir':'/home/seheon/research/mhongoose/ngc2403/baygaud_segs_output',
+		|| Set data directory; segment output directory in _baygaud_params.py in 'src'
+		'wdir':'/home/seheon/research/code/_python/baygaud_py/baygaud_PI/demo/test_cube',
+		'_segdir':'baygaud_segs_output',
+		'_combdir':'baygaud_combined'
 
 		|| Input HI data cube (required)
-		'input_datacube':'2403_mosaic_5kms_r05_HI_mwfilt_cube.fits'
+		'input_datacube':'ngc2403.regrid.testcube.0.fits'
 
 		|| 2D mask map (if not available, put blank)
+		'_cube_mask':'Y', # Y(if available) or N(if not)
 		'_cube_mask_2d':'2403_mosaic_5kms_r05_HI_mwfilt_mask-2d.fits'
 
 		|| Bulk model VF (if not available, put blank)
@@ -137,14 +132,14 @@
 	
 3. Running baygaud.py
 
-		(baygaud_PI) [seheon@sejong00] python3 baygaud.py
+		(baygaud_PI) [seheon@sejong00] python3.10 baygaud.py
 
 		--> Check the running processes (utilizing multiple cores) on the machine.
 		--> Check the output directory where the baygaud fitting results are stored in binary format.
 		
 		# Output directory in ‘_baygaud_params.py’
 		
-		'_segdir':'/home/seheon/research/mhongoose/ngc2403/baygaud_segs_output',
+		'_segdir':'baygaud_segs_output',
 
 		--> In the _segdir directory, all of the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel)
 		are saved in binary format. For example,
@@ -171,7 +166,7 @@
 
 		--> After completing some or all of the Baygaud processes, you can combine the segments to create 2D FITS maps.
 		
-		(baygaud_PI) [seheon@sejong00] python3 baygaud_classify.py
+		(baygaud_PI) [seheon@sejong00] python3.10 baygaud_classify.py
 		
 		--> This routine merges the segmented Baygaud output (in binary format) to create 2D maps
 		in FITS format that contain the profile decomposition results. It also generates combined
@@ -181,7 +176,7 @@
 		--> In the working directory, as in _baygaud_params.py above,
 		
 		# working directory where the input data cube is
-		'wdir':'/home/seheon/research/mhongoose/ngc2403'
+		'wdir':'/home/seheon/research/code/_python/baygaud_py/baygaud_PI/demo/test_cube'
 		
 		--> A directory named 'baygaud_combined' will be created where the decomposed Gaussian components
 		are stored. These Gaussian components (such as bulk, cool, warm, hot, non_bulk, psgfit, and sgfit,
@@ -204,7 +199,11 @@
 		velocity profiles using the 'baygaud_viewer.py' code. This code reads the optimal number
 		of Gaussian profiles derived by 'baygaud_classify.py' and displays the decomposed Gaussian
 		components overlaid on each spectral line.
-		
+
+	
+		--> Run 'baygaud_viewer.py'
+		(baygaud_PI) [seheon@sejong00] python3.10 baygaud_viewer.py
+
 		
 ![Screen Shot 2023-02-05 at 12 19 38 AM](https://user-images.githubusercontent.com/100483350/216775296-c040f123-9062-4c38-8a53-fd5e60467d8a.png)
 
@@ -217,7 +216,7 @@
 
 		When a 2D map (such as a single Gaussian velocity field, velocity dispersion, integrated
 		intensity, N-Gauss, or S/N) extracted by baygaud-PI (selected in the menu) is displayed,
-		you can move your mouse cursor over the map to locate a specific spectral line.
+		you can move your mouse cursor over the map to locate a specific spectral line. You can also zoom-in or -out a specific region by scrollong the mouse wheel.
 
 
 # Cite
