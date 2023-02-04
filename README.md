@@ -134,7 +134,7 @@
 
 		(baygaud_PI) [seheon@sejong00] python3.10 baygaud.py
 
-		--> Check the running processes (utilizing multiple cores) on the machine.
+		--> Check the running processes (utilizing multi-cores) on the machine.
 		--> Check the output directory where the baygaud fitting results are stored in binary format.
 		
 		# Output directory in ‘_baygaud_params.py’
