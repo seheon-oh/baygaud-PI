@@ -42,24 +42,24 @@
 		
 		--> Now, you enter the python3.10 virtual environment, named 'baygaud'
 		
-		(baygaud) [seheon@sejong00]
+		(baygaud_PI) [seheon@sejong00]
 		
 		
 		--> Install the python3.10 packages for baygaud-PI. Note that these packages are only compatible
 		within the virtual environment that has been created. The required package list, 'requirements.txt',
 		is included in the 'baygaud_PI' directory.
 
-		(baygaud) [seheon@sejong00] cd baygaud-master
-		(baygaud) [seheon@sejong00] ls
+		(baygaud_PI) [seheon@sejong00] cd baygaud-master
+		(baygaud_PI) [seheon@sejong00] ls
 		MENIFEST.in  README.md  requirements.txt  setup.cfg  setup.py  src
 
-		(baygaud) [seheon@sejong00] python3.10 -m pip install -r requirements.txt
+		(baygaud_PI) [seheon@sejong00] python3.10 -m pip install -r requirements.txt
 		
 		--> Now it should install the modules required for the baygaud-PI python3.10 environment.
 		It takes a while…
 
 		--> Install python3-tk for baygaud_viewer.py		
-		(baygaud) [seheon@sejong00] sudo apt install python3-tk
+		(baygaud_PI) [seheon@sejong00] sudo apt install python3-tk
 
 		--> After installing all the required packages for baygaud-PI, it is ready for running
 		baygaud-PI now.
