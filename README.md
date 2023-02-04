@@ -204,6 +204,16 @@
 		velocity profiles using the 'baygaud_viewer.py' code. This code reads the optimal number
 		of Gaussian profiles derived by 'baygaud_classify.py' and displays the decomposed Gaussian
 		components overlaid on each spectral line.
+		
+		
+![Screen Shot 2023-02-05 at 12 19 38 AM](https://user-images.githubusercontent.com/100483350/216775296-c040f123-9062-4c38-8a53-fd5e60467d8a.png)
+
+![Screen Shot 2023-02-05 at 12 17 12 AM](https://user-images.githubusercontent.com/100483350/216775302-55a6b2b3-390e-40d1-a0b4-4a2277611616.png)
+
+![Screen Shot 2023-02-05 at 12 16 29 AM](https://user-images.githubusercontent.com/100483350/216775309-f2831851-2554-4e8d-82e6-cceadd9f733b.png)
+
+![Screen Shot 2023-02-05 at 12 15 55 AM](https://user-images.githubusercontent.com/100483350/216775323-2ebc07a7-f6ca-4ec1-980f-e11b03d1c328.png)
+
 
 		When a 2D map (such as a single Gaussian velocity field, velocity dispersion, integrated
 		intensity, N-Gauss, or S/N) extracted by baygaud-PI (selected in the menu) is displayed,
