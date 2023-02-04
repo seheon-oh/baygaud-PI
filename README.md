@@ -141,7 +141,7 @@
 		
 		'_segdir':'baygaud_segs_output',
 
-		--> In the _segdir directory, all of the Gaussian fit results for each sub-cube (segment, xN - ys:y3 - vel)
+		--> In the _segdir directory, all of the Gaussian fit results for each sub-cube (segment, xN--ys:ye--vel)
 		are saved in binary format. For example,
 		
 			G03_x10.ys10ye390.npy <-- python binary format
