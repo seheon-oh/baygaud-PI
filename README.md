@@ -216,7 +216,8 @@
 
 		When a 2D map (such as a single Gaussian velocity field, velocity dispersion, integrated
 		intensity, N-Gauss, or S/N) extracted by baygaud-PI (selected in the menu) is displayed,
-		you can move your mouse cursor over the map to locate a specific spectral line. You can also zoom-in or -out a specific region by scrollong the mouse wheel.
+		you can move your mouse cursor over the map to locate a specific spectral line. 
+		You can also zoom-in or -out a specific region by scrollong the mouse wheel.
 
 
 # Cite
