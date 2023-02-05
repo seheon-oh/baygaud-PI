@@ -12,7 +12,7 @@
 
 # Installation
 
-1. Make a directory for the python3.10 virtual environment for baygaud-PI. For example, 
+##1. Make a directory for the python3.10 virtual environment for baygaud-PI. For example, 
 
 		[seheon@sejong00] makedir /home/seheon/research/baygaud_PI
 	 
