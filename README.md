@@ -3,7 +3,7 @@
 	- Version 1.0.0 (30 Sept 2022)
 	- by Se-Heon Oh (Department of Physics and Astronomy, Sejong University, Seoul, Korea)
 
-# Pre-requisite
+# Prerequisite
 
 	- Python3.10
 	- Python3 virtual environment module: venv (normally, venv is installed along with python3)
