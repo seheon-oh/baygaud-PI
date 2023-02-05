@@ -1,4 +1,4 @@
-# baygaud-PI
+# baygaud-PI 
 	- BAYesian GAUssian Decomposer: spectral line profile decomposition with multiple Gaussian components based on bayesian analysis
 	- Version 1.0.0 (30 Sept 2022)
 	- by Se-Heon Oh (Department of Physics and Astronomy, Sejong University, Seoul, Korea)
