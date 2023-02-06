@@ -59,8 +59,8 @@
 		--> Now it should install the modules required for the baygaud-PI python3.10 environment.
 		It takes a while…
 
-		--> Install python3-tk for baygaud_viewer.py		
-		(baygaud_PI) [seheon@sejong00] sudo apt install python3-tk
+		--> Install python3.10-tk for baygaud_viewer.py		
+		(baygaud_PI) [seheon@sejong00] sudo apt install python3.10-tk
 
 		--> After installing all the required packages for baygaud-PI, it is ready for running
 		baygaud-PI now.
