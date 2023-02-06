@@ -230,7 +230,7 @@
 		Oh, S. H., Kim, S., For, B. Q. & Staveley-Smith, L., 1 Apr 2022, In: Astrophysical Journal. 928, 2, 177.
 	
 	3. Gas Dynamics and Star Formation in NGC 6822 (application paper)
-		Park, H. J., Oh, S. H., Wang, J., Zheng, Y., Zhang, H. X. & De Blok, W. J. G., 1 Sep 2022, In: Astronomical Journal. 164, 3, 82.
+		Park, H. J., Oh, S. H., Wang, J., Zheng, Y., Zhang, H. X. & de Blok, W. J. G., 1 Sep 2022, In: Astronomical Journal. 164, 3, 82.
 		
 	4. WALLABY Pilot Survey: HI gas kinematics of galaxy pairs in cluster environment (application paper)
 		Kim, S. J., Oh, S. H. et al., 2023, In Monthly Notices of the Royal Astronomical Society
