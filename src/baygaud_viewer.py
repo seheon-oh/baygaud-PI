@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-   
 
 #|-----------------------------------------|
 #| baygaud_viewer.py
@@ -34,10 +36,14 @@ colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:y
         'tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan']
 
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def gauss_model(x, amp, vel, disp):
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=13):
 
     ax = img.axes
@@ -64,7 +70,8 @@ def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right'
 
     return cbar, cax
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def panel_label(ax, text, xpos=0.05, ypos=0.95, color='black', fontsize=10, inside_box=False, pad=5.0):
 
     font_props = {'fontsize': fontsize, 'color': color, 'verticalalignment': 'top'}
@@ -72,7 +79,8 @@ def panel_label(ax, text, xpos=0.05, ypos=0.95, color='black', fontsize=10, insi
     ax.text(xpos, ypos, text, transform=ax.transAxes, bbox=bbox, **font_props)
 
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def fillentry(entry, content):
 
     entry['state'] = 'normal'
@@ -82,7 +90,8 @@ def fillentry(entry, content):
     if entry['state'] == 'readonly':
         entry['state'] = 'readonly'
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry=10):
 
     if not title:
@@ -94,7 +103,8 @@ def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry
         entry = Entry(frame, width=widthentry, justify='right')
         entry.grid(row=i + startcol, column=1)
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def initdisplay():
 
     if 'fig1' not in dict_plot:
@@ -158,6 +168,8 @@ def initdisplay():
 
     # plt.close(fig)
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def read_ngfit(path_cube=None, path_classified=None):
     if path_cube:
         dict_params['path_cube'] = path_cube
@@ -212,7 +224,8 @@ def read_ngfit(path_cube=None, path_classified=None):
     initdisplay()
 
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def loaddata():
 
     def browse_cube():
@@ -293,7 +306,8 @@ def loaddata():
 
     dict_plot['toplv'] = toplv
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def apply_mapselect(*args):
 
     var = var_mapselect.get()
@@ -313,10 +327,13 @@ def apply_mapselect(*args):
 
     initdisplay()
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def fix_cursor(event):
     dict_plot['fix_cursor'] = (dict_plot['fix_cursor']+1)%2
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def plot_profiles():
     n_gauss = _params['max_ngauss']
     x, y = dict_params['cursor_xy']
@@ -382,6 +399,8 @@ def plot_profiles():
     dict_plot['canvas2'].draw()
 
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def cursor_coords(event):
     if not dict_plot['fix_cursor']:
         if event.inaxes:
@@ -390,7 +409,8 @@ def cursor_coords(event):
                 dict_params['cursor_xy'] = cursor_xy
                 plot_profiles()
 
-
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def zoom(event):
     ax = dict_plot['ax1']
     canvas = dict_plot['canvas1']
@@ -409,7 +429,8 @@ def zoom(event):
     canvas.draw()
 
 
-# ---------------------------------------------------
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 # TK ROOT()
 root = Tk()
 
