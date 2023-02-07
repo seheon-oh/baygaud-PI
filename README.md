@@ -41,7 +41,7 @@
 		
 		[seheon@sejong00] deactivate
 		
-		--> Now, you enter the python3.10 virtual environment, named 'baygaud'
+		--> Now, you enter the python3.10 virtual environment, named 'baygaud_PI'
 		
 		(baygaud_PI) [seheon@sejong00]
 		
