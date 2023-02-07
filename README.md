@@ -237,6 +237,9 @@
 	
 	5. GLOBAL HI PROPERTIES OF GALAXIES VIA SUPER-PROFILE ANALYSIS (application paper)
 		Kim, M. & Oh, S. H., Oct 2022, In: Journal of the Korean Astronomical Society. 55, 5, p. 149-172 24 p.
+		
+	6. FEASTS: IGM cooling triggered by tidal interactions through the diffuse HI phase around NGC 4631, Astrophysical Journal (2023)
+		Jing Wang, Dong Yang, Se-Heon Oh, Lister Staveley-Smith, Jie Wang, Q. Daniel Wang, Kelley M. Hess, Luis C. Ho, Ligang Hou, Yingjie Jing, Peter Kamphuis, Fujia Li, Xuchen Lin, Ziming Liu, Li Shao, Shun Wang, Ming Zhu
 
 
 
