@@ -36,22 +36,22 @@ import ray
 # load baygaudpy modules
 #|-----------------------------------------|
 # _params.py
-from _baygaud_params import _params
+from src._baygaud_params import default_params, read_configfile
 global _x
 
 #|-----------------------------------------|
 # _dynesty_sampler.py
-from _dynesty_sampler import run_dynesty_sampler_uniform_priors
-from _dynesty_sampler import run_dynesty_sampler_optimal_priors
-from _dynesty_sampler import derive_rms_npoints
+from src._dynesty_sampler import run_dynesty_sampler_uniform_priors
+from src._dynesty_sampler import run_dynesty_sampler_optimal_priors
+from src._dynesty_sampler import derive_rms_npoints
 
 #|-----------------------------------------|
 # _fits_io.py
-from _fits_io import read_datacube, moment_analysis
+from src._fits_io import read_datacube, moment_analysis
 
 #|-----------------------------------------|
 # import make_dirs
-from _dirs_files import make_dirs
+from src._dirs_files import make_dirs
 
 #|-----------------------------------------|
 #|-----------------------------------------|
@@ -61,9 +61,16 @@ from _dirs_files import make_dirs
 
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
-if __name__ == "__main__":
+def main():
     # read the input datacube
     start = datetime.now()
+
+    if len(sys.argv) < 2:
+        ("WARNING: No configfile supplied, trying default values")
+        _params=default_params()
+    else:
+        configfile = sys.argv[1]
+        _params=read_configfile(configfile)
 
     _is = int(_params['naxis1_s0'])
     _ie = int(_params['naxis1_e0'])
@@ -157,4 +164,7 @@ if __name__ == "__main__":
     ray.shutdown()
     print("duration =", datetime.now() - start)
 #-- END OF SUB-ROUTINE____________________________________________________________#
+
+if __name__ == '__main__':
+    main()
 

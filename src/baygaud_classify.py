@@ -31,7 +31,7 @@ import itertools as itt
 
 #........................................ 
 # import make_dirs
-from _dirs_files import make_dirs
+from src._dirs_files import make_dirs
 
 #........................................ 
 # import for dynesty lines
@@ -52,12 +52,12 @@ import fitsio
 import astropy.units as u
 from astropy.io import fits
 from spectral_cube import SpectralCube
-from _baygaud_params import _params
+from src._baygaud_params import default_params, read_configfile
 
 
 #........................................ 
 # import _fits_io
-from _fits_io import update_header_cube_to_2d
+from src._fits_io import update_header_cube_to_2d
 
 #........................................ 
 # global parameters
@@ -419,8 +419,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
     # ----------------------------------------------------------------------------------- #
     # CHECK POINT
     # ___________________________________________________________________________________ ###
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    i1 = params['_i0']
+    j1 = params['_j0']
 
     print("sn:", sn_ng_opt_bulk[j1, i1])
     print("x:", x_ng_opt_bulk[j1, i1])
@@ -1517,8 +1517,8 @@ def extract_maps_bulk_org(_fitsarray_gfit_results2, params, _output_dir, _kin_co
 
     #i1 = 156
     #j1 = 200
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    i1 = params['_i0']
+    j1 = params['_j0']
 
     print("sn:", sn_ng_opt_bulk[j1, i1])
     print("x:", x_ng_opt_bulk[j1, i1])
@@ -1966,8 +1966,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
     # sigma-flux : alternate to rms
 
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    i1 = params['_i0']
+    j1 = params['_j0']
     print("baygaud fitting results: profile (%d, %d)" % (i1, j1))
     print(_fitsarray_gfit_results2[:, j1, i1])
     #print('%f lower:%f upper:%f' % (_fitsarray_gfit_results2[3, 1, 1], _vdisp_lower, _vdisp_upper))
@@ -2181,8 +2181,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
     #i1 = 600
     #j1 = 468
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    i1 = params['_i0']
+    j1 = params['_j0']
     #print("")
     #print("sn:", sn_ng_opt[0, j1, i1], "x:", x_ng_opt[0, j1, i1], "std:", std_ng_opt[0, j1, i1], "ng:", ng_opt[j1, i1])
     #print("sn:", sn_ng_opt[1, j1, i1], "x:", x_ng_opt[1, j1, i1], "std:", std_ng_opt[1, j1, i1], "ng:", ng_opt[j1, i1])
@@ -3004,8 +3004,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
     #i1 = 505
     #j1 = 512
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    i1 = params['_i0']
+    j1 = params['_j0']
     #print("")
     #print("sn:", sn_ng_opt[0, j1, i1], "x:", x_ng_opt[0, j1, i1], "std:", std_ng_opt[0, j1, i1], "bg:", bg_ng_opt[0, j1, i1],"ng:", ng_opt[j1, i1])
     #print("sn:", sn_ng_opt[1, j1, i1], "x:", x_ng_opt[1, j1, i1], "std:", std_ng_opt[1, j1, i1], "bg:", bg_ng_opt[1, j1, i1],"ng:", ng_opt[j1, i1])
@@ -7172,8 +7172,8 @@ def find_gx_opt_bf_snp(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, bf
             # USE THIS PRINT COMMAND TO UNDERSTAND THE N_SN_PASS STRUCTURE
             #i1 = 600
             #j1 = 468
-            i1 = _params['_i0']
-            j1 = _params['_j0']
+            #i1 = _params['_i0']
+            #j1 = _params['_j0']
             #print("N_SN_PASS COMBINATION %s" % TF_flag, "loop_index_sn_pass:", loop_index_sn_pass, "gx_sn_pass:", gx_sn_pass[loop_index_sn_pass, j1, i1], flag_string)
             # ---------------------------------------------------------------
             loop_index_sn_pass += 1
@@ -7288,8 +7288,8 @@ def find_gx_opt_bf_snp(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, bf
     # ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: #
     #i1 = 600
     #j1 = 468
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+    #i1 = _params['_i0']
+    #j1 = _params['_j0']
     #print("0:", gx_opt_bf_snp[0, j1, i1])
     #print("1:", gx_opt_bf_snp[1, j1, i1])
     #print("2:", gx_opt_bf_snp[2, j1, i1])
@@ -10161,7 +10161,7 @@ def g5_opt_bf(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, sn_pass_ng_
 
 
 
-if __name__ == "__main__":
+def main():
 
     #  _____________________________________________________________________________  #
     # [_____________________________________________________________________________] #
@@ -10172,6 +10172,12 @@ if __name__ == "__main__":
     # start time
     _time_start = datetime.now()
 
+    if len(sys.argv) < 2:
+        ("WARNING: No configfile supplied, trying default values")
+        _params=default_params()
+    else:
+        configfile = sys.argv[1]
+        _params=read_configfile(configfile)
     #  _____________________________________________________________________________  #
     # [_____________________________________________________________________________] #
     print(" ____________________________________________")
@@ -10854,5 +10860,9 @@ if __name__ == "__main__":
     print("")
 
     #-----------------------------------------#
+
+if __name__ == '__main__':
+    main()
+
 #
 #-- END OF SUB-ROUTINE____________________________________________________________#
