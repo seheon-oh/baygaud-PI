@@ -32,19 +32,13 @@
 		[seheon@sejong00] python3.10 -m venv /home/seheon/research/baygaud_PI
 		
 		--> Then, activate the virtual environment.
-		
-		
 		[seheon@sejong00] source /home/seheon/research/baygaud_PI/bin/activate.csh
 		
-		--> FYI, to deactivate, just type 'deactivate'
-		
-		
-		[seheon@sejong00] deactivate
-		
 		--> Now, you enter the python3.10 virtual environment, named 'baygaud_PI'
-		
 		(baygaud_PI) [seheon@sejong00]
 		
+		--> FYI, to deactivate, just type 'deactivate'
+		[seheon@sejong00] deactivate	
 		
 		--> Install the python3.10 packages for baygaud-PI. Note that these packages are only compatible
 		within the virtual environment that has been created. The required package list, 'requirements.txt',
