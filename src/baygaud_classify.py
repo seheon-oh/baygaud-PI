@@ -1860,8 +1860,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
     #---------------------------------------------------
     if _kin_comp == 'sgfit':
-        _vlos_lower = params['vel_min']
-        _vlos_upper = params['vel_max']
+        _vlos_lower = params['vlos_lower']
+        _vlos_upper = params['vlos_upper']
         _vdisp_lower = params['vdisp_lower']
         _vdisp_upper = params['vdisp_upper']
         print("")
@@ -1873,8 +1873,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
         print("")
     #---------------------------------------------------
     elif _kin_comp == 'psgfit':
-        _vlos_lower = params['vel_min']
-        _vlos_upper = params['vel_max']
+        _vlos_lower = params['vlos_lower']
+        _vlos_upper = params['vlos_upper']
         _vdisp_lower = params['vdisp_lower']
         _vdisp_upper = params['vdisp_upper']
         print("")
