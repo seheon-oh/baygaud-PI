@@ -42,7 +42,7 @@ global _x
 #|-----------------------------------------|
 # _dynesty_sampler.py
 from _dynesty_sampler import run_dynesty_sampler_uniform_priors
-from _dynesty_sampler import run_dynesty_sampler_optimal_priors
+from _dynesty_sampler import baygaud_nested_sampling
 from _dynesty_sampler import derive_rms_npoints
 
 #|-----------------------------------------|
@@ -62,6 +62,7 @@ from _dirs_files import make_dirs
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 def main():
+
     # read the input datacube
     start = datetime.now()
 
@@ -95,6 +96,7 @@ def main():
         _params=read_configfile(configfile)
 
 
+
     _is = int(_params['naxis1_s0'])
     _ie = int(_params['naxis1_e0'])
     _js = int(_params['naxis2_s0'])
@@ -103,16 +105,20 @@ def main():
     max_ngauss = _params['max_ngauss']
     gfit_results = np.zeros(((_je-_js), max_ngauss, 2*(2+3*max_ngauss)+7), dtype=np.float32)
 
+
     #ray.init(num_cpus=3, num_gpus=3)
     #ray.init(num_cpus=1, ignore_reinit_error=True, object_store_memory=2*10**9)
     required_num_cpus = _ie - _is
-    num_cpus = psutil.cpu_count(logical=False)
+    #ray.init(num_cpus = _params['num_cpus'], dashboard_port=8265, logging_level='DEBUG')
+    #num_cpus = psutil.cpu_count(logical=False)
     #ray.init(num_cpus=num_cpus)
-    ray.init(num_cpus = _params['num_cpus'])
+    ray.init(num_cpus = _params['num_cpus_ray'])
+
 
     #------------------------------
     # load the input datacube
     _inputDataCube, _x = read_datacube(_params) # --> _inputDataCub=
+
 
     # load cube_mask if provided
     if _params['_cube_mask'] == 'Y':
@@ -153,7 +159,7 @@ def main():
 
     #results_ids = [run_dynesty_sampler_uniform_priors.remote(_x_id, _inputDataCube_id, _is_id, _ie_id, i, _js, _je, _max_ngauss_id, _vel_min_id, _vel_max_id) for i in range(_is, _ie)]
 
-    results_ids = [run_dynesty_sampler_optimal_priors.remote(_inputDataCube_id, _x_id, \
+    results_ids = [baygaud_nested_sampling.remote(_inputDataCube_id, _x_id, \
                                                             _peak_sn_map_id, _sn_int_map_id, \
                                                             _params, \
                                                             _is_id, _ie_id, i, _js_id, _je_id, _cube_mask_2d_id) for i in range(_is, _ie)]
