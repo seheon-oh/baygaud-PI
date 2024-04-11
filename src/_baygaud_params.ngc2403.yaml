@@ -17,8 +17,8 @@
 
 #+++++++++++++++++++++++++++++++++
 # directories
-# baygaud main
 
+# baygaud main
 main_baygaud: '/Users/seheon/research/projects/baygaud/baygaud-PI/src'  # <---- UPDATE HERE
 
 # working directory where the input data cube is
@@ -156,8 +156,8 @@ vdisp_upper_hot: 999 # km/s
 
 # _______________________________________________________  #
 # 5. Check a profile <-- put a pixel coordinate (i, j) that you'd like to check
-_i0: 20 # x-pixel
-_j0: 20 # y-pixel
+# _i0: 20 # x-pixel
+# _j0: 20 # y-pixel
 
 
 #  ______________________________________________________  #
@@ -173,26 +173,29 @@ x_upperbound_gfit: 0.99
 nsigma_prior_range_gfit: 3.0 # for the N-gaussians in the N+1 gaussian fit
 # sigma
 sigma_prior_lowerbound_factor: 0.1
-sigma_prior_upperbound_factor: 5.0
+sigma_prior_upperbound_factor: 5
 # bg
 bg_prior_lowerbound_factor: 0.1
 bg_prior_upperbound_factor: 3.0
 # x
-x_prior_lowerbound_factor: 5.0 # --> X_min - lowerbound_factor * STD_max
-x_prior_upperbound_factor: 5.0 # --> X_max + upperbound_factor * STD_max
+x_prior_lowerbound_factor: 10.0 # --> X_g1fit - lowerbound_factor * STD_g1fit
+x_prior_upperbound_factor: 10.0 # --> X_g1fit + upperbound_factor * STD_g1fit
 # std
 std_prior_lowerbound_factor: 0.1
 std_prior_upperbound_factor: 5.0
 # p
-p_prior_lowerbound_factor: 0.05
-p_prior_upperbound_factor: 1.5
+p_prior_lowerbound_factor: 0.1
+p_prior_upperbound_factor: 1.0
+
 
 #  ______________________________________________________  #
 # [______________________________________________________] #
+
 # parallellisation parameters
 ncolm_per_core: ''
 nsegments_nax2: ''
-num_cpus: 32  # <---- UPDATE HERE
+num_cpus_ray: 2  # <---- UPDATE HERE
+num_cpus_nested_sampling: 4  # <---- UPDATE HERE
 
 #-- END OF SUB-ROUTINE____________________________________#
 
