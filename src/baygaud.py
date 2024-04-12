@@ -3,9 +3,8 @@
 
 #|-----------------------------------------|
 #| baygaud.py
-#| v1.1
-#| Apr 11 2024
 #|-----------------------------------------|
+#| v.1.1
 #| by Se-Heon Oh
 #| Dept. of Physics and Astronomy
 #| Sejong University, Seoul, South Korea
@@ -24,6 +23,7 @@ from multiprocessing import cpu_count
 
 import fitsio
 
+os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 
 from _baygaud_params import default_params, read_configfile
@@ -84,6 +84,7 @@ def main():
 
 
     required_num_cpus = _ie - _is
+
     ray.init(num_cpus = _params['num_cpus_ray'])
 
 

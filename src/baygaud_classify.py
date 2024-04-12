@@ -9,7 +9,6 @@
 #| Sejong University, Seoul, South Korea
 #|-----------------------------------------|
 
-
 from __future__ import division, print_function
 from re import A, I, L
 from six.moves import range
@@ -1120,8 +1119,6 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
     i1 = params['_i0']
     j1 = params['_j0']
-    print("baygaud fitting results: profile (%d, %d)" % (i1, j1))
-    print(_fitsarray_gfit_results2[:, j1, i1])
 
     nparams_step = 2*(3*max_ngauss+2) + (max_ngauss + 7)
 
@@ -6486,9 +6483,6 @@ def main():
     _list_segs_bf.sort(key = lambda x: x.split('.x')[1], reverse=False) # reverse with x pixels
     
 
-    print(_list_segs_bf)
-    print()
-    print()
 
     nparams = 2*(3*max_ngauss+2) + max_ngauss + 7
     gfit_results = np.full((naxis1, naxis2, max_ngauss, nparams), fill_value=-1E9, dtype=float)
@@ -6596,13 +6590,6 @@ def main():
     print("[--> check _fitsarray_gfit_results2 for (x:%d, y:%d)...]" % (i1, j1))
     print("")
     print("")
-    print("_"*50)
-    print("_"*50)
-    print(i1, j1)
-    print("_"*50)
-    print(_fitsarray_gfit_results2[:, j1, i1])
-    print("")
-    print("")
 
     print(" ____________________________________________")
     print("[____________________________________________]")
@@ -6628,14 +6615,7 @@ def main():
     print("[--> check sn_ng_opt_slice ...]")
     print("")
     print("")
-    i1 = _params['_i0']
-    j1 = _params['_j0']
 
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-            print(sn_ng_opt_slice[j, i, j1, i1])
-        print("")
-    print("")
 
     print(" ____________________________________________")
     print("[____________________________________________]")

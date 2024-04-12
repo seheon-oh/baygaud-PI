@@ -35,14 +35,10 @@ colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:y
         'tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan']
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def gauss_model(x, amp, vel, disp):
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=12):
 
     ax = img.axes
@@ -69,8 +65,6 @@ def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right'
 
     return cbar, cax
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def panel_label(ax, text, xpos=0.05, ypos=0.95, color='black', fontsize=10, inside_box=False, pad=5.0):
 
     font_props = {'fontsize': fontsize, 'color': color, 'verticalalignment': 'top'}
@@ -78,8 +72,6 @@ def panel_label(ax, text, xpos=0.05, ypos=0.95, color='black', fontsize=10, insi
     ax.text(xpos, ypos, text, transform=ax.transAxes, bbox=bbox, **font_props)
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def fillentry(entry, content):
 
     entry['state'] = 'normal'
@@ -89,8 +81,6 @@ def fillentry(entry, content):
     if entry['state'] == 'readonly':
         entry['state'] = 'readonly'
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry=10):
 
     if not title:
@@ -102,8 +92,6 @@ def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry
         entry = Entry(frame, width=widthentry, justify='right')
         entry.grid(row=i + startcol, column=1)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def initdisplay():
 
     if 'fig1' not in dict_plot:
@@ -208,7 +196,6 @@ def initdisplay():
     fillentry(entry_climhi, clim[1])
 
     dict_plot['ax1'].invert_yaxis()
-    #_,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, ticks=[0,1,2,3,4,5])
     _,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar)
 
     dict_plot['canvas1'].draw()
@@ -216,15 +203,10 @@ def initdisplay():
     dict_plot['ax2'].clear()
     dict_plot['ax3'].clear()
     
-    # dict_plot['ax2'].plot(dict_data['spectral_axis'], np.zeros_like(dict_data['spectral_axis']))
-    # dict_plot['ax3'].plot(dict_data['spectral_axis'], np.zeros_like(dict_data['spectral_axis']))
 
     dict_plot['canvas2'].draw()
 
-    # plt.close(fig)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def read_ngfit(path_cube=None, path_classified=None):
     if path_cube:
         dict_params['path_cube'] = path_cube
@@ -265,8 +247,6 @@ def read_ngfit(path_cube=None, path_classified=None):
         ngfit_rms[i]  = fits.getdata(ngfit_rms_slice)
         ngfit_sn[i]  = fits.getdata(ngfit_sn_slice)
 
-        #print(ngfit_rms[i][24,38])
-        #sys.exit()
 
     del data_noise
 
@@ -280,8 +260,6 @@ def read_ngfit(path_cube=None, path_classified=None):
     initdisplay()
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def loaddata():
 
     def browse_cube():
@@ -296,7 +274,6 @@ def loaddata():
         
         fillentry(entry_path_cube, path_cube)
 
-        #possible_path_classified = glob.glob(os.path.dirname(path_cube)+'/baygaud_output*/output_merged/classified*')
         possible_path_classified = glob.glob(os.path.dirname(path_cube) + '/' + _params['_combdir'] + '.%d' % _classified_index)
         if(len(possible_path_classified)==1):
             browse_classified(possible_path_classified[0])
@@ -308,7 +285,6 @@ def loaddata():
             path_classified = filedialog.askdirectory(title='Path to classified directory', initialdir=initialdir)
             if(len(path_classified)==0): return
 
-        #ifexists = os.path.exists(path_classified+"/single_gfit")
         ifexists = os.path.exists(path_classified)
 
         if(ifexists==False):
@@ -361,13 +337,10 @@ def loaddata():
 
     dict_plot['toplv'] = toplv
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def apply_mapselect(*args):
 
     var = var_mapselect.get()
     n_gauss = _params['max_ngauss']
-    # ['Integrated flux', 'SGfit velocity', 'SGfit vdisp', 'Ngauss', 'SGfit Peak S/N']
 
     if(var=='Integrated flux'):
         dict_params['path_fig1'] = dict_params['path_classified']+'/sgfit/sgfit.G%d_1.0.fits' % n_gauss
@@ -383,8 +356,6 @@ def apply_mapselect(*args):
     initdisplay()
     
     
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def apply_clim(*args):
 
     climlo = float(var_climlo.get())
@@ -396,24 +367,16 @@ def apply_clim(*args):
 
     initdisplay()
     
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def callback_entry_climlo_clicked(*args):
     entry_climlo.selection_range(0, END)
     
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def callback_entry_climhi_clicked(*args):
     entry_climhi.selection_range(0, END)
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def fix_cursor(event):
     dict_plot['fix_cursor'] = (dict_plot['fix_cursor']+1)%2
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def plot_profiles():
     try:
         n_gauss = _params['max_ngauss']
@@ -481,8 +444,6 @@ def plot_profiles():
         pass
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def cursor_coords(event):
     if not dict_plot['fix_cursor']:
         if event.inaxes:
@@ -491,8 +452,6 @@ def cursor_coords(event):
                 dict_params['cursor_xy'] = cursor_xy
                 plot_profiles()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def zoom(event):
     ax = dict_plot['ax1']
     canvas = dict_plot['canvas1']
@@ -511,9 +470,6 @@ def zoom(event):
     canvas.draw()
 
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
-# TK ROOT()
 root = Tk()
 
 root.title(title)
@@ -617,5 +573,4 @@ read_ngfit(path_cube=_path_cube, path_classified=_path_classified)
 root.mainloop()
 
 
-#-- END OF SUB-ROUTINE____________________________________________________________#
 
