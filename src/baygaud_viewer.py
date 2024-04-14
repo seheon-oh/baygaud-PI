@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-   
+# -*- coding: utf-8 -*-
 
 #|-----------------------------------------|
 #| baygaud_viewer.py
@@ -20,7 +20,7 @@ import numpy as np
 from astropy.io import fits
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from spectral_cube import SpectralCube
-from _baygaud_params import default_params, read_configfile
+from _baygaud_params import read_configfile
 
 title = 'baygaud-PI viewer'
 

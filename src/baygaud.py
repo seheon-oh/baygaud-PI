@@ -4,7 +4,7 @@
 #|-----------------------------------------|
 #| baygaud.py
 #|-----------------------------------------|
-#| v.1.1
+#| v1.1
 #| by Se-Heon Oh
 #| Dept. of Physics and Astronomy
 #| Sejong University, Seoul, South Korea
@@ -26,11 +26,10 @@ import fitsio
 os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 
-from _baygaud_params import default_params, read_configfile
+from _baygaud_params import read_configfile
 global _x
 
-from _dynesty_sampler import run_dynesty_sampler_uniform_priors
-from _dynesty_sampler import baygaud_nested_sampling
+from _dynesty_sampler import dynamic_baygaud_nested_sampling
 from _dynesty_sampler import derive_rms_npoints
 
 from _fits_io import read_datacube, moment_analysis
@@ -43,36 +42,39 @@ def main():
 
     start = datetime.now()
 
+    if len(sys.argv) == 2:
 
-    if len(sys.argv) == 1:
-        ("WARNING: No configfile supplied, trying default values")
-        print(91*"-")
-        print(" usage-2: running baygaud.py with the DEFAULT baygaud_params file")
-        print("        : the DEFAULT baygaud_params file: _baygaud_params.py")
-        print(" e.g.,")
-        print(" > python3 baygaud.py")
-        print(91*"_")
-        print("")
-        print("")
-        _params=default_params()
-
-    elif len(sys.argv) == 2:
-        print("")
-        print(91*"_")
-        print(91*"")
-        print(" :: baygaud.py usage ::")
-        print(91*"")
-        print(" usage-1: running baygaud.py with baygaud_params file")
-        print(" > python3 baygaud.py [ARG1: _baygaud_params.txt]")
-        print(" e.g.,")
-        print(" > python3 baygaud.py _baygaud_params.ngc2403.txt")
-        print("")
-        print("")
+        if not os.path.exists(sys.argv[1]):
+            print("")
+            print(" ____________________________________________")
+            print("[____________________________________________]")
+            print("")
+            print(" :: WARNING: No ' %s ' exist.." % sys.argv[1])
+            print("")
+            print("")
+            sys.exit()
 
         configfile = sys.argv[1]
         _params=read_configfile(configfile)
+        print("")
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("")
+        print(" :: Running baygaud.py with %s ::" % configfile)
+        print("")
 
-
+    else:
+        print("")
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("")
+        print(" :: Usage: running baygaud.py with baygaud_params file")
+        print(" :: > python3 baygaud.py [ARG1: _baygaud_params.yaml]")
+        print(" :: e.g.,")
+        print(" :: > python3 baygaud.py _baygaud_params.ngc2403.yaml")
+        print("")
+        print("")
+        sys.exit()
 
     _is = int(_params['naxis1_s0'])
     _ie = int(_params['naxis1_e0'])
@@ -85,8 +87,20 @@ def main():
 
     required_num_cpus = _ie - _is
 
-    ray.init(num_cpus = _params['num_cpus_ray'])
+    num_cpus_ray = int(_params['num_cpus_ray'])
+    num_cpus_nested_sampling = int(_params['num_cpus_nested_sampling'])
+    num_cpus_total = num_cpus_ray * num_cpus_nested_sampling
 
+
+    print(" ____________________________________________")
+    print("[____________________________________________]")
+    print("")
+    print(" :: Running baygaud.py with %4d cores in total   ::" % num_cpus_total)
+    print(" ::                       : %4d cores (rays)     ::" % num_cpus_ray)
+    print(" ::                       : %4d cores (sampling) ::" % num_cpus_nested_sampling)
+    print("")
+
+    ray.init(num_cpus = num_cpus_total)
 
     _inputDataCube, _x = read_datacube(_params) # --> _inputDataCub=
 
@@ -116,15 +130,13 @@ def main():
 
     _nparams = 3*max_ngauss + 2
 
-
-
+    baygaud_nested_sampling = dynamic_baygaud_nested_sampling(num_cpus_nested_sampling)
     results_ids = [baygaud_nested_sampling.remote(_inputDataCube_id, _x_id, \
                                                             _peak_sn_map_id, _sn_int_map_id, \
                                                             _params, \
                                                             _is_id, _ie_id, i, _js_id, _je_id, _cube_mask_2d_id) for i in range(_is, _ie)]
 
     while len(results_ids):
-        time.sleep(0.1)
         done_ids, results_ids = ray.wait(results_ids)
         if done_ids:
             _xs = int(ray.get(done_ids)[0][0][max_ngauss-1][2*_nparams+max_ngauss+1])

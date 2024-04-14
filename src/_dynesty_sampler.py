@@ -6,7 +6,7 @@
 #|-----------------------------------------|
 #|
 #| version history
-#| v1.1 (2024 Apr 11)
+#| v1.1 (2024 Apr 14)
 #|
 #|-----------------------------------------|
 #| by Se-Heon Oh
@@ -34,6 +34,18 @@ from dynesty import utils as dyfunc
 import gc
 import ray
 import multiprocessing as mp
+
+import argparse
+from _baygaud_params import read_configfile
+
+
+
+
+
+
+
+
+
 
 def derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, ngauss):
 
@@ -169,287 +181,300 @@ def little_derive_rms_npoints(_inputDataCube, i, j, _x, _f_min, _f_max, ngauss, 
 
 
 
-@ray.remote(num_cpus=1)
-def baygaud_nested_sampling(_inputDataCube, _x, _peak_sn_map, _sn_int_map, _params, _is, _ie, i, _js, _je, _cube_mask_2d):
 
-    _max_ngauss = _params['max_ngauss']
-    _vel_min = _params['vel_min']
-    _vel_max = _params['vel_max']
-    _cdelt3 = _params['cdelt3']
+def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
 
-    gfit_results = np.zeros(((_je-_js), _max_ngauss, 2*(2+3*_max_ngauss) + 7 + _max_ngauss), dtype=np.float32)
+    @ray.remote(num_cpus=num_cpus_nested_sampling)
+    def baygaud_nested_sampling(_inputDataCube, _x, _peak_sn_map, _sn_int_map, _params, _is, _ie, i, _js, _je, _cube_mask_2d):
 
-    nparams_g1 = 3*1 + 2
-    gfit_priors_init_g1 = np.zeros(nparams_g1, dtype=np.float32)
+        _max_ngauss = _params['max_ngauss']
+        _vel_min = _params['vel_min']
+        _vel_max = _params['vel_max']
+        _cdelt3 = _params['cdelt3']
 
+        gfit_results = np.zeros(((_je-_js), _max_ngauss, 2*(2+3*_max_ngauss) + 7 + _max_ngauss), dtype=np.float32)
 
-
-
-    for j in range(0, _je -_js):
-
-        _f_max = np.max(_inputDataCube[:,j+_js,i]) # peak flux : being used for normalization
-        _f_min = np.min(_inputDataCube[:,j+_js,i]) # lowest flux : being used for normalization
-
-        gfit_priors_init = np.zeros(2*5, dtype=np.float32)
-
-
-
-        gfit_priors_init = [0.0, 0.0, \
-                            0.001, 0.001, 0.001, \
-                            0.9, 0.6, \
-                            0.999, 0.999, 1.0]
-
-        if _cube_mask_2d[j+_js, i] <= 0 : # if masked, then skip : NOTE THE MASK VALUE SHOULD BE zero or negative.
-            print("mask filtered: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
-                % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
-
-
-            for l in range(0, _max_ngauss):
-                gfit_results[j][l][2*(3*_max_ngauss+2)+l] = _params['_rms_med'] # rms: the one derived from derive_rms_npoints_sgfit
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+0] = -1E11 # this is for sgfit: log-Z
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+3] = _js
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+4] = _je
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+5] = i
-                gfit_results[j][l][2*(3*_max_ngauss+2)+_max_ngauss+6] = j + _js
-            continue
-
-        elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peak_sn_map[j+_js, i] < _params['peak_sn_limit'] \
-            or np.isnan(_f_max) or np.isnan(_f_min) \
-            or np.isinf(_f_min) or np.isinf(_f_min):
-
-            print("low S/N: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
-                % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
-            
-
-            l_range = np.arange(_max_ngauss)
-
-            gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = _params['_rms_med']
-
-            constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
-
-            gfit_results[j, l_range[:, np.newaxis], constant_indices] = np.array([
-                -1E11,       # for sgfit: log-Z
-                _is,         # start index
-                _ie,         # end index
-                _js,         # start index in j
-                _je,         # end index in j
-                i,           # current i index
-                j + _js      # adjusted j index
-            ])[np.newaxis, :]
-            continue
+        nparams_g1 = 3*1 + 2
+        gfit_priors_init_g1 = np.zeros(nparams_g1, dtype=np.float32)
 
 
 
 
-        for k in range(0, _max_ngauss):
-            ngauss = k+1  # set the number of gaussian
-            ndim = 3*ngauss + 2
-            nparams = ndim
+        for j in range(0, _je -_js):
 
-            if(ndim * (ndim + 1) // 2 > _params['nlive']):
-                _params['nlive'] = 1 + ndim * (ndim + 1) // 2 # optimal minimum nlive
+            _f_max = np.max(_inputDataCube[:,j+_js,i]) # peak flux : being used for normalization
+            _f_min = np.min(_inputDataCube[:,j+_js,i]) # lowest flux : being used for normalization
 
-            print("processing: %d %d | peak s/n: %.1f | integrated s/n: %.1f | gauss-%d" % (i, j+_js, _peak_sn_map[j+_js, i], _sn_int_map[j+_js, i], ngauss))
+            gfit_priors_init = np.zeros(2*5, dtype=np.float32)
 
 
 
+            gfit_priors_init = [0.0, 0.0, \
+                                0.001, 0.001, 0.001, \
+                                0.9, 0.6, \
+                                0.999, 0.999, 1.0]
 
-            if _params['_dynesty_class_'] == 'static':
-                _queue_size = int(_params['num_cpus_nested_sampling'])
-                rstate = np.random.default_rng(2)
+            if _cube_mask_2d[j+_js, i] <= 0 : # if masked, then skip : NOTE THE MASK VALUE SHOULD BE zero or negative.
+                print("mask filtered: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
+                    % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
 
-                with mp.Pool(_queue_size) as pool:
-                    sampler = NestedSampler(loglike_d, optimal_prior, ndim,
+
+                l_range = np.arange(_max_ngauss)
+
+                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = _params['_rms_med']
+
+                constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
+
+                gfit_results[j, l_range[:, np.newaxis], constant_indices] = np.array([
+                    -1E11,       # for sgfit: log-Z
+                    _is,         # start index
+                    _ie,         # end index
+                    _js,         # start index in j
+                    _je,         # end index in j
+                    i,           # current i index
+                    j + _js      # adjusted j index
+                ])[np.newaxis, :]
+                continue
+
+
+            elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peak_sn_map[j+_js, i] < _params['peak_sn_limit'] \
+                or np.isnan(_f_max) or np.isnan(_f_min) \
+                or np.isinf(_f_min) or np.isinf(_f_min):
+
+                print("low S/N: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
+                    % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
+                
+
+                l_range = np.arange(_max_ngauss)
+
+                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = _params['_rms_med']
+
+                constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
+
+                gfit_results[j, l_range[:, np.newaxis], constant_indices] = np.array([
+                    -1E11,       # for sgfit: log-Z
+                    _is,         # start index
+                    _ie,         # end index
+                    _js,         # start index in j
+                    _je,         # end index in j
+                    i,           # current i index
+                    j + _js      # adjusted j index
+                ])[np.newaxis, :]
+                continue
+
+
+
+
+            for k in range(0, _max_ngauss):
+                ngauss = k+1  # set the number of gaussian
+                ndim = 3*ngauss + 2
+                nparams = ndim
+
+                if(ndim * (ndim + 1) // 2 > _params['nlive']):
+                    _params['nlive'] = 1 + ndim * (ndim + 1) // 2 # optimal minimum nlive
+
+                print("processing: %d %d | peak s/n: %.1f | integrated s/n: %.1f | gauss-%d" % (i, j+_js, _peak_sn_map[j+_js, i], _sn_int_map[j+_js, i], ngauss))
+
+
+
+
+                if _params['_dynesty_class_'] == 'static':
+                    _queue_size = int(_params['num_cpus_nested_sampling'])
+                    rstate = np.random.default_rng(2)
+
+                    with mp.Pool(_queue_size) as pool:
+                        sampler = NestedSampler(loglike_d, optimal_prior, ndim,
+                            nlive=_params['nlive'],
+                            update_interval=_params['update_interval'],
+                            sample=_params['sample'],
+                            pool=pool,
+                            queue_size=_queue_size,
+                            rstate=rstate,
+                            first_update={
+                                'min_eff': 10,
+                                'min_ncall': 200},
+                            bound=_params['bound'],
+                            facc=_params['facc'],
+                            fmove=_params['fmove'],
+                            max_move=_params['max_move'],
+                            logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
+
+                        sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
+
+
+                elif _params['_dynesty_class_'] == 'dynamic':
+                    _queue_size = int(_params['num_cpus_nested_sampling'])
+                    rstate = np.random.default_rng(2)
+                    sampler = DynamicNestedSampler(loglike_d, optimal_prior, ndim,
                         nlive=_params['nlive'],
-                        update_interval=_params['update_interval'],
+                        rstate=rstate,
                         sample=_params['sample'],
                         pool=pool,
                         queue_size=_queue_size,
-                        rstate=rstate,
-                        first_update={
-                            'min_eff': 10,
-                            'min_ncall': 200},
                         bound=_params['bound'],
                         facc=_params['facc'],
                         fmove=_params['fmove'],
                         max_move=_params['max_move'],
                         logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                    sampler.run_nested(dlogz_init=_params['dlogz'], maxiter_init=_params['maxiter'], maxcall_init=_params['maxcall'], print_progress=False)
 
-                    sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
+                _gfit_results_temp, _logz = get_dynesty_sampler_results(sampler)
 
+                gfit_results[j][k][:2*nparams] = _gfit_results_temp
 
-            elif _params['_dynesty_class_'] == 'dynamic':
-                sampler = DynamicNestedSampler(loglike_d, optimal_prior, ndim,
-                    nlive=_params['nlive'],
-                    rstate=rstate,
-                    sample=_params['sample'],
-                    pool=pool,
-                    queue_size=_queue_size,
-                    bound=_params['bound'],
-                    facc=_params['facc'],
-                    fmove=_params['fmove'],
-                    max_move=_params['max_move'],
-                    logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
-                sampler.run_nested(dlogz_init=_params['dlogz'], maxiter_init=_params['maxiter'], maxcall_init=_params['maxcall'], print_progress=False)
+                _rms_ngfit = little_derive_rms_npoints(_inputDataCube, i, j+_js, _x, _f_min, _f_max, ngauss, _gfit_results_temp)
 
-            _gfit_results_temp, _logz = get_dynesty_sampler_results(sampler)
+                if ngauss == 1: # check the peak s/n
 
-            gfit_results[j][k][:2*nparams] = _gfit_results_temp
 
-            _rms_ngfit = little_derive_rms_npoints(_inputDataCube, i, j+_js, _x, _f_min, _f_max, ngauss, _gfit_results_temp)
 
-            if ngauss == 1: # check the peak s/n
 
 
+                    gfit_priors_init_g1 = _gfit_results_temp[:nparams_g1]
 
 
 
-                gfit_priors_init_g1 = _gfit_results_temp[:nparams_g1]
+                    _bg_sgfit = _gfit_results_temp[1]
+                    _p_sgfit = _gfit_results_temp[4] # bg already subtracted
+                    _peak_sn_sgfit = _p_sgfit/_rms_ngfit
 
+                    if _peak_sn_sgfit < _params['peak_sn_limit']: 
+                        print("skip the rest of Gaussian fits: %d %d | rms:%.5f | bg:%.5f | peak:%.5f | peak_sgfit s/n: %.3f < %.3f" % (i, j+_js, _rms_ngfit, _bg_sgfit, _p_sgfit, _peak_sn_sgfit, _params['peak_sn_limit']))
 
+                        l_indices = np.arange(_max_ngauss)
 
-                _bg_sgfit = _gfit_results_temp[1]
-                _p_sgfit = _gfit_results_temp[4] # bg already subtracted
-                _peak_sn_sgfit = _p_sgfit/_rms_ngfit
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 1] = _is
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 2] = _ie
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 3] = _js
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 4] = _je
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 5] = i
+                        gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 6] = _js + j
 
-                if _peak_sn_sgfit < _params['peak_sn_limit']: 
-                    print("skip the rest of Gaussian fits: %d %d | rms:%.5f | bg:%.5f | peak:%.5f | peak_sgfit s/n: %.3f < %.3f" % (i, j+_js, _rms_ngfit, _bg_sgfit, _p_sgfit, _peak_sn_sgfit, _params['peak_sn_limit']))
+                        gfit_results[j, 0, 2 * (3 * _max_ngauss + 2)] = _rms_ngfit
+                        gfit_results[j, 0, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = _logz
 
-                    l_indices = np.arange(_max_ngauss)
+                        gfit_results[j, 1:, 2 * (3 * _max_ngauss + 2) + l_indices[1:]] = 0  # Adjust for proper indexing
+                        gfit_results[j, 1:, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = -1E11
 
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 1] = _is
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 2] = _ie
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 3] = _js
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 4] = _je
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 5] = i
-                    gfit_results[j, l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 6] = _js + j
 
-                    gfit_results[j, 0, 2 * (3 * _max_ngauss + 2)] = _rms_ngfit
-                    gfit_results[j, 0, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = _logz
 
-                    gfit_results[j, 1:, 2 * (3 * _max_ngauss + 2) + l_indices[1:]] = 0  # Adjust for proper indexing
-                    gfit_results[j, 1:, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = -1E11
 
 
 
+                        gfit_results[j, k, 0] *= (_f_max - _f_min)  # sigma-flux to data cube units
+                        gfit_results[j, k, 1] = gfit_results[j, k, 1] * (_f_max - _f_min) + _f_min  # background to data cube units
+                        gfit_results[j, k, 6 + 3*k] *= (_f_max - _f_min)  # background error to data cube units
 
+                        m_indices = np.arange(k+1)
 
+                        velocity_indices = 2 + 3*m_indices
+                        velocity_dispersion_indices = 3 + 3*m_indices
+                        peak_flux_indices = 4 + 3*m_indices
+                        velocity_e_indices = 7 + 3*(m_indices+k)
+                        velocity_dispersion_e_indices = 8 + 3*(m_indices+k)
+                        flux_e_indices = 9 + 3*(m_indices+k)
 
-                    gfit_results[j, k, 0] *= (_f_max - _f_min)  # sigma-flux to data cube units
-                    gfit_results[j, k, 1] = gfit_results[j, k, 1] * (_f_max - _f_min) + _f_min  # background to data cube units
-                    gfit_results[j, k, 6 + 3*k] *= (_f_max - _f_min)  # background error to data cube units
+                        if _cdelt3 > 0:
+                            gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_max - _vel_min) + _vel_min
+                        else:
+                            gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_min - _vel_max) + _vel_max
 
-                    m_indices = np.arange(k+1)
+                        gfit_results[j, k, velocity_dispersion_indices] *= (_vel_max - _vel_min)
+                        gfit_results[j, k, peak_flux_indices] *= (_f_max - _f_min)
 
-                    velocity_indices = 2 + 3*m_indices
-                    velocity_dispersion_indices = 3 + 3*m_indices
-                    peak_flux_indices = 4 + 3*m_indices
-                    velocity_e_indices = 7 + 3*(m_indices+k)
-                    velocity_dispersion_e_indices = 8 + 3*(m_indices+k)
-                    flux_e_indices = 9 + 3*(m_indices+k)
+                        gfit_results[j, k, velocity_e_indices] *= (_vel_max - _vel_min)
+                        gfit_results[j, k, velocity_dispersion_e_indices] *= (_vel_max - _vel_min)
+                        gfit_results[j, k, flux_e_indices] *= (_f_max - _f_min)
 
-                    if _cdelt3 > 0:
-                        gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_max - _vel_min) + _vel_min
-                    else:
-                        gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_min - _vel_max) + _vel_max
+                        gfit_results[j, k, 2*(3*_max_ngauss+2)+k] *= (_f_max - _f_min)
 
-                    gfit_results[j, k, velocity_dispersion_indices] *= (_vel_max - _vel_min)
-                    gfit_results[j, k, peak_flux_indices] *= (_f_max - _f_min)
+                        break
 
-                    gfit_results[j, k, velocity_e_indices] *= (_vel_max - _vel_min)
-                    gfit_results[j, k, velocity_dispersion_e_indices] *= (_vel_max - _vel_min)
-                    gfit_results[j, k, flux_e_indices] *= (_f_max - _f_min)
 
-                    gfit_results[j, k, 2*(3*_max_ngauss+2)+k] *= (_f_max - _f_min)
 
-                    break
 
 
+                if ngauss < _max_ngauss: # update gfit_priors_init with the g1fit results for the rest of the gaussians of the current profile
+                    nparams_n = 3*(ngauss+1) + 2 # <-- ( + 1)
+                    gfit_priors_init = np.zeros(2*nparams_n, dtype=np.float32)
 
+                    g1fit_x = gfit_priors_init_g1[2]
+                    g1fit_std = gfit_priors_init_g1[3]
+                    g1fit_p = gfit_priors_init_g1[4]
 
+                    gfit_priors_init[:nparams_n] = 0.001
 
-            if ngauss < _max_ngauss: # update gfit_priors_init with the g1fit results for the rest of the gaussians of the current profile
-                nparams_n = 3*(ngauss+1) + 2 # <-- ( + 1)
-                gfit_priors_init = np.zeros(2*nparams_n, dtype=np.float32)
+                    gfit_priors_init[2:nparams_n:3] = g1fit_x - g1fit_std * _params['x_prior_lowerbound_factor']
+                    gfit_priors_init[3:nparams_n:3] = _params['std_prior_lowerbound_factor'] * g1fit_std
+                    gfit_priors_init[3:nparams_n:3] = np.where( (gfit_priors_init[3:nparams_n:3]*(_vel_max - _vel_min) < (_cdelt3/1000.)), (_cdelt3/1000.)/(_vel_max - _vel_min), gfit_priors_init[3:nparams_n:3])
+                    gfit_priors_init[4:nparams_n:3] = _params['p_prior_lowerbound_factor'] * g1fit_p
 
-                g1fit_x = gfit_priors_init_g1[2]
-                g1fit_std = gfit_priors_init_g1[3]
-                g1fit_p = gfit_priors_init_g1[4]
 
-                gfit_priors_init[:nparams_n] = 0.001
+                    gfit_priors_init[nparams_n:2*nparams_n] = 0.999
 
-                gfit_priors_init[2:nparams_n:3] = g1fit_x - g1fit_std * _params['x_prior_lowerbound_factor']
-                gfit_priors_init[3:nparams_n:3] = _params['std_prior_lowerbound_factor'] * g1fit_std
-                gfit_priors_init[3:nparams_n:3] = np.where( (gfit_priors_init[3:nparams_n:3]*(_vel_max - _vel_min) < (_cdelt3/1000.)), (_cdelt3/1000.)/(_vel_max - _vel_min), gfit_priors_init[3:nparams_n:3])
-                gfit_priors_init[4:nparams_n:3] = _params['p_prior_lowerbound_factor'] * g1fit_p
+                    gfit_priors_init[nparams_n+2:2*nparams_n:3] = g1fit_x + g1fit_std * _params['x_prior_upperbound_factor']
+                    gfit_priors_init[nparams_n+3:2*nparams_n:3] = _params['std_prior_upperbound_factor'] * g1fit_std
+                    gfit_priors_init[nparams_n+4:2*nparams_n:3] = _params['p_prior_upperbound_factor'] * g1fit_p
 
+                    gfit_priors_init = np.where(gfit_priors_init<0, 0, gfit_priors_init)
+                    gfit_priors_init = np.where(gfit_priors_init>1, 1, gfit_priors_init)
 
-                gfit_priors_init[nparams_n:2*nparams_n] = 0.999
 
-                gfit_priors_init[nparams_n+2:2*nparams_n:3] = g1fit_x + g1fit_std * _params['x_prior_upperbound_factor']
-                gfit_priors_init[nparams_n+3:2*nparams_n:3] = _params['std_prior_upperbound_factor'] * g1fit_std
-                gfit_priors_init[nparams_n+4:2*nparams_n:3] = _params['p_prior_upperbound_factor'] * g1fit_p
 
-                gfit_priors_init = np.where(gfit_priors_init<0, 0, gfit_priors_init)
-                gfit_priors_init = np.where(gfit_priors_init>1, 1, gfit_priors_init)
 
 
 
+                gfit_results[j][k][2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+0] = _logz
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+3] = _js
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+4] = _je
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+5] = i
+                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+6] = _js + j
 
 
 
-            gfit_results[j][k][2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+0] = _logz
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+3] = _js
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+4] = _je
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+5] = i
-            gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+6] = _js + j
 
 
 
 
 
 
+                gfit_results[j][k][0] = gfit_results[j][k][0]*(_f_max - _f_min) # sigma-flux
+                gfit_results[j][k][1] = gfit_results[j][k][1]*(_f_max - _f_min) + _f_min # bg-flux
+                gfit_results[j][k][6 + 3*k] = gfit_results[j][k][6 + 3*k]*(_f_max - _f_min) # bg-flux-e
+                _bg_flux = gfit_results[j][k][1]
 
+                velocity_indices = 2 + 3*np.arange(k+1)
+                velocity_dispersion_indices = 3 + 3*np.arange(k+1)
+                peak_flux_indices = 4 + 3*np.arange(k+1)
 
+                velocity_errors_indices = 7 + 3*np.arange(k+1) + 3*k  # Adjusted for the layout of your results array
+                velocity_dispersion_errors_indices = 8 + 3*np.arange(k+1) + 3*k
+                flux_errors_indices = 9 + 3*np.arange(k+1) + 3*k
 
-            gfit_results[j][k][0] = gfit_results[j][k][0]*(_f_max - _f_min) # sigma-flux
-            gfit_results[j][k][1] = gfit_results[j][k][1]*(_f_max - _f_min) + _f_min # bg-flux
-            gfit_results[j][k][6 + 3*k] = gfit_results[j][k][6 + 3*k]*(_f_max - _f_min) # bg-flux-e
-            _bg_flux = gfit_results[j][k][1]
+                if _cdelt3 > 0:  # Velocity axis with increasing order
+                    gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_max - _vel_min) + _vel_min
+                else:  # Velocity axis with decreasing order
+                    gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_min - _vel_max) + _vel_max
 
-            velocity_indices = 2 + 3*np.arange(k+1)
-            velocity_dispersion_indices = 3 + 3*np.arange(k+1)
-            peak_flux_indices = 4 + 3*np.arange(k+1)
+                gfit_results[j, k, velocity_dispersion_indices] *= (_vel_max - _vel_min)
 
-            velocity_errors_indices = 7 + 3*np.arange(k+1) + 3*k  # Adjusted for the layout of your results array
-            velocity_dispersion_errors_indices = 8 + 3*np.arange(k+1) + 3*k
-            flux_errors_indices = 9 + 3*np.arange(k+1) + 3*k
+                gfit_results[j, k, peak_flux_indices] *= (_f_max - _f_min)
+                gfit_results[j, k, velocity_errors_indices] *= (_vel_max - _vel_min)
+                gfit_results[j, k, velocity_dispersion_errors_indices] *= (_vel_max - _vel_min)
+                gfit_results[j, k, flux_errors_indices] *= (_f_max - _f_min)
 
-            if _cdelt3 > 0:  # Velocity axis with increasing order
-                gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_max - _vel_min) + _vel_min
-            else:  # Velocity axis with decreasing order
-                gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_min - _vel_max) + _vel_max
+                gfit_results[j, k, 2*(3*_max_ngauss+2) + k] *= (_f_max - _f_min)
 
-            gfit_results[j, k, velocity_dispersion_indices] *= (_vel_max - _vel_min)
 
-            gfit_results[j, k, peak_flux_indices] *= (_f_max - _f_min)
-            gfit_results[j, k, velocity_errors_indices] *= (_vel_max - _vel_min)
-            gfit_results[j, k, velocity_dispersion_errors_indices] *= (_vel_max - _vel_min)
-            gfit_results[j, k, flux_errors_indices] *= (_f_max - _f_min)
 
-            gfit_results[j, k, 2*(3*_max_ngauss+2) + k] *= (_f_max - _f_min)
 
 
 
-
-
-
-    return gfit_results
+        return gfit_results
+    return baygaud_nested_sampling
 
     
     
