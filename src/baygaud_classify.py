@@ -1989,7 +1989,7 @@ def extract_maps_old(_fitsarray_gfit_results2, peak_sn_limit, params, ngauss, _o
 
 
 
-def g1_opt_bf(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, sn_pass_ng_opt, bf_limit):
+def g1_opt_bf(_fitsarray_gfit_results2):
     g_opt = np.zeros((_fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
     return g_opt
 
@@ -6653,7 +6653,9 @@ def main():
 
     if max_ngauss == 1:
         print(bf_limit)
-        opt_ngmap_gmax_ng = g1_opt_bf(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, bf_limit)
+        print(g_num_sort)
+        print(bevidences_sort)
+        opt_ngmap_gmax_ng = g1_opt_bf(_fitsarray_gfit_results2)
         print() 
 
     elif max_ngauss > 1:
