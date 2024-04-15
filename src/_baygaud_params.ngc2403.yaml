@@ -194,8 +194,8 @@ p_prior_upperbound_factor: 1.0
 # parallellisation parameters
 ncolm_per_core: ''
 nsegments_nax2: ''
-num_cpus_ray: 2  # <---- UPDATE HERE
-num_cpus_nested_sampling: 4  # <---- UPDATE HERE
+num_cpus_ray: 8  # <---- UPDATE HERE (total number of cores to use)
+num_cpus_nested_sampling: 1  # <---- recommended
 
 #-- END OF SUB-ROUTINE____________________________________#
 
