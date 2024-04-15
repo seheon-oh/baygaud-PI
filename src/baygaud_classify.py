@@ -6453,7 +6453,7 @@ def main():
     max_ngauss = _params['max_ngauss']
     outputdir_segs = _params['wdir'] + '/' + _params['_segdir']
 
-    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s) # in km/s
+    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical') # in km/s
 
     _x = np.linspace(0, 1, naxis3, dtype=np.float32)
     _vel_min = cube.spectral_axis.min().value
