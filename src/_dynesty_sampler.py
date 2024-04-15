@@ -277,29 +277,24 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
 
 
 
-
                 if _params['_dynesty_class_'] == 'static':
-                    _queue_size = int(_params['num_cpus_nested_sampling'])
                     rstate = np.random.default_rng(2)
 
-                    with mp.Pool(_queue_size) as pool:
-                        sampler = NestedSampler(loglike_d, optimal_prior, ndim,
-                            nlive=_params['nlive'],
-                            update_interval=_params['update_interval'],
-                            sample=_params['sample'],
-                            pool=pool,
-                            queue_size=_queue_size,
-                            rstate=rstate,
-                            first_update={
-                                'min_eff': 10,
-                                'min_ncall': 200},
-                            bound=_params['bound'],
-                            facc=_params['facc'],
-                            fmove=_params['fmove'],
-                            max_move=_params['max_move'],
-                            logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                    sampler = NestedSampler(loglike_d, optimal_prior, ndim,
+                        nlive=_params['nlive'],
+                        update_interval=_params['update_interval'],
+                        sample=_params['sample'],
+                        rstate=rstate,
+                        first_update={
+                            'min_eff': 10,
+                            'min_ncall': 200},
+                        bound=_params['bound'],
+                        facc=_params['facc'],
+                        fmove=_params['fmove'],
+                        max_move=_params['max_move'],
+                        logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
 
-                        sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
+                    sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
 
 
                 elif _params['_dynesty_class_'] == 'dynamic':
