@@ -37,7 +37,6 @@ from dynesty import plotting as dyplot
 from dynesty import utils as dyfunc
 from dynesty import NestedSampler
 
-import fitsio
 import astropy.units as u
 from astropy.io import fits
 from spectral_cube import SpectralCube
@@ -6756,8 +6755,8 @@ def main():
         if not os.path.exists("%s/non_bulk" % _dir_baygaud_combined):
             make_dirs("%s/non_bulk" % _dir_baygaud_combined)
 
-        bulk_ref_vf = fitsio.read(_params['_bulk_model_dir'] + '/' + _params['_bulk_ref_vf'])
-        bulk_delv_limit = fitsio.read(_params['_bulk_model_dir'] + '/' + _params['_bulk_delv_limit']) * _params['_bulk_delv_limit_factor']
+        bulk_ref_vf = fits.getdata(_params['_bulk_model_dir'] + '/' + _params['_bulk_ref_vf'])
+        bulk_delv_limit = fits.getdata(_params['_bulk_model_dir'] + '/' + _params['_bulk_delv_limit']) * _params['_bulk_delv_limit_factor']
 
         extract_maps_bulk(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='bulk', \
                             ng_opt=opt_ngmap_gmax_ng, _bulk_ref_vf=bulk_ref_vf, _bulk_delv_limit=bulk_delv_limit, _hdu=hdu)
