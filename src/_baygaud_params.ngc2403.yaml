@@ -128,9 +128,9 @@ _bulk_delv_limit_factor: 0.3
 # [ profile parameters : for _baygaud_classify.py
 # _______________________________________________________  #
 # 1. global kinematics  # <---- UPDATE HERE
-vlos_lower: 0 # km/s
-vlos_upper: 400 # km/s
-vdisp_lower: 5 # km/s
+vlos_lower: -9999 # km/s
+vlos_upper: 9999 # km/s
+vdisp_lower: 1 # km/s
 vdisp_upper: 999 # km/s
 
 # _______________________________________________________  #

@@ -6,7 +6,7 @@
 #|-----------------------------------------|
 #|
 #| version history
-#| v1.1 (2024 Apr 14)
+#| v1.0 (2022 Dec 25)
 #|
 #|-----------------------------------------|
 #| by Se-Heon Oh
@@ -402,7 +402,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
                     g1fit_std = gfit_priors_init_g1[3]
                     g1fit_p = gfit_priors_init_g1[4]
 
-                    gfit_priors_init[:nparams_n] = 0.001
+                    gfit_priors_init[:nparams_n] = 0.01
 
                     gfit_priors_init[2:nparams_n:3] = g1fit_x - g1fit_std * _params['x_prior_lowerbound_factor']
                     gfit_priors_init[3:nparams_n:3] = _params['std_prior_lowerbound_factor'] * g1fit_std
@@ -410,14 +410,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
                     gfit_priors_init[4:nparams_n:3] = _params['p_prior_lowerbound_factor'] * g1fit_p
 
 
-                    gfit_priors_init[nparams_n:2*nparams_n] = 0.999
+                    gfit_priors_init[nparams_n:2*nparams_n] = 0.99
 
                     gfit_priors_init[nparams_n+2:2*nparams_n:3] = g1fit_x + g1fit_std * _params['x_prior_upperbound_factor']
                     gfit_priors_init[nparams_n+3:2*nparams_n:3] = _params['std_prior_upperbound_factor'] * g1fit_std
                     gfit_priors_init[nparams_n+4:2*nparams_n:3] = _params['p_prior_upperbound_factor'] * g1fit_p
 
-                    gfit_priors_init = np.where(gfit_priors_init<0, 0, gfit_priors_init)
-                    gfit_priors_init = np.where(gfit_priors_init>1, 1, gfit_priors_init)
+                    gfit_priors_init = np.where(gfit_priors_init<0, 0.01, gfit_priors_init)
+                    gfit_priors_init = np.where(gfit_priors_init>1, 0.99, gfit_priors_init)
 
 
 
