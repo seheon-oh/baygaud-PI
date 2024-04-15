@@ -219,7 +219,7 @@ def read_data(path_cube, path_classified, toreads='all'):
     data_cube = fits.getdata(path_cube)
     if(len(data_cube.shape)>3):
         data_cube = data_cube[0,:,:,:]
-    spectral_axis = SpectralCube.read(path_cube).with_spectral_unit(u.km/u.s, velocity_convention='radio').spectral_axis
+    spectral_axis = SpectralCube.read(path_cube).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis
     dict_data['data_cube'] = data_cube * u.Jy/u.beam
     dict_data['spectral_axis'] = spectral_axis
     dict_data['imsize'] = data_cube[0,:,:].shape
