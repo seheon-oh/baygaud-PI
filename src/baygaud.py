@@ -26,7 +26,7 @@ from numpy import array
 import psutil
 from multiprocessing import cpu_count
 
-import fitsio
+from astropy.io import fits
 
 #|-----------------------------------------|
 # import ray
@@ -137,7 +137,7 @@ def main():
 
     # load cube_mask if provided
     if _params['_cube_mask'] == 'Y':
-        _cube_mask_2d = fitsio.read(_params['wdir'] + '/' + _params['_cube_mask_2d'])
+        _cube_mask_2d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_2d'])
     elif _params['_cube_mask'] == 'N':
         # put a dummy array filled with 1
         _cube_mask_2d = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
