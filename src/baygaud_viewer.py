@@ -11,15 +11,18 @@
 
 import glob
 import os
+from pprint import pprint
 import sys
 from tkinter import *
 from tkinter import filedialog, messagebox, ttk
 
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy import units as u
 from astropy.io import fits
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from spectral_cube import SpectralCube
+
 from _baygaud_params import read_configfile
 
 title = 'baygaud-PI viewer'
@@ -27,7 +30,6 @@ title = 'baygaud-PI viewer'
 dict_params = {'cursor_xy':(-1,-1), 'unit_cube':r'mJy$\,$beam$^{-1}$'}
 dict_data = {}
 dict_plot = {'fix_cursor':False}
-plt.rcParams["hatch.linewidth"] = 4
 plt.rcParams["xtick.direction"] = "in"
 plt.rcParams["ytick.direction"] = "in"
 
@@ -35,8 +37,8 @@ colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:y
         'tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan']
 
 
-def gauss_model(x, amp, vel, disp):
-    return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
+def gauss_model(x, amp, vel, disp, bg):
+    return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2)) + bg
 
 
 def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=12):
@@ -203,139 +205,70 @@ def initdisplay():
     dict_plot['ax2'].clear()
     dict_plot['ax3'].clear()
     
-
     dict_plot['canvas2'].draw()
 
-
-def read_ngfit(path_cube=None, path_classified=None):
-    if path_cube:
-        dict_params['path_cube'] = path_cube
-    if path_classified:
-        dict_params['path_classified'] = path_classified
-
-    dict_params['path_fig1'] = f"{dict_params['path_classified']}/ngfit/ngfit.G*_1.1.fits"
-    dict_data['cube'] = fits.getdata(dict_params['path_cube'])
-    if(len(dict_data['cube'].shape)>3): dict_data['cube'] = dict_data['cube'][0,:,:,:]
-    dict_data['spectral_axis'] = (SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')).spectral_axis.value
-    dict_data['imsize'] = dict_data['cube'][0, :, :].shape
-
-    n_gauss = _params['max_ngauss']
-    amps        = np.empty(n_gauss, dtype=object)
-    vels        = np.empty(n_gauss, dtype=object)
-    disps       = np.empty(n_gauss, dtype=object)
-    ngfit_bgs   = np.empty(n_gauss, dtype=object)
-    ngfit_rms   = np.empty(n_gauss, dtype=object)
-    ngfit_sn    = np.empty(n_gauss, dtype=object)
-
-    sgfit_bg    = fits.getdata(glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_1.3.fits")[0])
-    data_noise  = fits.getdata(glob.glob(f"{dict_params['path_classified']}/sgfit/sgfit.G{n_gauss}_1.4.fits")[0])
-    dict_data['noise'] = data_noise
-
-    for i in range(n_gauss):
-        name_amp        = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.5.fits")[0]
-        name_vel        = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.1.fits")[0]
-        name_disp       = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.2.fits")[0]
-        ngfit_bg_slice  = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.3.fits")[0]
-        ngfit_rms_slice = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.4.fits")[0]
-        ngfit_sn_slice  = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.6.fits")[0]
-
+def read_data(path_cube, path_classified, toreads='all'):
     
-        amps[i]   = fits.getdata(name_amp)
-        vels[i]   = fits.getdata(name_vel)
-        disps[i]  = fits.getdata(name_disp)
-        ngfit_bgs[i]  = fits.getdata(ngfit_bg_slice)
-        ngfit_rms[i]  = fits.getdata(ngfit_rms_slice)
-        ngfit_sn[i]  = fits.getdata(ngfit_sn_slice)
+    import os
+    from glob import glob
 
-
-    del data_noise
-
-    dict_data['amps']  = amps
-    dict_data['vels']  = vels
-    dict_data['disps'] = disps
-    dict_data['bg']    = ngfit_bgs
-    dict_data['rms']    = ngfit_rms
-    dict_data['sn']    = ngfit_sn
-
-    initdisplay()
-
-
-def loaddata():
-
-    def browse_cube():
-        path_cube = filedialog.askopenfilename(title='Path to cube', filetypes=[('FITS file', '.fits .FITS')])
-        if(len(path_cube)==0): return
-
-        print(path_cube)
-
-        if(len(fits.getdata(path_cube).shape)<3 or len(SpectralCube.read(path_cube).spectral_axis)==1):
-            messagebox.showerror("Error", "Cube should have at least three dimensions.")
-            return
+    import astropy.units as u
+    import numpy as np
+    from astropy.io import fits
+    
+    data_cube = fits.getdata(path_cube)
+    if(len(data_cube.shape)>3):
+        data_cube = data_cube[0,:,:,:]
+    spectral_axis = SpectralCube.read(path_cube).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis
+    dict_data['data_cube'] = data_cube * u.Jy/u.beam
+    dict_data['spectral_axis'] = spectral_axis
+    dict_data['imsize'] = data_cube[0,:,:].shape
+    del data_cube
+    del spectral_axis
+    
+    if(toreads=='all'):
+        toreads = ['flux','velo','disp','bkgr','nois','ampl','psnr','ngau']
+    
+    path_sample = glob(path_classified+'/ngfit/*7.fits')[0]
+    nopt = int(os.path.basename(path_sample)[7])
+    
+    info_data = {
+        'flux':{'path':'/ngfit/ngfit.G{}_{}.0.fits', 'unit':u.Jy/u.beam*u.km/u.s},
+        'velo':{'path':'/ngfit/ngfit.G{}_{}.1.fits', 'unit':u.km/u.s},
+        'disp':{'path':'/ngfit/ngfit.G{}_{}.2.fits', 'unit':u.km/u.s},
+        'bkgr':{'path':'/ngfit/ngfit.G{}_{}.3.fits', 'unit':u.Jy/u.beam},
+        'nois':{'path':'/ngfit/ngfit.G{}_{}.4.fits', 'unit':u.Jy/u.beam},
+        'ampl':{'path':'/ngfit/ngfit.G{}_{}.5.fits', 'unit':u.Jy/u.beam},
+        'psnr':{'path':'/ngfit/ngfit.G{}_{}.6.fits', 'unit':1},
+        'ngau':{'path':'/ngfit/ngfit.G{}_{}.7.fits', 'unit':1},
+        'fluxE':{'path':'/ngfit/ngfit.G{}_{}.0.e.fits', 'unit':u.Jy/u.beam*u.km/u.s},
+        'veloE':{'path':'/ngfit/ngfit.G{}_{}.1.e.fits', 'unit':u.km/u.s},
+        'dispE':{'path':'/ngfit/ngfit.G{}_{}.2.e.fits', 'unit':u.km/u.s},
+        'bkgrE':{'path':'/ngfit/ngfit.G{}_{}.3.e.fits', 'unit':u.Jy/u.beam},
+        'noisE':{'path':'/ngfit/ngfit.G{}_{}.4.e.fits', 'unit':u.Jy/u.beam},
+        'amplE':{'path':'/ngfit/ngfit.G{}_{}.5.e.fits', 'unit':u.Jy/u.beam},
+        'psnrE':{'path':'/ngfit/ngfit.G{}_{}.6.e.fits', 'unit':1},
+        'ngauE':{'path':'/ngfit/ngfit.G{}_{}.7.e.fits', 'unit':1},
+    } 
+    
+    for g in range(1,nopt+1):
+        G = 'G{}'.format(g)
+        # dict_data[coord][G] = {}
         
-        fillentry(entry_path_cube, path_cube)
+        for toread in toreads:
+            data_toread = fits.getdata(path_classified+info_data[toread]['path'].format(nopt,g)) * info_data[toread]['unit']  
+            
+            for y,x in np.argwhere(~np.isnan(data_toread)):
+                coord = '{},{}'.format(x,y)
+                if coord not in dict_data:
+                    dict_data[coord] = {}
+                if G not in dict_data[coord]:
+                    dict_data[coord][G] = {}
+                dict_data[coord][G][toread] = data_toread[y,x]
+    
+    n_gauss = _params['max_ngauss']
+    dict_params['path_fig1'] = dict_params['path_classified']+'/sgfit/sgfit.G%d_1.1.fits' % n_gauss
 
-        possible_path_classified = glob.glob(os.path.dirname(path_cube) + '/' + _params['_combdir'] + '.%d' % _classified_index)
-        if(len(possible_path_classified)==1):
-            browse_classified(possible_path_classified[0])
-        elif(len(possible_path_classified)>1):
-            browse_classified(initialdir=os.path.dirname(possible_path_classified[0]))
-
-    def browse_classified(path_classified=None, initialdir=None):
-        if(path_classified==None):
-            path_classified = filedialog.askdirectory(title='Path to classified directory', initialdir=initialdir)
-            if(len(path_classified)==0): return
-
-        ifexists = os.path.exists(path_classified)
-
-        if(ifexists==False):
-            messagebox.showerror("Error", "No proper data found inside.")
-            return
-
-        fillentry(entry_path_classified, path_classified)  
-
-    def btncmd_toplv_browse_cube():
-        browse_cube()
-
-    def btncmd_toplv_browse_classified():
-        browse_classified()
-
-
-
-    def btncmd_toplv_apply():
-        dict_params['path_cube'] = entry_path_cube.get()
-        dict_params['path_classified'] = entry_path_classified.get()
-        read_ngfit()
-
-        dict_plot['toplv'].destroy()
-   
-
-    def btncmd_toplv_cancel():
-        toplv.destroy()
-
-    toplv = Toplevel(root)
-
-    frame_toplv1 = Frame(toplv)
-    frame_toplv2 = Frame(toplv)
-
-    makelabelentry(frame_toplv1, ['path_cube', 'path_classified'], [], 0, 20, 20)
-
-    btn_toplv_browsecube = Button(frame_toplv1, text='Browse', command=btncmd_toplv_browse_cube)
-    btn_toplv_browsecube.grid(row=0, column=2)
-
-    btn_toplv_browseclassified = Button(frame_toplv1, text='Browse', command=btncmd_toplv_browse_classified)
-    btn_toplv_browseclassified.grid(row=1, column=2)
-
-    ttk.Separator(frame_toplv2, orient='horizontal').pack(fill=BOTH)
-
-    btn_toplv_apply = Button(frame_toplv2, text='Apply', command=btncmd_toplv_apply)
-    btn_toplv_cancel = Button(frame_toplv2, text='Cancel', command=btncmd_toplv_cancel)
-    btn_toplv_cancel.pack(side='right')
-    btn_toplv_apply.pack(side='right')
-
-    frame_toplv1.pack()
-    frame_toplv2.pack(fill=BOTH)
-
-    dict_plot['toplv'] = toplv
 
 def apply_mapselect(*args):
 
@@ -379,45 +312,40 @@ def fix_cursor(event):
 
 def plot_profiles():
     try:
-        n_gauss = _params['max_ngauss']
         x, y = dict_params['cursor_xy']
+        coord = '{},{}'.format(x,y)
+        if(coord not in dict_data): return
+                
         ax2, ax3 = dict_plot['ax2'], dict_plot['ax3']
         ax2.clear()
         ax3.clear()
-
-        bg = dict_data['bg'][0][y, x]
-        rms = dict_data['rms'][0][y, x] 
-        rms_axis = np.full_like(dict_data['spectral_axis'], rms)
+        
+        pprint(dict_data[coord])
+        
+        bg = dict_data[coord]['G1']['bkgr']
+        rms = dict_data[coord]['G1']['nois'] 
+        rms_axis = np.full(len(dict_data['spectral_axis']), rms)
         spectral_axis = dict_data['spectral_axis']
-        cube = dict_data['cube'][:, y, x]
+        cube = dict_data['data_cube'][:,y,x].to(u.mJy/u.beam)
 
         ax2.step(spectral_axis, cube)
         subed = np.full_like(cube, cube)
-        total = np.zeros_like(spectral_axis)
-
-        dict_params['path_fig1'] = f"{dict_params['path_classified']}/sgfit/sgfit.G%d_1.7.fits" % n_gauss
-        ng_opt_fits = glob.glob(dict_params['path_fig1'])[0]
-        ng_opt = fits.getdata(ng_opt_fits)
-
-        if(np.isnan(ng_opt[y,x])==False):                                                                                                                                                        
+        total = np.zeros_like(cube)
+        
+        ngau = len(dict_data[coord].keys())
+        for i, G in enumerate(dict_data[coord].keys()):
     
-            for i in range(ng_opt[y, x].astype(int)):
-                vel = dict_data['vels'][i][y, x]
-                disp = dict_data['disps'][i][y, x]
-                amp = dict_data['amps'][i][y, x]
-                sn = dict_data['sn'][i][y, x]
+            velo = dict_data[coord][G]['velo']
+            disp = dict_data[coord][G]['disp']
+            ampl = dict_data[coord][G]['ampl']
+            psnr = dict_data[coord][G]['psnr']
 
-                if np.any(np.isnan([vel, disp, amp])):
-                    continue
+            fit = gauss_model(spectral_axis, ampl, velo, disp, bg).to(u.mJy/u.beam)
+            ax2.plot(spectral_axis, fit, label=f'{G} (S/N: {psnr:.2f}, disp: {disp:.1f})', color=colors[i], ls='-', alpha=0.5)
+            total += fit - bg
+            ax2.legend(loc='upper right')
 
-                ploty = gauss_model(spectral_axis, amp, vel, disp) 
-                total += ploty
-                ploty += bg
-                ax2.plot(spectral_axis, ploty, label=f'G{i + 1} (S/N: {sn:.2f})', color=colors[i], ls='-', alpha=0.5)
-                ax2.legend(loc='upper right')
-                ploty -= bg
-
-            panel_label(dict_plot['ax2'], '(x, y: N-Gauss)=(%d, %d: %d)' % (x, y, ng_opt[y, x]), fontsize=13)
+            panel_label(dict_plot['ax2'], '(x, y: N-Gauss)=(%d, %d: %d)' % (x, y, ngau), fontsize=13)
         panel_label(dict_plot['ax3'], 'Residuals', fontsize=13)
 
         total += bg
@@ -568,7 +496,10 @@ elif len(sys.argv) == 3:
 
 _path_cube = f"{_params['wdir']}/{_params['input_datacube']}"
 _path_classified = f"{_params['wdir']}/{_params['_combdir']}.{_classified_index}"
-read_ngfit(path_cube=_path_cube, path_classified=_path_classified)
+# read_ngfit(path_cube=_path_cube, path_classified=_path_classified)
+dict_params['path_classified'] = _path_classified
+read_data(path_cube=_path_cube, path_classified=_path_classified)
+initdisplay()
 
 root.mainloop()
 
