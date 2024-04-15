@@ -51,13 +51,12 @@ def read_datacube(_params):
     _params['cdelt2'] = _cdelt2   
     _params['cdelt3'] = _cdelt3   
 
-    # cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s) # in km/s
-    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) # in km/s
+    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical') # in km/s
 
     # normalise velocity-axis to 0-1 scale
     _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
-    _vel_min = cube.spectral_axis.min().value/1000. #in km/s
-    _vel_max = cube.spectral_axis.max().value/1000.
+    _vel_min = cube.spectral_axis.min().value #in km/s
+    _vel_max = cube.spectral_axis.max().value
     _params['vel_min'] = _vel_min   
     _params['vel_max'] = _vel_max  
 
