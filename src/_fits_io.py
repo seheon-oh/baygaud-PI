@@ -51,8 +51,8 @@ def read_datacube(_params):
     _params['cdelt2'] = _cdelt2   
     _params['cdelt3'] = _cdelt3   
 
-    # cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s) # in km/s
-    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) # in km/s
+    cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.m/u.s, velocity_convention='optical') # in km/s
+    # cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) # in km/s
 
     # normalise velocity-axis to 0-1 scale
     _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
@@ -170,7 +170,7 @@ def moment_analysis(_params):
     #-------------------------------------
     # 0. load the input cube
     #cubedata = fits.getdata(_params['wdir'] + _params['input_datacube'], dtype=np.float32)
-    _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='radio')
+    _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')
 
 
     # for varying beam size over the channels : e.g., combined data cube with different resolutions, NGC 2403
@@ -306,7 +306,7 @@ def moment_analysis_alternate(_params):
     # use _params['_rms_med'] instead of _std_bg which tends to be lower
 
     _flux_threshold = _params['mom0_nrms_limit']*_params['_rms_med'] + _median_bg
-    _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='radio')
+    _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')
 
     # make a mask
     peak_sn_mask = _input_cube > _flux_threshold*u.Jy/u.beam

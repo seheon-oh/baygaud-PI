@@ -216,7 +216,8 @@ def read_ngfit(path_cube=None, path_classified=None):
     dict_params['path_fig1'] = f"{dict_params['path_classified']}/ngfit/ngfit.G*_1.1.fits"
     dict_data['cube'] = fits.getdata(dict_params['path_cube']) * dict_params['multiplier_cube']
     if(len(dict_data['cube'].shape)>3): dict_data['cube'] = dict_data['cube'][0,:,:,:]
-    dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).spectral_axis.value * dict_params['multiplier_spectral_axis']
+    # dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).spectral_axis.value * dict_params['multiplier_spectral_axis']
+    dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis.value
     dict_data['imsize'] = dict_data['cube'][0, :, :].shape
 
     n_gauss = _params['max_ngauss']
