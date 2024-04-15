@@ -24,7 +24,7 @@ from _baygaud_params import read_configfile
 
 title = 'baygaud-PI viewer'
 
-dict_params = {'cursor_xy':(-1,-1), 'multiplier_cube':1000.0, 'unit_cube':r'mJy$\,$beam$^{-1}$', 'multiplier_spectral_axis':0.001}
+dict_params = {'cursor_xy':(-1,-1), 'unit_cube':r'mJy$\,$beam$^{-1}$'}
 dict_data = {}
 dict_plot = {'fix_cursor':False}
 plt.rcParams["hatch.linewidth"] = 4
@@ -214,9 +214,9 @@ def read_ngfit(path_cube=None, path_classified=None):
         dict_params['path_classified'] = path_classified
 
     dict_params['path_fig1'] = f"{dict_params['path_classified']}/ngfit/ngfit.G*_1.1.fits"
-    dict_data['cube'] = fits.getdata(dict_params['path_cube']) * dict_params['multiplier_cube']
+    dict_data['cube'] = fits.getdata(dict_params['path_cube'])
     if(len(dict_data['cube'].shape)>3): dict_data['cube'] = dict_data['cube'][0,:,:,:]
-    dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).spectral_axis.value * dict_params['multiplier_spectral_axis']
+    dict_data['spectral_axis'] = (SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')).spectral_axis.value
     dict_data['imsize'] = dict_data['cube'][0, :, :].shape
 
     n_gauss = _params['max_ngauss']
@@ -385,8 +385,8 @@ def plot_profiles():
         ax2.clear()
         ax3.clear()
 
-        bg = dict_data['bg'][0][y, x] * dict_params['multiplier_cube']
-        rms = dict_data['rms'][0][y, x] * dict_params['multiplier_cube']
+        bg = dict_data['bg'][0][y, x]
+        rms = dict_data['rms'][0][y, x] 
         rms_axis = np.full_like(dict_data['spectral_axis'], rms)
         spectral_axis = dict_data['spectral_axis']
         cube = dict_data['cube'][:, y, x]
@@ -410,7 +410,7 @@ def plot_profiles():
                 if np.any(np.isnan([vel, disp, amp])):
                     continue
 
-                ploty = gauss_model(spectral_axis, amp, vel, disp) * dict_params['multiplier_cube']
+                ploty = gauss_model(spectral_axis, amp, vel, disp) 
                 total += ploty
                 ploty += bg
                 ax2.plot(spectral_axis, ploty, label=f'G{i + 1} (S/N: {sn:.2f})', color=colors[i], ls='-', alpha=0.5)
