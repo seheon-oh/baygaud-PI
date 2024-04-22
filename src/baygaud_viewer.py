@@ -18,6 +18,7 @@ from tkinter import filedialog, messagebox, ttk
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
+import astropy.units as u
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from spectral_cube import SpectralCube
 from _baygaud_params import read_configfile
