@@ -1041,505 +1041,6 @@ def extract_maps_bulk_org(_fitsarray_gfit_results2, params, _output_dir, _kin_co
 
 
 
-def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_opt, _hdu):
-
-    max_ngauss = params['max_ngauss']
-    nparams = (3*max_ngauss+2)
-    peak_sn_limit = params['peak_sn_limit']
-
-    if _kin_comp == 'sgfit':
-        _vlos_lower = params['vlos_lower']
-        _vlos_upper = params['vlos_upper']
-        _vdisp_lower = params['vdisp_lower']
-        _vdisp_upper = params['vdisp_upper']
-        print("")
-        print("| ... extracting sgfit results ... |")
-        print("| vlos-lower: %1.f [km/s]" % _vlos_lower)
-        print("| vlos-upper: %1.f [km/s]" % _vlos_upper)
-        print("| vdisp-lower: %1.f [km/s]" % _vdisp_lower)
-        print("| vdisp-upper: %1.f [km/s]" % _vdisp_upper)
-        print("")
-    elif _kin_comp == 'psgfit':
-        _vlos_lower = params['vlos_lower']
-        _vlos_upper = params['vlos_upper']
-        _vdisp_lower = params['vdisp_lower']
-        _vdisp_upper = params['vdisp_upper']
-        print("")
-        print("| ... extracting psgfit results ... |")
-        print("| vlos-lower: %1.f [km/s]" % _vlos_lower)
-        print("| vlos-upper: %1.f [km/s]" % _vlos_upper)
-        print("| vdisp-lower: %1.f [km/s]" % _vdisp_lower)
-        print("| vdisp-upper: %1.f [km/s]" % _vdisp_upper)
-        print("")
-    elif _kin_comp == 'cool':
-        _vlos_lower = params['vlos_lower_cool']
-        _vlos_upper = params['vlos_upper_cool']
-        _vdisp_lower = params['vdisp_lower_cool']
-        _vdisp_upper = params['vdisp_upper_cool']
-        print("")
-        print("| ... extracting kinematically cool components ... |")
-        print("| vlos-lower: %1.f [km/s]" % _vlos_lower)
-        print("| vlos-upper: %1.f [km/s]" % _vlos_upper)
-        print("| vdisp-lower: %1.f [km/s]" % _vdisp_lower)
-        print("| vdisp-upper: %1.f [km/s]" % _vdisp_upper)
-        print("")
-    elif _kin_comp == 'warm':
-        _vlos_lower = params['vlos_lower_warm']
-        _vlos_upper = params['vlos_upper_warm']
-        _vdisp_lower = params['vdisp_lower_warm']
-        _vdisp_upper = params['vdisp_upper_warm']
-        print("")
-        print("| ... extracting kinematically warm components ... |")
-        print("| vlos-lower: %1.f [km/s]" % _vlos_lower)
-        print("| vlos-upper: %1.f [km/s]" % _vlos_upper)
-        print("| vdisp-lower: %1.f [km/s]" % _vdisp_lower)
-        print("| vdisp-upper: %1.f [km/s]" % _vdisp_upper)
-        print("")
-    elif _kin_comp == 'hot':
-        _vlos_lower = params['vlos_lower_hot']
-        _vlos_upper = params['vlos_upper_hot']
-        _vdisp_lower = params['vdisp_lower_hot']
-        _vdisp_upper = params['vdisp_upper_hot']
-        print("")
-        print("| ... extracting kinematically hot components ... |")
-        print("| vlos-lower: %1.f [km/s]" % _vlos_lower)
-        print("| vlos-upper: %1.f [km/s]" % _vlos_upper)
-        print("| vdisp-lower: %1.f [km/s]" % _vdisp_lower)
-        print("| vdisp-upper: %1.f [km/s]" % _vdisp_upper)
-        print("")
-    else:
-        _vlos_lower = params['vel_min']
-        _vlos_upper = params['vel_max']
-        _vdisp_lower = params['vdisp_lower']
-        _vdisp_upper = params['vdisp_upper']
-
-
-
-
-
-    i1 = params['_i0']
-    j1 = params['_j0']
-
-    nparams_step = 2*(3*max_ngauss+2) + (max_ngauss + 7)
-
-    sn_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    sn_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    sn_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    sn_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    x_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    x_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    x_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    x_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    std_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    std_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    std_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    std_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    p_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    p_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    p_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    p_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    bg_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    bg_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    bg_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    bg_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    rms_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    rms_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    rms_ng_opt_slice_e = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    rms_ng_opt_e_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-
-            sn_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
-            sn_ng_opt_t[i, :, :] += sn_ng_opt_slice[i, j, :, :]
-            sn_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    0.0, 0.0)])[0] # put zero to rms-error as it is not available
-            sn_ng_opt_e_t[i, :, :] += sn_ng_opt_slice_e[i, j, :, :]
-
-            x_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 2 + 3*i, :, :], 1E-7)])[0] # otherwise put 1E-7 used for summing up Xs below
-            x_ng_opt_t[i, :, :] += x_ng_opt_slice[i, j, :, :]
-            x_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 2 + 3*(j+1) + 2 + 0 + 3*i, :, :], 1E-7)])[0] # otherwise put 1E-7 used for summing up Xs below
-            x_ng_opt_e_t[i, :, :] += x_ng_opt_slice_e[i, j, :, :]
-
-            std_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 3 + 3*i, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up stds below
-            std_ng_opt_t[i, :, :] += std_ng_opt_slice[i, j, :, :]
-            std_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 2 + 3*(j+1) + 2 + 1 + 3*i, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up stds below
-            std_ng_opt_e_t[i, :, :] += std_ng_opt_slice_e[i, j, :, :]
-
-            p_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up ps below
-            p_ng_opt_t[i, :, :] += p_ng_opt_slice[i, j, :, :]
-            p_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 2 + 3*(j+1) + 2 + 2 + 3*i, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up ps below
-            p_ng_opt_e_t[i, :, :] += p_ng_opt_slice_e[i, j, :, :]
-
-            bg_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 1, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up bgs below
-            bg_ng_opt_t[i, :, :] += bg_ng_opt_slice[i, j, :, :]
-            bg_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 2 + 3*(j+1) + 1, :, :], 0.0)])[0] # otherwise put 0.0 used for summing up bgs below
-            bg_ng_opt_e_t[i, :, :] += bg_ng_opt_slice_e[i, j, :, :]
-
-            rms_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0] # otherwise put 0.0
-            rms_ng_opt_t[i, :, :] += rms_ng_opt_slice[i, j, :, :]
-            rms_ng_opt_slice_e[i, j, :, :] = np.array([np.where( \
-                                                    (j == ng_opt) & \
-                                                    (j >= i), \
-                                                    0.0, 0.0)])[0] # put zero to rms-error as it is not available
-            rms_ng_opt_e_t[i, :, :] += rms_ng_opt_slice_e[i, j, :, :]
-
-
-    sn_ng_opt = np.where(sn_ng_opt_t != 3*0.0, sn_ng_opt_t, -1E9)
-    sn_ng_opt_e = np.where(sn_ng_opt_t != 3*0.0, sn_ng_opt_t, -1E9)
-
-    x_ng_opt = np.where(x_ng_opt_t != 3*1E-7, x_ng_opt_t, -1E9)
-    x_ng_opt_e = np.where(x_ng_opt_e_t != 3*1E-7, x_ng_opt_e_t, -1E9)
-
-    std_ng_opt = np.where(std_ng_opt_t != 3*0.0, std_ng_opt_t, -1E9)
-    std_ng_opt_e = np.where(std_ng_opt_e_t != 3*0.0, std_ng_opt_e_t, -1E9)
-
-    p_ng_opt = np.where(p_ng_opt_t != 3*0.0, p_ng_opt_t, -1E9)
-    p_ng_opt_e = np.where(p_ng_opt_e_t != 3*0.0, p_ng_opt_e_t, -1E9)
-
-    bg_ng_opt = np.where(bg_ng_opt_t != 3*0.0, bg_ng_opt_t, -1E9)
-    bg_ng_opt_e = np.where(bg_ng_opt_e_t != 3*0.0, bg_ng_opt_e_t, -1E9)
-
-    rms_ng_opt = np.where(rms_ng_opt_t != 3*0.0, rms_ng_opt_t, -1E9)
-    rms_ng_opt_e = np.where(rms_ng_opt_e_t != 3*0.0, rms_ng_opt_e_t, -1E9)
-
-
-    i1 = params['_i0']
-    j1 = params['_j0']
-
-
-    if _kin_comp == 'sgfit' or _kin_comp == 'psgfit':
-        _ng = 1 
-    else:
-        _ng = max_ngauss
-
-    for i in range(0, _ng):
-
-
-
-        if _kin_comp == 'psgfit': # if ng_opt == 0 <-- ngauss==1
-            _filter = ( \
-                    (ng_opt[:, :] == 0) & \
-                    (sn_ng_opt[i, :, :] > peak_sn_limit) & \
-                    (x_ng_opt[i,:, :] >= _vlos_lower) & \
-                    (x_ng_opt[i,:, :] < _vlos_upper) & \
-                    (std_ng_opt[i,:, :] >= _vdisp_lower) & \
-                    (std_ng_opt[i,:, :] < _vdisp_upper))
-        else:
-            _filter = ( \
-                    (ng_opt[:, :] >= i) & \
-                    (sn_ng_opt[i, :, :] > peak_sn_limit) & \
-                    (x_ng_opt[i,:, :] >= _vlos_lower) & \
-                    (x_ng_opt[i,:, :] < _vlos_upper) & \
-                    (std_ng_opt[i,:, :] >= _vdisp_lower) & \
-                    (std_ng_opt[i,:, :] < _vdisp_upper))
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                        _filter, \
-                                        np.sqrt(2*np.pi)*_fitsarray_gfit_results2[nparams_step*i + 3 + 3*i, :, :] * \
-                                        _fitsarray_gfit_results2[nparams_step*i + 4 + 3*i, :, :], np.nan)])
-
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                        _filter, \
-                                        np.sqrt(2*np.pi)*std_ng_opt[i, :, :] * p_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                        _filter & \
-                                        (_fitsarray_gfit_results2[nparams_step*i + 4 + 3*i, :, :] > 0.0) & \
-                                        (_fitsarray_gfit_results2[nparams_step*i + 3 + 3*i, :, :] > 0.0), \
-                                        np.sqrt(2*np.pi) * \
-                                        _fitsarray_gfit_results2[nparams_step*i + 3 + 3*i, :, :] * \
-                                        _fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 2 + 3*i, :, :] * \
-                                        ((_fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 2 + 3*i, :, :] / _fitsarray_gfit_results2[nparams_step*i + 4 + 3*i, :, :])**2 + \
-                                         (_fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 1 + 3*i, :, :] / _fitsarray_gfit_results2[nparams_step*i + 3 + 3*i, :, :])**2)**0.5, \
-                                        np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                        _filter & \
-                                        (p_ng_opt[i, :, :] > 0.0) & \
-                                        (std_ng_opt[i, :, :] > 0.0), \
-                                        np.sqrt(2*np.pi) * \
-                                        std_ng_opt[i, :, :] * \
-                                        p_ng_opt_e[i, :, :] * \
-                                        ((p_ng_opt_e[i, :, :] / p_ng_opt[i, :, :])**2 + \
-                                         (std_ng_opt_e[i, :, :] / std_ng_opt[i, :, :])**2)**0.5, \
-                                        np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 2 + 3*i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            x_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 0 + 3*i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            x_ng_opt_e[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 3 + 3*i, :, :], np.nan)])
-
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            std_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 1 + 3*i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            std_ng_opt_e[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 1 + 3*i, :, :], np.nan)]) #: this is wrong as bg is always at 1 
-
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            bg_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 1, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            bg_ng_opt_e[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*(i+1)-max_ngauss-7+i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            rms_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            0.0, np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            rms_ng_opt_e[i, :, :]  , np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 4 + 3*i, :, :], np.nan)])
-
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            p_ng_opt[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 2 + 3*(i+1) + 2 + 2 + 3*i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            p_ng_opt_e[i, :, :], np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            _fitsarray_gfit_results2[nparams_step*i + 4 + 3*i, :, :] / \
-                                            _fitsarray_gfit_results2[nparams_step*(i+1)-max_ngauss-7+i, :, :], np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            sn_ng_opt[i, :, :],  np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            0.0, np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            sn_ng_opt_e[i, :, :],  np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            ng_opt+1, np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            ng_opt+1, np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-        if _kin_comp == 'sgfit': # if sgfit
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            0.0, np.nan)])
-        else: # if others
-            _nparray_t = np.array([np.where( \
-                                            _filter, \
-                                            0.0, np.nan)])
-
-        _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
-        _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
-        _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
-        _hdulist_nparray.close()
-
-    print('[—> fits written ..', _nparray_t.shape)
-
-
-
 def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_opt, _hdu):
 
     max_ngauss = params['max_ngauss']
@@ -6889,205 +6390,10 @@ def g5_opt_bf(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, sn_pass_ng_
 
 
 
-def generate_gfit_indices(n_gauss, gauss_param):
-
-
-
-
-    nparams_eachmodel = 2*(3*n_gauss+2) + n_gauss + 7
-    baygaud_gfit_indices = []
-
-    if gauss_param == '_int':
-        start_index = 4
-    elif gauss_param == '_vdisp':
-        start_index = 3
-    elif gauss_param == '_vlos':
-        start_index = 2
-
-
-    for i in range(1, n_gauss + 1):
-        indices = np.array([start_index + j * 3 for j in range(i)])
-        baygaud_gfit_indices.append(indices)
-        start_index += nparams_eachmodel
-
-    return np.array(baygaud_gfit_indices)
-
-
-def sort_gaussian_parameters1(params):
-    sorted_params = np.empty_like(params)
-
-    for model_idx in range(6):  # 가우스 모델 6까지
-        start_idx = model_idx * 53
-        
-        gaussian_indices = np.arange(start_idx + 2, start_idx + 2 + 3*(model_idx + 1), 3)  # 각 가우스 함수의 첫번째 파라미터 인덱스
-
-        sorted_gaussian_indices = np.argsort(params[gaussian_indices])
-
-
-
-
-        for i, gaussian_idx in enumerate(gaussian_indices):
-            if gaussian_idx in sorted_gaussian_indices:
-                sorted_params[start_idx + i*9] = params[gaussian_idx]
-                sorted_params[start_idx + i*9 + 1] = params[gaussian_idx + 1]
-                sorted_params[start_idx + i*9 + 2] = params[gaussian_idx + 2]
-                sorted_params[start_idx + i*9 + 3] = params[gaussian_idx + 3]
-                sorted_params[start_idx + i*9 + 4] = params[gaussian_idx + 4]
-                sorted_params[start_idx + i*9 + 5] = params[gaussian_idx + 5]
-                sorted_params[start_idx + i*9 + 6] = params[gaussian_idx + 6]
-                sorted_params[start_idx + i*9 + 7] = params[gaussian_idx + 7]
-                sorted_params[start_idx + i*9 + 8] = params[gaussian_idx + 8]
-            else:
-                sorted_params[start_idx + i*9:start_idx + (i+1)*9] = params[start_idx + i*9:start_idx + (i+1)*9]
-
-        sorted_params[start_idx:start_idx+2] = params[start_idx:start_idx+2]
-        sorted_params[start_idx+53:start_idx+159] = params[start_idx+53:start_idx+159]
-
-    return sorted_params
-
-
-
-def sort_gaussians_wrt_gparam_serialized(_fitsarray_gfit_results2, n_gauss, gauss_param):
-
-    if gauss_param == '_int':
-        sort_wrt = 2
-    elif gauss_param == '_vdisp':
-        sort_wrt = 1
-    elif gauss_param == '_vlos':
-        sort_wrt = 0
-
-    _fitsarray_gfit_results2_sorted = _fitsarray_gfit_results2
-    nparams_eachmodel = 2*(3*n_gauss+2) + n_gauss + 7
-
-    naxis1 = _fitsarray_gfit_results2.shape[2] # (gfit_params, naxis2, naxis1)
-    naxis2 = _fitsarray_gfit_results2.shape[1] # (gfit_params, naxis2, naxis1)
-
-    for _x in range(naxis1):
-        for _y in range(naxis2):
-
-            for model_idx in range(n_gauss):  # 가우스 모델 n_gauss까지
-                start_idx = model_idx * nparams_eachmodel
-                
-                gfit_params_list = []
-                gfit_params_e_list = []
-                
-                for gaussian_idx in range(model_idx + 1):
-                    gaussian_first_idx = start_idx + 2 + gaussian_idx * 3
-                    gaussian_last_idx = gaussian_first_idx + 3
-
-                    gaussian_e_first_idx = start_idx + 4 + (model_idx + 1 + gaussian_idx) * 3
-                    gaussian_e_last_idx = gaussian_e_first_idx + 3
-                    
-                    gfit_params_list.append(_fitsarray_gfit_results2[gaussian_first_idx:gaussian_last_idx, _y, _x])
-                    gfit_params_e_list.append(_fitsarray_gfit_results2[gaussian_e_first_idx:gaussian_e_last_idx, _y, _x])
-
-
-                gfit_params_t1 = np.concatenate(gfit_params_list)
-                gfit_params_t2 = gfit_params_t1.reshape(-1, 3)
-                gfit_params = np.vstack(gfit_params_t2)
-
-                gfit_params_e_t1 = np.concatenate(gfit_params_e_list)
-                gfit_params_e_t2 = gfit_params_e_t1.reshape(-1, 3)
-                gfit_params_e = np.vstack(gfit_params_e_t2)
-
-                gfit_params_sorted_indices = np.argsort(-gfit_params[:, sort_wrt])
-                gfit_params_sorted = gfit_params[gfit_params_sorted_indices]
-                gfit_params_e_sorted = gfit_params_e[gfit_params_sorted_indices]
-
-
-                cur_model_gfit_params_first_idx = start_idx + 2 + 0 * 3
-                cur_model_gfit_params_last_idx = start_idx + 2 + 0 * 3 + 3*(model_idx+1)
-
-                cur_model_gfit_params_e_first_idx = start_idx + 4 + (model_idx + 1 + 0) * 3
-                cur_model_gfit_params_e_end_idx = start_idx + 4 + (model_idx + 1 + 0) * 3 + 3*(model_idx+1)
-                
-                _fitsarray_gfit_results2_sorted[cur_model_gfit_params_first_idx:cur_model_gfit_params_last_idx, _y, _x] = gfit_params_sorted.flatten()
-                _fitsarray_gfit_results2_sorted[cur_model_gfit_params_e_first_idx:cur_model_gfit_params_e_end_idx, _y, _x] = gfit_params_e_sorted.flatten()
-
-
-    return _fitsarray_gfit_results2_sorted
-
-
-
-def sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, n_gauss, gauss_param):
-    if gauss_param == '_peak_amp':
-        sort_wrt = 2
-    elif gauss_param == '_vdisp':
-        sort_wrt = 1
-    elif gauss_param == '_vlos':
-        sort_wrt = 0
-    elif gauss_param == '_integrated_int':
-        sort_wrt = 0
-
-
-    _fitsarray_gfit_results2_sorted = np.copy(_fitsarray_gfit_results2)
-
-    nparams_eachmodel = 2 * (3 * n_gauss + 2) + n_gauss + 7
-    naxis1 = _fitsarray_gfit_results2.shape[2]
-    naxis2 = _fitsarray_gfit_results2.shape[1]
-
-    for model_idx in range(n_gauss):
-        all_params = np.empty((naxis2, naxis1, model_idx+1, 3))
-        all_params_e = np.empty((naxis2, naxis1, model_idx+1, 3))
-
-        all_params_integrated_intensity = np.empty((naxis2, naxis1, model_idx+1, 3))
-        all_params_e_integrated_intensity = np.empty((naxis2, naxis1, model_idx+1, 3))
-
-        start_idx = model_idx * nparams_eachmodel
-        for gaussian_idx in range(model_idx + 1):
-            gaussian_first_idx = start_idx + 2 + gaussian_idx * 3
-            gaussian_last_idx = gaussian_first_idx + 3
-            gaussian_e_first_idx = start_idx + 4 + (model_idx + 1 + gaussian_idx) * 3
-            gaussian_e_last_idx = gaussian_e_first_idx + 3
-
-            all_params[:, :, gaussian_idx, :] = _fitsarray_gfit_results2[gaussian_first_idx:gaussian_last_idx].transpose((1, 2, 0))
-            all_params_e[:, :, gaussian_idx, :] = _fitsarray_gfit_results2[gaussian_e_first_idx:gaussian_e_last_idx].transpose((1, 2, 0))
-
-            if gauss_param == '_integrated_int':
-                all_params_integrated_intensity[:, :, gaussian_idx, :] = _fitsarray_gfit_results2[gaussian_first_idx:gaussian_last_idx].transpose((1, 2, 0))
-                all_params_e_integrated_intensity[:, :, gaussian_idx, :] = _fitsarray_gfit_results2[gaussian_e_first_idx:gaussian_e_last_idx].transpose((1, 2, 0))
-
-                vdisp_cur_gauss = all_params_integrated_intensity[:, :, gaussian_idx, 1]
-                peak_amp_cur_gauss = all_params_integrated_intensity[:, :, gaussian_idx, 2]
-
-                all_params_integrated_intensity[:, :, gaussian_idx, 0] = np.sqrt(2*np.pi) * vdisp_cur_gauss * peak_amp_cur_gauss
-            
-
-        if gauss_param == '_integrated_int':
-            sorted_indices_integrated_int = np.argsort(-all_params_integrated_intensity[:, :, :, 0], axis=2) # descending order
-
-            all_params_sorted_integrated_int = np.take_along_axis(all_params, sorted_indices_integrated_int[..., None], axis=2)
-            all_params_e_sorted_integrated_int = np.take_along_axis(all_params_e, sorted_indices_integrated_int[..., None], axis=2)
-
-            flattened_params = all_params_sorted_integrated_int.reshape(naxis2, naxis1, -1)
-            flattened_params_e = all_params_e_sorted_integrated_int.reshape(naxis2, naxis1, -1)
-
-        else:
-            sorted_indices = np.argsort(-all_params[:, :, :, sort_wrt], axis=2) # descending order
-            all_params_sorted = np.take_along_axis(all_params, sorted_indices[..., None], axis=2)
-            all_params_e_sorted = np.take_along_axis(all_params_e, sorted_indices[..., None], axis=2)
-
-            flattened_params = all_params_sorted.reshape(naxis2, naxis1, -1)
-            flattened_params_e = all_params_e_sorted.reshape(naxis2, naxis1, -1)
-
-
-
-        start_idx = model_idx * nparams_eachmodel
-
-        cur_model_gfit_params_first_idx = start_idx + 2 + 0 * 3
-        cur_model_gfit_params_last_idx = start_idx + 2 + 0 * 3 + 3*(model_idx+1)
-
-        cur_model_gfit_params_e_first_idx = start_idx + 4 + (model_idx + 1 + 0) * 3
-        cur_model_gfit_params_e_end_idx = start_idx + 4 + (model_idx + 1 + 0) * 3 + 3*(model_idx+1)
-
-        _fitsarray_gfit_results2_sorted[cur_model_gfit_params_first_idx:cur_model_gfit_params_last_idx, :, :] = flattened_params.transpose(2, 0, 1)
-        _fitsarray_gfit_results2_sorted[cur_model_gfit_params_e_first_idx:cur_model_gfit_params_e_end_idx, :, :] = flattened_params_e.transpose(2, 0, 1)
-
-    return _fitsarray_gfit_results2_sorted
-
 
 
 def main():
+
     np.seterr(divide='ignore', invalid='ignore')
 
     _time_start = datetime.now()
@@ -7124,12 +6430,13 @@ def main():
         print("")
         print(" :: baygaud_classify.py usage ::")
         print("")
-        print(" Usage: Running baygaud_classify.py with baygaud_params.yaml and output-index")
+        print(" Usage: Running baygaud_classify.py with baygaud_params.yaml file")
         print(" > python3 baygaud_classify.py [ARG1: _baygaud_params.yaml] [ARG2: output-index, 1, 2, ...]")
         print(" e.g.,")
         print(" > python3 baygaud_classify.py _baygaud_params.ngc2403.yaml 1")
         print("")
         sys.exit()
+
 
 
     print(" ____________________________________________")
@@ -7165,9 +6472,6 @@ def main():
     _list_segs_bf.sort(key = lambda x: x.split('.x')[1], reverse=False) # reverse with x pixels
     
 
-    print(_list_segs_bf)
-    print()
-    print()
 
     nparams = 2*(3*max_ngauss+2) + max_ngauss + 7
     gfit_results = np.full((naxis1, naxis2, max_ngauss, nparams), fill_value=-1E9, dtype=float)
@@ -7200,8 +6504,8 @@ def main():
 
     if len(sys.argv) == 3:
         shutil.copyfile(configfile, "%s/%s" % (_dir_baygaud_combined, configfile))
-    else:
-        print("_baygaud.yaml file is not present...")
+    elif len(sys.argv) == 2:
+        shutil.copyfile('_baygaud_params.py', "%s/%s" % (_dir_baygaud_combined, '_baygaud_params.py'))
 
     make_dirs("%s/sgfit" % _dir_baygaud_combined)
     make_dirs("%s/psgfit" % _dir_baygaud_combined)
@@ -7210,10 +6514,6 @@ def main():
     make_dirs("%s/hot" % _dir_baygaud_combined)
     make_dirs("%s/ngfit" % _dir_baygaud_combined)
 
-    make_dirs("%s/ngfit_wrt_integrated_int" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_vdisp" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_peak_amp" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_vlos" % _dir_baygaud_combined)
 
 
 
@@ -7224,25 +6524,14 @@ def main():
     print("")
     _fitsarray_gfit_results1 = np.transpose(gfit_results, axes=[2, 3, 1, 0]) # 4d array
 
+
     print(" ____________________________________________")
     print("[____________________________________________]")
     print("[--> declare _fitsarray_gfit_results2 : 3d numpy array ...]")
     print("")
     print("")
 
-
-
     _fitsarray_gfit_results2 = np.concatenate(_fitsarray_gfit_results1 , axis=0)
-
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> sort _fitsarray_gfit_results2 w.r.t. 'Int', 'VDISP, 'VLOS' and 'Peak_amp' ...]")
-    print("")
-    print("")
-    _fitsarray_gfit_results2_sorted_wrt_amp = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_peak_amp')
-    _fitsarray_gfit_results2_sorted_wrt_vdisp = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_vdisp')
-    _fitsarray_gfit_results2_sorted_wrt_vlos = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_vlos')
-    _fitsarray_gfit_results2_sorted_wrt_integrated_int = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_integrated_int')
 
 
 
@@ -7252,10 +6541,6 @@ def main():
     print("")
     print("")
     bevidences = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    bevidences_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    bevidences_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    bevidences_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    bevidences_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
 
 
     print(" ____________________________________________")
@@ -7264,10 +6549,6 @@ def main():
     print("")
     print("")
     g_num_sort = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    g_num_sort_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    g_num_sort_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    g_num_sort_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    g_num_sort_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
 
 
 
@@ -7287,37 +6568,9 @@ def main():
     sn_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
     sn_pass_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
     sn_pass_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
+
     x_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
     x_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-
-    sn_ng_opt_slice_gparam_sorted_wrt_amp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    sn_pass_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_amp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-
-    sn_ng_opt_slice_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    sn_pass_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-
-    sn_ng_opt_slice_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    sn_pass_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-
-    sn_ng_opt_slice_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    sn_pass_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-
 
     i1 = _params['_i0']
     j1 = _params['_j0']
@@ -7346,56 +6599,6 @@ def main():
         print("")
 
 
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_amp[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] >= _params['vdisp_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] < _params['vdisp_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
-
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
-
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_vdisp[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] >= _params['vdisp_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] < _params['vdisp_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
-
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
-
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_vlos[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] >= _params['vdisp_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] < _params['vdisp_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
-
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
-
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_integrated_int[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] >= _params['vdisp_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] < _params['vdisp_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
-
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
-
-
     print(" ____________________________________________")
     print("[____________________________________________]")
     print("[--> check sn_ng_opt_slice ...]")
@@ -7414,21 +6617,6 @@ def main():
                                             (sn_ng_opt_slice[j, i, :, :] > peak_sn_pass_for_ng_opt), \
                                             1, 0)][0])
 
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-            sn_pass_ng_opt_gparam_sorted_wrt_amp[i, :, :] += np.array([np.where( \
-                                            (sn_ng_opt_slice_gparam_sorted_wrt_amp[j, i, :, :] > peak_sn_pass_for_ng_opt), \
-                                            1, 0)][0])
-            sn_pass_ng_opt_gparam_sorted_wrt_vdisp[i, :, :] += np.array([np.where( \
-                                            (sn_ng_opt_slice_gparam_sorted_wrt_vdisp[j, i, :, :] > peak_sn_pass_for_ng_opt), \
-                                            1, 0)][0])
-            sn_pass_ng_opt_gparam_sorted_wrt_vlos[i, :, :] += np.array([np.where( \
-                                            (sn_ng_opt_slice_gparam_sorted_wrt_vlos[j, i, :, :] > peak_sn_pass_for_ng_opt), \
-                                            1, 0)][0])
-            sn_pass_ng_opt_gparam_sorted_wrt_integrated_int[i, :, :] += np.array([np.where( \
-                                            (sn_ng_opt_slice_gparam_sorted_wrt_integrated_int[j, i, :, :] > peak_sn_pass_for_ng_opt), \
-                                            1, 0)][0])
-
 
 
     print(" ____________________________________________")
@@ -7441,11 +6629,6 @@ def main():
     for i in range(max_ngauss):
         bevidences[i, :, :] = _fitsarray_gfit_results2[nparams_step*(i+1)-7, :, :] # corresponing log-Z
 
-    for i in range(max_ngauss):
-        bevidences_gparam_sorted_wrt_amp[i, :, :] = _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(i+1)-7, :, :] # corresponing log-Z
-        bevidences_gparam_sorted_wrt_vdisp[i, :, :] = _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(i+1)-7, :, :] # corresponing log-Z
-        bevidences_gparam_sorted_wrt_vlos[i, :, :] = _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(i+1)-7, :, :] # corresponing log-Z
-        bevidences_gparam_sorted_wrt_integrated_int[i, :, :] = _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(i+1)-7, :, :] # corresponing log-Z
 
     print(" ____________________________________________")
     print("[____________________________________________]")
@@ -7455,16 +6638,6 @@ def main():
     print("")
     g_num_sort = bevidences.argsort(axis=0)[::-1] # descening order : arg
     bevidences_sort = np.sort(bevidences, axis=0)[::-1] # descening order : log-Z
-
-    g_num_sort_gparam_sorted_wrt_amp = bevidences_gparam_sorted_wrt_amp.argsort(axis=0)[::-1] # descening order : arg
-    bevidences_sort_gparam_sorted_wrt_amp = np.sort(bevidences_gparam_sorted_wrt_amp, axis=0)[::-1] # descening order : log-Z
-    g_num_sort_gparam_sorted_wrt_vdisp = bevidences_gparam_sorted_wrt_vdisp.argsort(axis=0)[::-1] # descening order : arg
-    bevidences_sort_gparam_sorted_wrt_vdisp = np.sort(bevidences_gparam_sorted_wrt_vdisp, axis=0)[::-1] # descening order : log-Z
-    g_num_sort_gparam_sorted_wrt_vlos = bevidences_gparam_sorted_wrt_vlos.argsort(axis=0)[::-1] # descening order : arg
-    bevidences_sort_gparam_sorted_wrt_vlos = np.sort(bevidences_gparam_sorted_wrt_vlos, axis=0)[::-1] # descening order : log-Z
-    g_num_sort_gparam_sorted_wrt_integrated_int = bevidences_gparam_sorted_wrt_integrated_int.argsort(axis=0)[::-1] # descening order : arg
-    bevidences_sort_gparam_sorted_wrt_integrated_int = np.sort(bevidences_gparam_sorted_wrt_integrated_int, axis=0)[::-1] # descening order : log-Z
-
 
 
 
@@ -7484,57 +6657,18 @@ def main():
         print(bevidences_sort)
         opt_ngmap_gmax_ng = g1_opt_bf(_fitsarray_gfit_results2)
         print() 
-        print(bf_limit)
-        print(g_num_sort_gparam_sorted_wrt_amp)
-        print(bevidences_sort_gparam_sorted_wrt_amp)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_amp = g1_opt_bf(_fitsarray_gfit_results2_sorted_wrt_amp)
-        print() 
-        print(g_num_sort_gparam_sorted_wrt_vdisp)
-        print(bevidences_sort_gparam_sorted_wrt_vdisp)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp = g1_opt_bf(_fitsarray_gfit_results2_sorted_wrt_vdisp)
-        print() 
-        print(g_num_sort_gparam_sorted_wrt_vlos)
-        print(bevidences_sort_gparam_sorted_wrt_vlos)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos = g1_opt_bf(_fitsarray_gfit_results2_sorted_wrt_vlos)
-        print() 
-        print(g_num_sort_gparam_sorted_wrt_integrated_int)
-        print(bevidences_sort_gparam_sorted_wrt_integrated_int)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int = g1_opt_bf(_fitsarray_gfit_results2_sorted_wrt_integrated_int)
-        print() 
-
 
     elif max_ngauss > 1:
         gx_list = [] # [0, 1, 2, ...] == [1, 2, 3, ...]
         for i in range(0, max_ngauss):
             gx_list.append(i)
+
         opt_ngmap_gmax_ng = find_gx_opt_bf_snp(_fitsarray_gfit_results2, bevidences_sort, g_num_sort, bf_limit, max_ngauss, sn_pass_ng_opt, gx_list)
-
-        gx_list_gparam_sorted_wrt_amp = [] # [0, 1, 2, ...] == [1, 2, 3, ...]
-        for i in range(0, max_ngauss):
-            gx_list_gparam_sorted_wrt_amp.append(i)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_amp = find_gx_opt_bf_snp(_fitsarray_gfit_results2_sorted_wrt_amp, bevidences_sort_gparam_sorted_wrt_amp, g_num_sort_gparam_sorted_wrt_amp, bf_limit, max_ngauss, sn_pass_ng_opt_gparam_sorted_wrt_amp, gx_list_gparam_sorted_wrt_amp)
-        gx_list_gparam_sorted_wrt_vdisp = [] # [0, 1, 2, ...] == [1, 2, 3, ...]
-        for i in range(0, max_ngauss):
-            gx_list_gparam_sorted_wrt_vdisp.append(i)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp = find_gx_opt_bf_snp(_fitsarray_gfit_results2_sorted_wrt_vdisp, bevidences_sort_gparam_sorted_wrt_vdisp, g_num_sort_gparam_sorted_wrt_vdisp, bf_limit, max_ngauss, sn_pass_ng_opt_gparam_sorted_wrt_vdisp, gx_list_gparam_sorted_wrt_vdisp)
-        gx_list_gparam_sorted_wrt_vlos = [] # [0, 1, 2, ...] == [1, 2, 3, ...]
-        for i in range(0, max_ngauss):
-            gx_list_gparam_sorted_wrt_vlos.append(i)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos = find_gx_opt_bf_snp(_fitsarray_gfit_results2_sorted_wrt_vlos, bevidences_sort_gparam_sorted_wrt_vlos, g_num_sort_gparam_sorted_wrt_vlos, bf_limit, max_ngauss, sn_pass_ng_opt_gparam_sorted_wrt_vlos, gx_list_gparam_sorted_wrt_vlos)
-        gx_list_gparam_sorted_wrt_integrated_int = [] # [0, 1, 2, ...] == [1, 2, 3, ...]
-        for i in range(0, max_ngauss):
-            gx_list_gparam_sorted_wrt_integrated_int.append(i)
-        opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int = find_gx_opt_bf_snp(_fitsarray_gfit_results2_sorted_wrt_integrated_int, bevidences_sort_gparam_sorted_wrt_integrated_int, g_num_sort_gparam_sorted_wrt_integrated_int, bf_limit, max_ngauss, sn_pass_ng_opt_gparam_sorted_wrt_integrated_int, gx_list_gparam_sorted_wrt_integrated_int)
-
 
 
     print(" ____________________________________________")
     print("[____________________________________________]")
     print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_amp[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int[j1, i1]))
     print("")
     print("")
 
@@ -7586,24 +6720,6 @@ def main():
     print("")
     print("")
     extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
-
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> extract :: all the Gaussian components :: w.r.t. VDISP :: given max_ngauss ...]")
-    print("")
-    print("")
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_amp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_peak_amp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_amp, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_vdisp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vdisp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_vlos, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vlos', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_integrated_int, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_integrated_int', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int, _hdu=hdu)
-
-
-
-
-
-
-
-
 
     if _params['_bulk_extraction'] == 'Y':
         print(" ____________________________________________")
