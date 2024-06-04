@@ -31,7 +31,7 @@ def gauss_model(x, amp, vel, disp): # no bg added
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
 
-def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=4):
+def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=9):
 
     ax = img.axes
     fig = ax.figure
@@ -114,10 +114,10 @@ def initdisplay():
 
 
     dict_plot['ax1'].clear()
-    dict_plot['ax1'].set_xlabel('x', fontsize=6)
-    dict_plot['ax1'].set_ylabel('y', fontsize=6)
-    dict_plot['ax1'].yaxis.set_tick_params(labelsize=7)
-    dict_plot['ax1'].xaxis.set_tick_params(labelsize=7)
+    dict_plot['ax1'].set_xlabel('x', fontsize=9)
+    dict_plot['ax1'].set_ylabel('y', fontsize=9)
+    dict_plot['ax1'].yaxis.set_tick_params(labelsize=9)
+    dict_plot['ax1'].xaxis.set_tick_params(labelsize=9)
 
     if 'cax' in dict_plot:
         dict_plot['cax'].remove()
@@ -183,8 +183,8 @@ def initdisplay():
     fillentry(entry_climhi, clim[1])
 
     dict_plot['ax1'].invert_yaxis()
-    _,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar, fontsize=6)
-    dict_plot['cax'].yaxis.set_tick_params(labelsize=7)
+    _,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar, fontsize=9)
+    dict_plot['cax'].yaxis.set_tick_params(labelsize=9)
 
     dict_plot['canvas1'].draw()
 
@@ -389,7 +389,7 @@ def plot_profiles():
         spectral_axis = dict_data['spectral_axis']
         cube = dict_data['cube'][:, y, x]
 
-        ax2.plot(spectral_axis, cube, linewidth=0.5)
+        ax2.step(spectral_axis, cube, linewidth=2.0)
         input_prof = np.full_like(cube, cube)
         total = np.zeros_like(spectral_axis)
 
@@ -415,24 +415,26 @@ def plot_profiles():
 
                 label = f'G{i + 1:<2} (f: {amp*1000:>.1f} | x: {vel:>.1f} | s: {disp:>.1f} | S/N: {sn:>.1f})'
                 ax2.plot(spectral_axis, ploty, label=label, color=colors[i], ls='-', alpha=0.5, linewidth=1.0)
+                ploty -= bg
 
 
                 ax2.legend(loc='upper right')
 
-            ax2.legend(fontsize=4.5)
-            panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y-1][x-1]), fontsize=5)
+            ax2.legend(fontsize=6.0)
+            panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y-1][x-1]), fontsize=9)
 
-        panel_label(dict_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=5)
+        panel_label(dict_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=9)
 
+        total += bg
         res = input_prof - total
 
-        dict_plot['ax2'].plot(dict_data['spectral_axis'], total, color='red', ls='--', linewidth=1.0, alpha=0.5)
-        dict_plot['ax3'].plot(dict_data['spectral_axis'], res, color='orange', ls='-', linewidth=0.5, alpha=0.7)
+        dict_plot['ax3'].step(dict_data['spectral_axis'], res, color='orange', ls='-', linewidth=2.0, alpha=0.7)
+        dict_plot['ax2'].plot(dict_data['spectral_axis'], total, color='red', ls='--', linewidth=1.5, alpha=0.5)
         dict_plot['ax3'].plot(dict_data['spectral_axis'], rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
         dict_plot['ax3'].plot(dict_data['spectral_axis'], -1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
 
-        dict_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(dict_params['unit_cube']), ha='center', va='center', transform = dict_plot['ax2'].transAxes, rotation=90, fontsize=6)
-        dict_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=6)
+        dict_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(dict_params['unit_cube']), ha='center', va='center', transform = dict_plot['ax2'].transAxes, rotation=90, fontsize=9)
+        dict_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=9)
 
         dict_plot['ax2'].margins(x=0.02, y=0.15)
         dict_plot['ax3'].margins(x=0.02, y=0.05)
