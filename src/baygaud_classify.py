@@ -1,13 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-#|-----------------------------------------|
-#| baygaud_clasify.py
-#|-----------------------------------------|
-#| by Se-Heon Oh
-#| Dept. of Physics and Astronomy
-#| Sejong University, Seoul, South Korea
-#|-----------------------------------------|
 
 from __future__ import division, print_function
 from re import A, I, L

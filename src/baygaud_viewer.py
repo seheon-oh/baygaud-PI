@@ -1,13 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-#|-----------------------------------------|
-#| baygaud_viewer.py
-#|-----------------------------------------|
-#| by Se-Heon Oh
-#| Dept. of Physics and Astronomy
-#| Sejong University, Seoul, South Korea
-#|-----------------------------------------|
 
 import glob
 import os
@@ -25,10 +16,10 @@ from _baygaud_params import read_configfile
 
 title = 'baygaud-PI viewer'
 
-dict_params = {'cursor_xy':(-1,-1), 'multiplier_cube':1000.0, 'unit_cube':r'mJy$\,$beam$^{-1}$', 'multiplier_spectral_axis':0.001}
+dict_params = {'cursor_xy':(-1,-1), 'tomJy':1000.0, 'unit_cube':r'mJy$\,$beam$^{-1}$', 'tokms':0.001}
 dict_data = {}
 dict_plot = {'fix_cursor':False}
-plt.rcParams["hatch.linewidth"] = 4
+plt.rcParams["hatch.linewidth"] = 1
 plt.rcParams["xtick.direction"] = "in"
 plt.rcParams["ytick.direction"] = "in"
 
@@ -36,11 +27,11 @@ colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:y
         'tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan']
 
 
-def gauss_model(x, amp, vel, disp):
+def gauss_model(x, amp, vel, disp): # no bg added
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
 
-def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=12):
+def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=4):
 
     ax = img.axes
     fig = ax.figure
@@ -66,13 +57,6 @@ def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right'
 
     return cbar, cax
 
-def panel_label(ax, text, xpos=0.05, ypos=0.95, color='black', fontsize=10, inside_box=False, pad=5.0):
-
-    font_props = {'fontsize': fontsize, 'color': color, 'verticalalignment': 'top'}
-    bbox = {'facecolor': 'none', 'edgecolor': color if inside_box else 'none', 'pad': pad}
-    ax.text(xpos, ypos, text, transform=ax.transAxes, bbox=bbox, **font_props)
-
-
 def fillentry(entry, content):
 
     entry['state'] = 'normal'
@@ -97,8 +81,8 @@ def initdisplay():
 
     if 'fig1' not in dict_plot:
         fig1, ax1 = plt.subplots()#tight_layout=True)
-        fig1.set_figwidth(1.5*500/fig1.dpi)
-        fig1.set_figheight(1.5*460/fig1.dpi)
+        fig1.set_figwidth(1.45*500/fig1.dpi)
+        fig1.set_figheight(1.45*460/fig1.dpi)
         fig1.subplots_adjust(left=0.1, right=0.85, top=0.99, bottom=0.05)
 
         canvas1 = FigureCanvasTkAgg(fig1, master=frame_display)   #DRAWING FIGURES ON GUI FRAME
@@ -109,8 +93,8 @@ def initdisplay():
 
 
         fig2, (ax2, ax3) = plt.subplots(nrows=2, sharex=True)
-        fig2.set_figwidth(1.5*500/fig2.dpi)
-        fig2.set_figheight(1.5*500/fig2.dpi)
+        fig2.set_figwidth(1.45*500/fig2.dpi)
+        fig2.set_figheight(1.45*500/fig2.dpi)
         fig2.subplots_adjust(hspace=0, top=0.94, bottom=0.18)
 
         ax2.plot(dict_data['spectral_axis'], np.zeros_like(dict_data['spectral_axis']))
@@ -130,8 +114,10 @@ def initdisplay():
 
 
     dict_plot['ax1'].clear()
-    dict_plot['ax1'].set_xlabel('x', fontsize=16)
-    dict_plot['ax1'].set_ylabel('y', fontsize=16)
+    dict_plot['ax1'].set_xlabel('x', fontsize=6)
+    dict_plot['ax1'].set_ylabel('y', fontsize=6)
+    dict_plot['ax1'].yaxis.set_tick_params(labelsize=7)
+    dict_plot['ax1'].xaxis.set_tick_params(labelsize=7)
 
     if 'cax' in dict_plot:
         dict_plot['cax'].remove()
@@ -197,7 +183,8 @@ def initdisplay():
     fillentry(entry_climhi, clim[1])
 
     dict_plot['ax1'].invert_yaxis()
-    _,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar)
+    _,dict_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar, fontsize=6)
+    dict_plot['cax'].yaxis.set_tick_params(labelsize=7)
 
     dict_plot['canvas1'].draw()
 
@@ -215,10 +202,18 @@ def read_ngfit(path_cube=None, path_classified=None):
         dict_params['path_classified'] = path_classified
 
     dict_params['path_fig1'] = f"{dict_params['path_classified']}/ngfit/ngfit.G*_1.1.fits"
-    dict_data['cube'] = fits.getdata(dict_params['path_cube']) * dict_params['multiplier_cube']
+    dict_data['cube'] = fits.getdata(dict_params['path_cube']) * dict_params['tomJy']
     if(len(dict_data['cube'].shape)>3): dict_data['cube'] = dict_data['cube'][0,:,:,:]
-    # dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).spectral_axis.value * dict_params['multiplier_spectral_axis']
-    dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis.value
+
+    with fits.open(dict_params['path_cube'], 'update') as hdu:
+        _ctype3 = hdu[0].header['CTYPE3']
+
+    if _ctype3 != 'VOPT*': # not optical
+        dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='radio').spectral_axis.value
+    else:
+        dict_data['spectral_axis'] = SpectralCube.read(dict_params['path_cube']).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis.value
+
+
     dict_data['imsize'] = dict_data['cube'][0, :, :].shape
 
     n_gauss = _params['max_ngauss']
@@ -230,8 +225,6 @@ def read_ngfit(path_cube=None, path_classified=None):
     ngfit_sn    = np.empty(n_gauss, dtype=object)
 
     sgfit_bg    = fits.getdata(glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_1.3.fits")[0])
-    data_noise  = fits.getdata(glob.glob(f"{dict_params['path_classified']}/sgfit/sgfit.G{n_gauss}_1.4.fits")[0])
-    dict_data['noise'] = data_noise
 
     for i in range(n_gauss):
         name_amp        = glob.glob(f"{dict_params['path_classified']}/ngfit/ngfit.G{n_gauss}_{i+1}.5.fits")[0]
@@ -250,14 +243,13 @@ def read_ngfit(path_cube=None, path_classified=None):
         ngfit_sn[i]  = fits.getdata(ngfit_sn_slice)
 
 
-    del data_noise
-
     dict_data['amps']  = amps
     dict_data['vels']  = vels
     dict_data['disps'] = disps
     dict_data['bg']    = ngfit_bgs
     dict_data['rms']    = ngfit_rms
     dict_data['sn']    = ngfit_sn
+
 
     initdisplay()
 
@@ -379,6 +371,10 @@ def callback_entry_climhi_clicked(*args):
 def fix_cursor(event):
     dict_plot['fix_cursor'] = (dict_plot['fix_cursor']+1)%2
 
+
+def panel_label(ax, label, x=0.00, y=1.05, fontsize=6):
+    ax.text(x, y, label, transform=ax.transAxes, fontsize=fontsize, verticalalignment='bottom', horizontalalignment='left', clip_on=False)
+
 def plot_profiles():
     try:
         n_gauss = _params['max_ngauss']
@@ -387,14 +383,14 @@ def plot_profiles():
         ax2.clear()
         ax3.clear()
 
-        bg = dict_data['bg'][0][y, x] * dict_params['multiplier_cube']
-        rms = dict_data['rms'][0][y, x] * dict_params['multiplier_cube']
+        bg = dict_data['bg'][0][y, x] * dict_params['tomJy']
+        rms = dict_data['rms'][0][y, x] * dict_params['tomJy']
         rms_axis = np.full_like(dict_data['spectral_axis'], rms)
         spectral_axis = dict_data['spectral_axis']
         cube = dict_data['cube'][:, y, x]
 
-        ax2.step(spectral_axis, cube)
-        subed = np.full_like(cube, cube)
+        ax2.plot(spectral_axis, cube, linewidth=0.5)
+        input_prof = np.full_like(cube, cube)
         total = np.zeros_like(spectral_axis)
 
         dict_params['path_fig1'] = f"{dict_params['path_classified']}/sgfit/sgfit.G%d_1.7.fits" % n_gauss
@@ -412,34 +408,40 @@ def plot_profiles():
                 if np.any(np.isnan([vel, disp, amp])):
                     continue
 
-                ploty = gauss_model(spectral_axis, amp, vel, disp) * dict_params['multiplier_cube']
+                ploty = gauss_model(spectral_axis, amp, vel, disp) * dict_params['tomJy']
                 total += ploty
+
                 ploty += bg
-                ax2.plot(spectral_axis, ploty, label=f'G{i + 1} (S/N: {sn:.2f})', color=colors[i], ls='-', alpha=0.5)
+
+                label = f'G{i + 1:<2} (f: {amp*1000:>.1f} | x: {vel:>.1f} | s: {disp:>.1f} | S/N: {sn:>.1f})'
+                ax2.plot(spectral_axis, ploty, label=label, color=colors[i], ls='-', alpha=0.5, linewidth=1.0)
+
+
                 ax2.legend(loc='upper right')
-                ploty -= bg
 
-            panel_label(dict_plot['ax2'], '(x, y: N-Gauss)=(%d, %d: %d)' % (x, y, ng_opt[y, x]), fontsize=13)
-        panel_label(dict_plot['ax3'], 'Residuals', fontsize=13)
+            ax2.legend(fontsize=4.5)
+            panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y-1][x-1]), fontsize=5)
 
-        total += bg
-        subed -= total
+        panel_label(dict_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=5)
 
-        dict_plot['ax2'].plot(dict_data['spectral_axis'], total, color='red', ls='--', linewidth=3, alpha=0.5)
-        dict_plot['ax3'].step(dict_data['spectral_axis'], subed, color='orange', ls='-', alpha=0.7)
-        dict_plot['ax3'].plot(dict_data['spectral_axis'], rms_axis, color='purple', ls='--', alpha=0.7)
-        dict_plot['ax3'].plot(dict_data['spectral_axis'], -1*rms_axis, color='purple', ls='--', alpha=0.7)
+        res = input_prof - total
 
-        dict_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(dict_params['unit_cube']), ha='center', va='center', transform = dict_plot['ax2'].transAxes, rotation=90, fontsize=16)
-        dict_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=16)
+        dict_plot['ax2'].plot(dict_data['spectral_axis'], total, color='red', ls='--', linewidth=1.0, alpha=0.5)
+        dict_plot['ax3'].plot(dict_data['spectral_axis'], res, color='orange', ls='-', linewidth=0.5, alpha=0.7)
+        dict_plot['ax3'].plot(dict_data['spectral_axis'], rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
+        dict_plot['ax3'].plot(dict_data['spectral_axis'], -1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
+
+        dict_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(dict_params['unit_cube']), ha='center', va='center', transform = dict_plot['ax2'].transAxes, rotation=90, fontsize=6)
+        dict_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=6)
 
         dict_plot['ax2'].margins(x=0.02, y=0.15)
         dict_plot['ax3'].margins(x=0.02, y=0.05)
 
-        dict_plot['ax2'].xaxis.set_tick_params(labelsize=14)
-        dict_plot['ax2'].yaxis.set_tick_params(labelsize=14)
-        dict_plot['ax3'].xaxis.set_tick_params(labelsize=14)
-        dict_plot['ax3'].yaxis.set_tick_params(labelsize=14)
+        dict_plot['ax2'].xaxis.set_tick_params(labelsize=7)
+        dict_plot['ax2'].yaxis.set_tick_params(labelsize=7)
+        dict_plot['ax3'].xaxis.set_tick_params(labelsize=7)
+        dict_plot['ax3'].yaxis.set_tick_params(labelsize=7)
+
 
         dict_plot['canvas2'].draw()
     except IndexError:
@@ -533,46 +535,52 @@ root.config(menu=menubar)
 root.bind('f', fix_cursor)
 root.bind('<Return>', apply_clim)
 
-if len(sys.argv) == 1:
-    print("")
-    print(91*"_")
-    print(91*"")
-    print(" :: baygaud_viewer.py usage ::")
-    print(91*"")
-    print(" usage-1: running baygaud_viewer.py with baygaud_params file")
-    print(" > python3 baygaud_viewer.py [ARG1: _baygaud_params.txt] [ARG2: output-index, 1, 2, ...]")
-    print(" output-index is the postfix number of the baygaud segments merged directory.")
-    print(" i.e., 'segmts_merged_n_classified.[output-index]' in 'wdir'")
-    print(" e.g.,")
-    print(" > python3 baygaud_viewer.py _baygaud_params.ngc2403.txt 1")
 
-    print(91*"-")
-    print(" usage-2: running baygaud_viewer.py with the DEFAULT baygaud_params file")
-    print("        : the DEFAULT baygaud_params file: _baygaud_params.py")
-    print(" > python3 baygaud_viewer.py [ARG1: output-index, 1, 2, ...]")
-    print(" e.g.,")
-    print(" > python3 baygaud_viewer.py 1")
-    print(91*"_")
-    print("")
-    sys.exit()
+if len(sys.argv) == 3:
+    if not os.path.exists(sys.argv[1]):
+        print("")
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("")
+        print(" :: WARNING: No ' %s ' exist.." % sys.argv[1])
+        print("")
+        print("")
+        sys.exit()
 
-elif len(sys.argv) == 2:
-    ("WARNING: No configfile supplied, trying default values")
-    _params=default_params()
-    _classified_index = int(sys.argv[1])
-
-
-elif len(sys.argv) == 3:
     configfile = sys.argv[1]
     _params=read_configfile(configfile)
     _classified_index = int(sys.argv[2])
 
+    print("")
+    print(" ____________________________________________")
+    print("[____________________________________________]")
+    print("")
+    print(" ||--- Running baygaud_viewer.py with %s %d ---||" % (configfile, _classified_index))
+    print("")
+
+else:
+    print("")
+    print(" ____________________________________________")
+    print("[____________________________________________]")
+    print("")
+    print(" :: Usage: running baygaud_viewer.py with baygaud_params.yaml file")
+    print(" :: > python3 baygaud_viewer.py [ARG1: _baygaud_params.yaml] [ARG2: _classified_index-N")
+    print(" :: _classified_index-N <-- 'segmts_merged_n_classified.[ N ]' in 'wdir'")
+    print(" :: e.g.,")
+    print(" :: > python3 baygaud_viewer.py _baygaud_params.ngc2403.yaml 1")
+    print("")
+    print("")
+    sys.exit()
 
 _path_cube = f"{_params['wdir']}/{_params['input_datacube']}"
 _path_classified = f"{_params['wdir']}/{_params['_combdir']}.{_classified_index}"
 read_ngfit(path_cube=_path_cube, path_classified=_path_classified)
 
-root.mainloop()
 
+def main():
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
 
 

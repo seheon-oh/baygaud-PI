@@ -1,18 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-#|-----------------------------------------|
-#| _dynesty_sampler.py
-#|-----------------------------------------|
-#|
-#| version history
-#| v1.0 (2022 Dec 25)
-#|
-#|-----------------------------------------|
-#| by Se-Heon Oh
-#| Dept. of Physics and Astronomy
-#| Sejong University, Seoul, South Korea
-#|-----------------------------------------|
 
 
 from re import A, I
@@ -277,7 +263,9 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
 
 
 
+
                 if _params['_dynesty_class_'] == 'static':
+                    _queue_size = int(_params['num_cpus_nested_sampling'])
                     rstate = np.random.default_rng(2)
 
                     sampler = NestedSampler(loglike_d, optimal_prior, ndim,
