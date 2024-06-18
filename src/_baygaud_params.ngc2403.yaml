@@ -169,12 +169,12 @@ _j0: 20 # y-pixel
 
 
 # _______________________________________________________  #
-# 6. Gaussian number ordering
+# 6. Gaussian number ordering : default
 # by
-_sort_gauss_wrt_int: 'Y'
-_sort_gauss_wrt_vdisp: 'Y'
-_sort_gauss_wrt_peak_amp: 'Y'
-_sort_gauss_wrt_vlos: 'Y'
+#_sort_gauss_wrt_int: 'Y'
+#_sort_gauss_wrt_vdisp: 'Y'
+#_sort_gauss_wrt_peak_amp: 'Y'
+#_sort_gauss_wrt_vlos: 'Y'
 
 
 #  ______________________________________________________  #
