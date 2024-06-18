@@ -1,15 +1,33 @@
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+#|-----------------------------------------|
+#| _dynesty_sampler.py
+#|-----------------------------------------|
+#|
+#| version history
+#| v1.0 (2022 Dec 25)
+#|
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
 
 
+#|-----------------------------------------|
 from re import A, I
 import sys
 import numpy as np
 from numpy import sum, exp, log, pi
 from numpy import linalg, array, sum, log, exp, pi, std, diag, concatenate
 
+#|-----------------------------------------|
 import numba
 import matplotlib.pyplot as plt
 
+#|-----------------------------------------|
 import dynesty
 from dynesty import NestedSampler
 from dynesty import DynamicNestedSampler
@@ -17,6 +35,7 @@ from dynesty import plotting as dyplot
 from dynesty import plotting as dyplot
 from dynesty import utils as dyfunc
 
+#|-----------------------------------------|
 import gc
 import ray
 import multiprocessing as mp
@@ -33,6 +52,7 @@ from _baygaud_params import read_configfile
 
 
 
+#|-----------------------------------------|
 def derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, ngauss):
 
     ndim = 3*ngauss + 2

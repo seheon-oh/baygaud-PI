@@ -1,8 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+#|-----------------------------------------|
+#| baygaud.py
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
 
 
-
+#|-----------------------------------------|
+# Python 3 compatability
 from __future__ import division, print_function
 
+#|-----------------------------------------|
+# system functions
 import time, sys, os
 from datetime import datetime
 
@@ -28,6 +41,7 @@ from _dirs_files import make_dirs
 
 
 
+#|-----------------------------------------|
 def main():
 
     start = datetime.now()

@@ -1,8 +1,20 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
+#|-----------------------------------------|
+#| _fits_io.py
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
+
+#|-----------------------------------------|
 
 import numpy as np
 import sys
 
+#|-----------------------------------------|
 import astropy.units as u
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
@@ -10,6 +22,7 @@ from astropy.stats import sigma_clipped_stats
 from spectral_cube import SpectralCube
 from spectral_cube import BooleanArrayMask
 
+#|-----------------------------------------|
 def read_datacube(_params):
     global _inputDataCube
 

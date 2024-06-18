@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-   
+# -*- coding: utf-8 -*-
 
 #|-----------------------------------------|
 #| baygaud_viewer.py
@@ -36,13 +36,9 @@ plt.rcParams["ytick.direction"] = "in"
 
 colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan'] * 2
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def gauss_model(x, amp, vel, disp):  # no bg added
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=10):
     ax = img.axes
     fig = ax.figure
@@ -65,8 +61,6 @@ def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right'
 
     return cbar, cax
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def fillentry(entry, content):
     entry['state'] = 'normal'
     entry.delete(0, "end")
@@ -74,8 +68,6 @@ def fillentry(entry, content):
     if entry['state'] == 'readonly':
         entry['state'] = 'readonly'
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry=10):
     if not title:
         title = array
@@ -86,8 +78,6 @@ def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry
         entry = Entry(frame, width=widthentry, justify='right')
         entry.grid(row=i + startcol, column=1)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def initdisplay():
     if 'fig1' not in window_plot:
         fig1, ax1 = plt.subplots()
@@ -198,8 +188,6 @@ def initdisplay():
     window_plot['ax3'].clear()
     window_plot['canvas2'].draw()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def read_ngfit(cube_fits=None, path_classified=None):
     if cube_fits:
         window_params['cube_fits'] = cube_fits
@@ -255,8 +243,6 @@ def read_ngfit(cube_fits=None, path_classified=None):
 
     initdisplay()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def loaddata():
     def browse_cube():
         cube_fits = filedialog.askopenfilename(title='Path to cube', filetypes=[('FITS file', '.fits .FITS')])
@@ -321,8 +307,6 @@ def loaddata():
 
     window_plot['toplv'] = toplv
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def apply_mapselect(*args):
     var = var_mapselect.get()
     n_gauss = _params['max_ngauss']
@@ -340,8 +324,6 @@ def apply_mapselect(*args):
 
     initdisplay()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def apply_clim(*args):
     climlo = float(var_climlo.get())
     climhi = float(var_climhi.get())
@@ -350,28 +332,18 @@ def apply_clim(*args):
     window_plot['clim_{}'.format(mapname)] = [climlo, climhi]
     initdisplay()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def callback_entry_climlo_clicked(*args):
     entry_climlo.selection_range(0, END)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def callback_entry_climhi_clicked(*args):
     entry_climhi.selection_range(0, END)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def fix_cursor(event):
     window_plot['fix_cursor'] = (window_plot['fix_cursor'] + 1) % 2
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def panel_label(ax, label, x=0.00, y=1.05, fontsize=6):
     ax.text(x, y, label, transform=ax.transAxes, fontsize=fontsize, verticalalignment='bottom', horizontalalignment='left', clip_on=False)
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def plot_profiles():
     try:
         n_gauss = _params['max_ngauss']
@@ -439,8 +411,6 @@ def plot_profiles():
     except IndexError:
         pass
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def cursor_coords(event):
     if not window_plot['fix_cursor']:
         if event.inaxes:
@@ -449,8 +419,6 @@ def cursor_coords(event):
                 window_params['cursor_xy'] = cursor_xy
                 plot_profiles()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
 def zoom(event):
     ax = window_plot['ax1']
     canvas = window_plot['canvas1']
@@ -468,20 +436,14 @@ def zoom(event):
     ax.set_ylim(*new_ylim)
     canvas.draw()
 
-#  _____________________________________________________________________________  #
-# [_____________________________________________________________________________] #
-# TK ROOT()
 root = Tk()
 
 root.title(title)
 
-# Start with a standard size
 root.geometry("1920x1080")
 
-# Variable to keep track of fullscreen state
 is_fullscreen = False
 
-# Fonts
 default_font = Font(family="TkDefaultFont", size=12)
 label_font = Font(family="TkDefaultFont", size=12)
 entry_font = Font(family="TkDefaultFont", size=12)
@@ -507,18 +469,15 @@ def adjust_layout():
         width = root.winfo_width()
         height = root.winfo_height()
 
-    # Adjust frame sizes
     frame_L.config(width=width * 0.55, height=height)
     frame_M.config(width=width * 0.01, height=height)
     frame_R.config(width=width * 0.40, height=height)
     frame_display.config(width=width * 0.55, height=height * 0.5)
     frame_line.config(width=width * 0.40, height=height * 0.5)
 
-    # Adjust font sizes
     new_font_size = int(height / 40)
     adjust_fonts(new_font_size)
 
-    # Redraw canvases
     window_plot['canvas1'].get_tk_widget().config(width=width * 0.55, height=height * 0.5)
     window_plot['canvas2'].get_tk_widget().config(width=width * 0.40, height=height * 0.5)
     window_plot['canvas1'].draw()
@@ -608,4 +567,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-#-- END OF SUB-ROUTINE____________________________________________________________#
