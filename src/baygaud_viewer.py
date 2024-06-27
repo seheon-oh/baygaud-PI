@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-   
 
 #|-----------------------------------------|
 #| baygaud_viewer.py
@@ -13,6 +13,7 @@
 import glob
 import os
 import sys
+import signal
 from tkinter import *
 from tkinter import filedialog, messagebox, ttk
 from tkinter.font import Font
@@ -36,10 +37,14 @@ plt.rcParams["ytick.direction"] = "in"
 
 colors = ['tab:blue', 'tab:orange', 'tab:red', 'tab:green', 'tab:purple', 'tab:yellow', 'tab:black', 'tab:magenta', 'tab:cyan'] * 2
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def gauss_model(x, amp, vel, disp):  # no bg added
     return amp * np.exp(-((x - vel) ** 2) / (2 * disp ** 2))
 
-def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=10):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def create_colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right', label='', ticks=[0], fontsize=10):
     ax = img.axes
     fig = ax.figure
 
@@ -61,14 +66,18 @@ def colorbar(img, spacing=0, cbarwidth=0.01, orientation='vertical', pos='right'
 
     return cbar, cax
 
-def fillentry(entry, content):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def update_entry(entry, content):
     entry['state'] = 'normal'
     entry.delete(0, "end")
     entry.insert(0, content)
     if entry['state'] == 'readonly':
         entry['state'] = 'readonly'
 
-def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry=10):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def create_label_and_entry(frame, array, title=[], startcol=0, widthlabel=10, widthentry=10):
     if not title:
         title = array
 
@@ -78,7 +87,9 @@ def makelabelentry(frame, array, title=[], startcol=0, widthlabel=10, widthentry
         entry = Entry(frame, width=widthentry, justify='right')
         entry.grid(row=i + startcol, column=1)
 
-def initdisplay():
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def initialize_display():
     if 'fig1' not in window_plot:
         fig1, ax1 = plt.subplots()
         fig1.set_figwidth(1.45 * 500 / fig1.dpi)
@@ -88,8 +99,8 @@ def initdisplay():
         canvas1 = FigureCanvasTkAgg(fig1, master=frame_display)
         canvas1.draw()
         canvas1.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
-        fig1.canvas.mpl_connect('motion_notify_event', cursor_coords)
-        fig1.canvas.mpl_connect('scroll_event', zoom)
+        fig1.canvas.mpl_connect('motion_notify_event', update_cursor_coords)
+        fig1.canvas.mpl_connect('scroll_event', handle_zoom)
 
         fig2, (ax2, ax3) = plt.subplots(nrows=2, sharex=True)
         fig2.set_figwidth(1.45 * 500 / fig2.dpi)
@@ -149,17 +160,15 @@ def initdisplay():
         return mask
 
     mask = isolate_largest(data)
-    data = np.where(np.isnan(mask), np.nan, data)
+    data_isolated = np.where(np.isnan(mask), np.nan, data)
+    clim = np.nanpercentile(data_isolated, (5, 95))
 
     var = var_mapselect.get()
     if var == 'Integrated flux':
-        clim = np.nanpercentile(data, (0, 99.9))
         label_cbar = r'Int. flux (Jy beam$^{-1}$ km s$^{-1}$)'
     elif var == 'SGfit V.F.':
-        clim = np.nanpercentile(data, (2, 98))
         label_cbar = r'LoS velocity (km s$^{-1}$)'
     elif var == 'SGfit VDISP':
-        clim = (0, 50)
         label_cbar = r'Velocity dispersion (km s$^{-1}$)'
     elif var == 'N-Gauss':
         clim = (1, _params['max_ngauss'])
@@ -173,13 +182,13 @@ def initdisplay():
     else:
         window_plot['clim_{}'.format(var)] = clim
 
-    img1 = window_plot['ax1'].imshow(data, interpolation='none', cmap='jet', clim=clim)
+    img1 = window_plot['ax1'].imshow(data, interpolation='none', cmap='rainbow', clim=clim)
 
-    fillentry(entry_climlo, clim[0])
-    fillentry(entry_climhi, clim[1])
+    update_entry(entry_climlo, clim[0])
+    update_entry(entry_climhi, clim[1])
 
     window_plot['ax1'].invert_yaxis()
-    _, window_plot['cax'] = colorbar(img1, cbarwidth=0.03, label=label_cbar, fontsize=10)
+    _, window_plot['cax'] = create_colorbar(img1, cbarwidth=0.03, label=label_cbar, fontsize=10)
     window_plot['cax'].yaxis.set_tick_params(labelsize=10)
 
     window_plot['canvas1'].draw()
@@ -188,7 +197,9 @@ def initdisplay():
     window_plot['ax3'].clear()
     window_plot['canvas2'].draw()
 
-def read_ngfit(cube_fits=None, path_classified=None):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def read_ngfit_data(cube_fits=None, path_classified=None):
     if cube_fits:
         window_params['cube_fits'] = cube_fits
     if path_classified:
@@ -241,9 +252,11 @@ def read_ngfit(cube_fits=None, path_classified=None):
     _params['rms'] = ngfit_rms
     _params['sn'] = ngfit_sn
 
-    initdisplay()
+    initialize_display()
 
-def loaddata():
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def load_data():
     def browse_cube():
         cube_fits = filedialog.askopenfilename(title='Path to cube', filetypes=[('FITS file', '.fits .FITS')])
         if len(cube_fits) == 0:
@@ -253,7 +266,7 @@ def loaddata():
             messagebox.showerror("Error", "Cube should have at least three dimensions.")
             return
 
-        fillentry(entry_cube_fits, cube_fits)
+        update_entry(entry_cube_fits, cube_fits)
 
         possible_path_classified = glob.glob(os.path.dirname(cube_fits) + '/' + _params['_combdir'] + '.%d' % _classified_index)
         if len(possible_path_classified) == 1:
@@ -272,12 +285,12 @@ def loaddata():
             messagebox.showerror("Error", "No proper data found inside.")
             return
 
-        fillentry(entry_path_classified, path_classified)
+        update_entry(entry_path_classified, path_classified)
 
     def btncmd_toplv_apply():
         window_params['cube_fits'] = entry_cube_fits.get()
         window_params['path_classified'] = entry_path_classified.get()
-        read_ngfit()
+        read_ngfit_data()
         window_plot['toplv'].destroy()
 
     def btncmd_toplv_cancel():
@@ -287,7 +300,7 @@ def loaddata():
     frame_toplv1 = Frame(toplv)
     frame_toplv2 = Frame(toplv)
 
-    makelabelentry(frame_toplv1, ['cube_fits', 'path_classified'], [], 0, 20, 20)
+    create_label_and_entry(frame_toplv1, ['cube_fits', 'path_classified'], [], 0, 20, 20)
 
     btn_toplv_browsecube = Button(frame_toplv1, text='Browse', command=browse_cube)
     btn_toplv_browsecube.grid(row=0, column=2)
@@ -307,7 +320,9 @@ def loaddata():
 
     window_plot['toplv'] = toplv
 
-def apply_mapselect(*args):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def apply_map_selection(*args):
     var = var_mapselect.get()
     n_gauss = _params['max_ngauss']
 
@@ -322,28 +337,40 @@ def apply_mapselect(*args):
     elif var == 'SGfit peak S/N':
         window_params['path_fig1'] = window_params['path_classified'] + '/sgfit/sgfit.G%d_1.6.fits' % n_gauss
 
-    initdisplay()
+    initialize_display()
 
-def apply_clim(*args):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def apply_clim_values(*args):
     climlo = float(var_climlo.get())
     climhi = float(var_climhi.get())
 
     mapname = var_mapselect.get()
     window_plot['clim_{}'.format(mapname)] = [climlo, climhi]
-    initdisplay()
+    initialize_display()
 
-def callback_entry_climlo_clicked(*args):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def handle_climlo_entry_click(*args):
     entry_climlo.selection_range(0, END)
 
-def callback_entry_climhi_clicked(*args):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def handle_climhi_entry_click(*args):
     entry_climhi.selection_range(0, END)
 
-def fix_cursor(event):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def toggle_fix_cursor(event):
     window_plot['fix_cursor'] = (window_plot['fix_cursor'] + 1) % 2
 
-def panel_label(ax, label, x=0.00, y=1.05, fontsize=6):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def add_panel_label(ax, label, x=0.00, y=1.05, fontsize=6):
     ax.text(x, y, label, transform=ax.transAxes, fontsize=fontsize, verticalalignment='bottom', horizontalalignment='left', clip_on=False)
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
 def plot_profiles():
     try:
         n_gauss = _params['max_ngauss']
@@ -385,9 +412,9 @@ def plot_profiles():
                 ploty -= bg
 
             ax2.legend(fontsize=10.0)
-            panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y][x]), fontsize=10)
+            add_panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y][x]), fontsize=10)
 
-        panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=10)
+        add_panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=10)
         total += bg
         res = input_prof - total
 
@@ -411,7 +438,9 @@ def plot_profiles():
     except IndexError:
         pass
 
-def cursor_coords(event):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def update_cursor_coords(event):
     if not window_plot['fix_cursor']:
         if event.inaxes:
             cursor_xy = (round(event.xdata), round(event.ydata))
@@ -419,7 +448,9 @@ def cursor_coords(event):
                 window_params['cursor_xy'] = cursor_xy
                 plot_profiles()
 
-def zoom(event):
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+def handle_zoom(event):
     ax = window_plot['ax1']
     canvas = window_plot['canvas1']
     xlim, ylim = ax.get_xlim(), ax.get_ylim()
@@ -436,14 +467,20 @@ def zoom(event):
     ax.set_ylim(*new_ylim)
     canvas.draw()
 
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+# TK ROOT()
 root = Tk()
 
 root.title(title)
 
+# Start with a standard size
 root.geometry("1920x1080")
 
+# Variable to keep track of fullscreen state
 is_fullscreen = False
 
+# Fonts
 default_font = Font(family="TkDefaultFont", size=12)
 label_font = Font(family="TkDefaultFont", size=12)
 entry_font = Font(family="TkDefaultFont", size=12)
@@ -469,15 +506,18 @@ def adjust_layout():
         width = root.winfo_width()
         height = root.winfo_height()
 
+    # Adjust frame sizes
     frame_L.config(width=width * 0.55, height=height)
     frame_M.config(width=width * 0.01, height=height)
     frame_R.config(width=width * 0.40, height=height)
     frame_display.config(width=width * 0.55, height=height * 0.5)
     frame_line.config(width=width * 0.40, height=height * 0.5)
 
+    # Adjust font sizes
     new_font_size = int(height / 40)
     adjust_fonts(new_font_size)
 
+    # Redraw canvases
     window_plot['canvas1'].get_tk_widget().config(width=width * 0.55, height=height * 0.5)
     window_plot['canvas2'].get_tk_widget().config(width=width * 0.40, height=height * 0.5)
     window_plot['canvas1'].draw()
@@ -504,8 +544,8 @@ frame_LB_space.pack(side='left')
 frame_LB_climlo = Frame(frame_LB)
 var_climlo = StringVar()
 label_climlo = Label(frame_LB_climlo, text='clim_low', anchor='e', font=label_font)
-entry_climlo = Entry(frame_LB_climlo, justify='right', textvariable=var_climlo, validate="focusout", validatecommand=apply_clim, font=entry_font)
-entry_climlo.bind("<FocusIn>", callback_entry_climlo_clicked)
+entry_climlo = Entry(frame_LB_climlo, justify='right', textvariable=var_climlo, validate="focusout", validatecommand=apply_clim_values, font=entry_font)
+entry_climlo.bind("<FocusIn>", handle_climlo_entry_click)
 label_climlo.pack(side='left')
 entry_climlo.pack(side='right')
 frame_LB_climlo.pack(side='left')
@@ -513,8 +553,8 @@ frame_LB_climlo.pack(side='left')
 frame_LB_climhi = Frame(frame_LB)
 var_climhi = StringVar()
 label_climhi = Label(frame_LB_climhi, text='clim_high', anchor='e', font=label_font)
-entry_climhi = Entry(frame_LB_climhi, justify='right', textvariable=var_climhi, validate="focusout", validatecommand=apply_clim, font=entry_font)
-entry_climhi.bind("<FocusIn>", callback_entry_climhi_clicked)
+entry_climhi = Entry(frame_LB_climhi, justify='right', textvariable=var_climhi, validate="focusout", validatecommand=apply_clim_values, font=entry_font)
+entry_climhi.bind("<FocusIn>", handle_climhi_entry_click)
 label_climhi.pack(side='left')
 entry_climhi.pack(side='right')
 frame_LB_climhi.pack(side='left')
@@ -525,7 +565,7 @@ var_mapselect.set(OptionList[1])
 
 dropdown_mapselect = OptionMenu(frame_LB, var_mapselect, *OptionList)
 dropdown_mapselect.pack(side='right')
-var_mapselect.trace("w", apply_mapselect)
+var_mapselect.trace("w", apply_map_selection)
 
 frame_LB.pack(fill=BOTH, expand=True)
 
@@ -538,8 +578,19 @@ frame_R.pack(fill=BOTH, expand=True, side='right')
 frame_master.pack(fill=BOTH, expand=True)
 
 root.config(menu=menubar)
-root.bind('f', fix_cursor)
-root.bind('<Return>', apply_clim)
+root.bind('f', toggle_fix_cursor)
+root.bind('<Return>', apply_clim_values)
+
+def close_application():
+    root.destroy()
+    sys.exit(0)
+
+root.protocol("WM_DELETE_WINDOW", close_application)
+
+def signal_handler(sig, frame):
+    close_application()
+
+signal.signal(signal.SIGINT, signal_handler)
 
 if len(sys.argv) == 3:
     if not os.path.exists(sys.argv[1]):
@@ -559,7 +610,7 @@ else:
 
 _cube_fits = f"{_params['wdir']}/{_params['input_datacube']}"
 _path_classified = f"{_params['wdir']}/{_params['_combdir']}.{_classified_index}"
-read_ngfit(cube_fits=_cube_fits, path_classified=_path_classified)
+read_ngfit_data(cube_fits=_cube_fits, path_classified=_path_classified)
 
 def main():
     root.mainloop()
@@ -567,3 +618,4 @@ def main():
 if __name__ == '__main__':
     main()
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
