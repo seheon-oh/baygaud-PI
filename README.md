@@ -285,7 +285,7 @@
 # Cite
 
 	1. Robust profile decomposition for large extragalactic spectral-line surveys (main algorithm paper)
-		Oh, S. H., Staveley-Smith, L. & For, B. Q., 13 Mar 2019, In: Monthly Notices of the Royal Astronomical Society. 485, 4, p. 5021-5034 14 p.
+		Oh, S. H., Staveley-Smith, L. & For, B. Q., 13 Mar 2019, Monthly Notices of the Royal Astronomical Society. 485, 4, p. 5021-5034 14 p.
 
 	2. Kinematic Decomposition of the HI Gaseous Component in the Large Magellanic Cloud (application paper)
 		Oh, Se-Heon, Kim, Shinna, For, Bi-Qing & Staveley-Smith, Lister, 1 Apr 2022, In: Astrophysical Journal. 928, 2, 177.
@@ -294,13 +294,16 @@
 		Park, H. J., Oh, S. H., Wang, J., Zheng, Y., Zhang, H. X. & de Blok, W. J. G., 1 Sep 2022, In: Astronomical Journal. 164, 3, 82.
 		
 	4. WALLABY Pilot Survey: HI gas kinematics of galaxy pairs in cluster environment (application paper)
-		Kim, S. J., Oh, S. H. et al., 2023, In Monthly Notices of the Royal Astronomical Society
+		Kim, S. J., Oh, S. H. et al., 2023, Monthly Notices of the Royal Astronomical Society
 	
 	5. GLOBAL HI PROPERTIES OF GALAXIES VIA SUPER-PROFILE ANALYSIS (application paper)
 		Kim, M. & Oh, S. H., Oct 2022, In: Journal of the Korean Astronomical Society. 55, 5, p. 149-172 24 p.
 		
 	6. FEASTS: IGM cooling triggered by tidal interactions through the diffuse HI phase around NGC 4631 (application paper)
-		Jing Wang, Dong Yang, Se-Heon Oh, Lister Staveley-Smith, Jie Wang, Q. Daniel Wang, Kelley M. Hess, Luis C. Ho, Ligang Hou, Yingjie Jing, Peter Kamphuis, Fujia Li, Xuchen Lin, Ziming Liu, Li Shao, Shun Wang, Ming Zhu, Astrophysical Journal (2023)
+		Jing Wang, Dong Yang, Se-Heon Oh, Lister Staveley-Smith, Jie Wang, Q. Daniel Wang, Kelley M. Hess, Luis C. Ho, Ligang Hou, Yingjie Jing, Peter Kamphuis, Fujia Li, Xuchen Lin, Ziming Liu, Li Shao, Shun Wang, Ming Zhu, 2023, Astrophysical Journal
+
+  	7. Extraction of Hi gas with bulk motions in the disk of galaxies (application paper)
+		Se-Heon Oh and Jing Wang, 2025, Monthly Notices of the Royal Astronomical Society, 538, 1816
 
 
 
