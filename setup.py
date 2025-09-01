@@ -26,8 +26,8 @@ except ImportError:
     long_description = open('README.md').read()
 
 setup(
-    name                = 'baygaud',
-    version             = '1.0.0',
+    name                = 'baygaud-PI',
+    version             = '1.1.0',
     description         = 'profile decomposition tool',
     author              = 'Se-Heon Oh',
     author_email        = 'seheon.oh@sejong.ac.kr',
