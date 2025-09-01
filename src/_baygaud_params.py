@@ -13,7 +13,10 @@ import sys
 import numpy as np
 import yaml
 
-
+#  ______________________________________________________  #
+# [______________________________________________________] #
+# [ global parameters
+# _______________________________________________________  #
 global _inputDataCube
 global _is, _ie, _js, _je
 global parameters
@@ -25,11 +28,16 @@ global gfit_results
 global _x
 global nchannels
 
-
+#  ______________________________________________________  #
+# [______________________________________________________] #
+# [ read yaml file
+# _______________________________________________________  #
 def read_configfile(configfile):
     with open(configfile, "r") as file:
         _params = yaml.safe_load(file)
     return _params
+#-- END OF SUB-ROUTINE____________________________________#
+
 
 
 
