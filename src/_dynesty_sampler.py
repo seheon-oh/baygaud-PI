@@ -1,33 +1,15 @@
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-#|-----------------------------------------|
-#| _dynesty_sampler.py
-#|-----------------------------------------|
-#|
-#| version history
-#| v1.0 (2022 Dec 25)
-#|
-#|-----------------------------------------|
-#| by Se-Heon Oh
-#| Dept. of Physics and Astronomy
-#| Sejong University, Seoul, South Korea
-#|-----------------------------------------|
 
 
-#|-----------------------------------------|
 from re import A, I
 import sys
 import numpy as np
 from numpy import sum, exp, log, pi
 from numpy import linalg, array, sum, log, exp, pi, std, diag, concatenate
 
-#|-----------------------------------------|
 import numba
 import matplotlib.pyplot as plt
 
-#|-----------------------------------------|
 import dynesty
 from dynesty import NestedSampler
 from dynesty import DynamicNestedSampler
@@ -35,7 +17,6 @@ from dynesty import plotting as dyplot
 from dynesty import plotting as dyplot
 from dynesty import utils as dyfunc
 
-#|-----------------------------------------|
 import gc
 import ray
 import multiprocessing as mp
@@ -47,12 +28,6 @@ from _baygaud_params import read_configfile
 
 
 
-
-
-
-
-
-#|-----------------------------------------|
 def derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, ngauss):
 
     ndim = 3*ngauss + 2
@@ -203,6 +178,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
         nparams_g1 = 3*1 + 2
         gfit_priors_init_g1 = np.zeros(nparams_g1, dtype=np.float32)
 
+        gfit_peak_sn = np.zeros(_max_ngauss, dtype=np.float32)
+
 
 
 
@@ -276,11 +253,11 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
                 ndim = 3*ngauss + 2
                 nparams = ndim
 
+
                 if(ndim * (ndim + 1) // 2 > _params['nlive']):
                     _params['nlive'] = 1 + ndim * (ndim + 1) // 2 # optimal minimum nlive
 
                 print("processing: %d %d | peak s/n: %.1f | integrated s/n: %.1f | gauss-%d" % (i, j+_js, _peak_sn_map[j+_js, i], _sn_int_map[j+_js, i], ngauss))
-
 
 
 
@@ -471,6 +448,44 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
 
                 gfit_results[j, k, 2*(3*_max_ngauss+2) + k] *= (_f_max - _f_min)
 
+                _m_indices = np.arange(k+1)
+                _peak_flux_indices = 4 + 3*_m_indices
+                gfit_peak_sn = (gfit_results[j, k, _peak_flux_indices] - gfit_results[j][k][1]) / gfit_results[j, k, 2*(3*_max_ngauss+2) + k]
+
+                if np.all(gfit_peak_sn < _params['peak_sn_limit']) and k != (_max_ngauss-1): # if all the peak sn < threshold and k is not the max gaussian
+                    print("")
+                    print(
+                        "::: skip the rest of Gaussian fits: %d %d | rms:%.5f | bg:%.5f | "
+                        "%d-Gaussians fit's peak SN (all): %s < %.3f :::"
+                        % (
+                            i,
+                            j + _js,
+                            _rms_ngfit,
+                            _bg_sgfit,
+                            k+1,
+                            np.array2string(gfit_peak_sn, precision=3, separator=", "),
+                            _params['peak_sn_limit']
+                        )
+                    )                                                                                                                                                                                                                            
+
+                    _l_indices = np.arange(_max_ngauss)
+
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 1] = _is
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 2] = _ie
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 3] = _js
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 4] = _je
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 5] = i
+                    gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 6] = _js + j
+
+                    gfit_results[j, k, 2 * (3 * _max_ngauss + 2)] = gfit_results[j, k, 2*(3*_max_ngauss+2) + k] # rms
+                    gfit_results[j, k, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = _logz # log-Z
+
+                    gfit_results[j, k+1:, 2 * (3 * _max_ngauss + 2) + _l_indices[k+1:]] = 0  # Adjust for proper indexing  | other rms = 0
+                    gfit_results[j, k+1:, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = -1E11  # other log-Z = nan
+
+
+                    break # !!! SKIP THE REST GAUSSIANS !!!
+
 
 
 
@@ -483,7 +498,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling):
     
 
 @ray.remote(num_cpus=1)
-def run_dynesty_sampler_optimal_priors_org(_inputDataCube, _x, _peak_sn_map, _sn_int_map, _params, _is, _ie, i, _js, _je):
+def run_dynesty_sampler_optimal_priors_v1_0(_inputDataCube, _x, _peak_sn_map, _sn_int_map, _params, _is, _ie, i, _js, _je):
 
     _max_ngauss = _params['max_ngauss']
     _vel_min = _params['vel_min']
