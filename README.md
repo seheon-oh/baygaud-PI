@@ -1,6 +1,6 @@
 # baygaud-PI 
 	- BAYesian GAUssian Decomposer: decomposing a spectral line profile into multiple Gaussian components using Bayesian analysis
-	- Version 1.1.1 (18 Apr 2024)
+	- Version 1.1.0 (1 Sep 2025)
 	- by Se-Heon Oh (Department of Physics and Astronomy, Sejong University, Seoul, Korea)
 	
 	baygaud-PI is a new tool for decomposing a spectral line profile with multiple Gaussian components based on Bayesian nested sampling.
@@ -12,7 +12,8 @@
 
 	- Python3.10
 	- Python3 virtual environment module: venv (normally, venv is installed along with python3)
-	- The latest version of dynesty 2.0.3 will be installed for Bayesian analysis utilizing nested sampling.
+	- The latest version of dynesty 2.1.5 will be installed for Bayesian analysis utilizing nested sampling.
+    - The latest version of rau 2.49.0 will be installed for parallel processing.
 	- Tested for Ubuntu 18.04 LT and macOS Monterey 12.6 on Apple M1
 
 # Installation
