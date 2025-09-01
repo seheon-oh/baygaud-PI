@@ -39,7 +39,6 @@ import ray
 # _params.py
 from _baygaud_params import read_configfile
 global _x
-#global num_cpus_total, num_cpus_ray, num_cpus_nested_sampling 
 
 #|-----------------------------------------|
 # _dynesty_sampler.py
@@ -109,11 +108,9 @@ def main():
     gfit_results = np.zeros(((_je-_js), max_ngauss, 2*(2+3*max_ngauss)+7), dtype=np.float32)
 
 
-    #ray.init(num_cpus=1, ignore_reinit_error=True, object_store_memory=2*10**9)
     required_num_cpus = _ie - _is
     #ray.init(num_cpus = _params['num_cpus'], dashboard_port=8265, logging_level='DEBUG')
     #num_cpus = psutil.cpu_count(logical=False)
-    #ray.init(num_cpus=num_cpus)
 
     num_cpus_ray = int(_params['num_cpus_ray'])
     num_cpus_nested_sampling = int(_params['num_cpus_nested_sampling'])
@@ -171,7 +168,6 @@ def main():
     # nparams: 3*ngauss(x, std, p) + bg + sigma
     _nparams = 3*max_ngauss + 2
 
-    #results_ids = [baygaud_nested_sampling.remote(_inputDataCube_id, _x_id, \
     baygaud_nested_sampling = dynamic_baygaud_nested_sampling(num_cpus_nested_sampling)
     results_ids = [baygaud_nested_sampling.remote(_inputDataCube_id, _x_id, \
                                                             _peak_sn_map_id, _sn_int_map_id, \
