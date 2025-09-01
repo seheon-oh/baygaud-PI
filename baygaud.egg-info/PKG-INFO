@@ -1,0 +1,66 @@
+Metadata-Version: 2.1
+Name: baygaud
+Version: 1.0.0
+Summary: profile decomposition tool
+Home-page: https://github.com/seheon-oh/baygaud-PI
+Author: Se-Heon Oh
+Author-email: seheon.oh@sejong.ac.kr
+Keywords: HI spectral line decomposition,nested sampling
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.2
+Classifier: Programming Language :: Python :: 3.3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Requires-Python: >=3
+Requires-Dist: aiosignal==1.3.1
+Requires-Dist: astropy==5.2.1
+Requires-Dist: attrs==22.2.0
+Requires-Dist: casa-formats-io==0.2.1
+Requires-Dist: certifi==2022.12.7
+Requires-Dist: charset-normalizer==3.0.1
+Requires-Dist: click==8.1.3
+Requires-Dist: cloudpickle==2.2.1
+Requires-Dist: contourpy==1.0.7
+Requires-Dist: cycler==0.11.0
+Requires-Dist: dask==2023.1.0
+Requires-Dist: distlib==0.3.6
+Requires-Dist: dynesty==2.0.3
+Requires-Dist: filelock==3.9.0
+Requires-Dist: fitsio==1.1.8
+Requires-Dist: fonttools==4.38.0
+Requires-Dist: frozenlist==1.3.3
+Requires-Dist: fsspec==2023.1.0
+Requires-Dist: grpcio==1.51.1
+Requires-Dist: idna==3.4
+Requires-Dist: joblib==1.2.0
+Requires-Dist: jsonschema==4.17.3
+Requires-Dist: kiwisolver==1.4.4
+Requires-Dist: llvmlite==0.39.1
+Requires-Dist: locket==1.0.0
+Requires-Dist: matplotlib==3.6.3
+Requires-Dist: msgpack==1.0.4
+Requires-Dist: numba==0.56.4
+Requires-Dist: numpy==1.23.5
+Requires-Dist: packaging==23.0
+Requires-Dist: partd==1.3.0
+Requires-Dist: Pillow==9.4.0
+Requires-Dist: platformdirs==2.6.2
+Requires-Dist: protobuf==4.21.12
+Requires-Dist: psutil==5.9.4
+Requires-Dist: pyerfa==2.0.0.1
+Requires-Dist: pyparsing==3.0.9
+Requires-Dist: pyrsistent==0.19.3
+Requires-Dist: python-dateutil==2.8.2
+Requires-Dist: PyYAML==6.0
+Requires-Dist: radio-beam==0.3.4
+Requires-Dist: ray==2.2.0
+Requires-Dist: requests==2.28.2
+Requires-Dist: scipy==1.10.0
+Requires-Dist: six==1.16.0
+Requires-Dist: spectral-cube==0.6.0
+Requires-Dist: tk==0.1.0
+Requires-Dist: toolz==0.12.0
+Requires-Dist: urllib3==1.26.14
+Requires-Dist: virtualenv==20.17.1

@@ -1,0 +1,3 @@
+[console_scripts]
+baygaud = src.baygaud:main
+baygaud_classify = src.baygaud_classify:main
