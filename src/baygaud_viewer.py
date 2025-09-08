@@ -414,14 +414,14 @@ def plot_profiles():
             ax2.legend(fontsize=10.0)
             add_panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y][x]), fontsize=10)
 
-        add_panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=10)
+        add_panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.95, fontsize=10)
         total += bg
         res = input_prof - total
 
         window_plot['ax3'].step(_params['spectral_axis'], res, color='orange', ls='-', linewidth=2.0, alpha=0.7)
         window_plot['ax2'].plot(_params['spectral_axis'], total, color='red', ls='--', linewidth=1.5, alpha=0.5)
-        window_plot['ax3'].plot(_params['spectral_axis'], rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
-        window_plot['ax3'].plot(_params['spectral_axis'], -1 * rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
+        window_plot['ax3'].plot(_params['spectral_axis'], 1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
+        window_plot['ax3'].plot(_params['spectral_axis'], -1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
 
         window_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(window_params['unit_cube']), ha='center', va='center', transform=window_plot['ax2'].transAxes, rotation=90, fontsize=10)
         window_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=10)
