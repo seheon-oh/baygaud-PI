@@ -564,11 +564,11 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     out,
     *,
     # (1) 모델 잔차 σ 경계
-    model_sigma_bounds=(0.0, 0.5),
+    model_sigma_bounds=(0.0, 0.7),
     # (2) 배경 상한 = bg + k_bg * rms
-    k_bg=5.0,
+    k_bg=3.0,
     # (3) 중심 경계 = [x - k_x * s, x + k_x * s]
-    k_x=7.0,
+    k_x=5.0,
     # (4) σ 경계 = [k_sig_lo * s, k_sig_hi * s]
     sigma_scale_bounds=(0.1, 3.0),
     # (5) 피크 경계 = [k_p_lo * A, k_p_hi * A]
@@ -599,15 +599,17 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     # bg/rms (정규화 단위)
     bg  = float(out.get('bg', 0.0))
     rms = float(out.get('rms', 0.1))
+    if rms < 0.1: # to avoid small rms in case
+        rms = 0.1 # put a large rms
 
     ncomp = int(out.get('ncomp', 0))
     comps = out.get('components', None)
 
     if ncomp > 0 and getattr(comps, "size", 0):
         comps = np.asarray(comps, dtype=float)
-        amps = comps[:, 0]
-        xs_n = comps[:, 1]   # normalized center in [0,1]
-        sigs_n = comps[:, 2] # normalized sigma (length on x_norm)
+        xs_n = comps[:, 0]   # normalized center in [0,1]
+        sigs_n = comps[:, 1] # normalized sigma (length on x_norm)
+        amps = comps[:, 2]
 
         # (2) 배경: 요청대로 lo=0.0 고정, hi=bg + k_bg*rms (클리핑)
         bg_lo = 0.0

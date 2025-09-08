@@ -516,8 +516,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 rms=None, bg=None,
                 sigma_list_ch=[1.5,2,3,4,5],
                 k_sigma=3.0,
-                thres_sigma=1.5,
-                amp_sigma_thres=1.5,
+                thres_sigma=2.0,
+                amp_sigma_thres=2.0,
                 sep_channels=5,
                 max_components=None,
                 refine_center=True,
@@ -525,7 +525,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 detrend_halfwin=8, 
                 numba_threads=1 # ← 단일-스레드 JIT 경로(오버헤드 최소화)
             )
-
 
             # 단일 가우시안 경계(정규화 단위)
             #gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2,bg2, x2, std2, p2]
@@ -535,7 +534,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     v_min=v_min_phys, v_max=v_max_phys,
                     cdelt3=_cdelt3,   # 음수면 자동 반전 앵커
                     # 필요시 팩터 조정
-                    model_sigma_bounds=(0.0, 0.5),
+                    model_sigma_bounds=(0.0, 0.9),
                     k_bg=3.0, k_x=5.0,
                     sigma_scale_bounds=(0.1, 3.0),
                     peak_scale_bounds=(0.3, 1.5)
@@ -668,7 +667,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 # param1, param2, param3 ....param1-e, param2-e, param3-e
                 # gfit_results[j][k][0~2*nparams] = _gfit_results_temp[0~2*nparams]
                 #---------------------------------------------------------
-                gfit_results[j][k][:2*nparams] = _gfit_results_temp
+                gfit_results[j, k, :2*nparams] = _gfit_results_temp
                 #---------------------------------------------------------
 
                 #---------------------------------------------------------
@@ -696,6 +695,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     _peak_sn_sgfit = _p_sgfit/_rms_ngfit
 
                     if _peak_sn_sgfit < _params['peak_sn_limit']: 
+
                         #print("skip the rest of Gaussian fits: %d %d | rms:%.5f | bg:%.5f | peak:%.5f | peak_sgfit s/n: %.3f < %.3f" % (i, j+_js, _rms_ngfit, _bg_sgfit, _p_sgfit, _peak_sn_sgfit, _params['peak_sn_limit']))
 
                         # save the current profile location
