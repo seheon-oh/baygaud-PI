@@ -415,6 +415,8 @@ def convert_units_norm_to_phys(
 
     #________________________________________________________________________________________|
     # peak flux --> data cube units
+    # peak flux --> data cube units : (_f_max - _bg_flux) should be used for scaling as the normalised peak flux is from the bg
+    #gfit_results[j][k][4 + 3*m] = gfit_results[j][k][4 + 3*m]*(_f_max - _f_min) + _f_min # flux
     gfit_results[j, k, peak_flux_indices] *= (f_max - f_min)  # flux
 
     #________________________________________________________________________________________|
@@ -430,8 +432,7 @@ def convert_units_norm_to_phys(
     gfit_results[j, k, 2 * (3 * max_ngauss + 2) + k] *= (f_max - f_min)  # rms-(k+1)gfit
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
-
-
+    
 
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
@@ -529,7 +530,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
             # 단일 가우시안 경계(정규화 단위)
             #gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2,bg2, x2, std2, p2]
-
             _seed_priors_using_matched_filter = make_single_gauss_bounds_from_seed_norm(
                     _gaussian_seeds,
                     use_phys_for_x_bounds=True,
@@ -563,10 +563,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     unit_flux="Jy/beam", unit_vel="km/s") 
                 print("-------------------")
             # __________________________________________________________________ #
-
-
-            
-
 
 
 
@@ -628,8 +624,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 #print("processing: %d %d | peak s/n: %.1f | integrated s/n: %.1f | gauss-%d" % (i, j+_js, _peak_sn_map[j+_js, i], _sn_int_map[j+_js, i], ngauss))
 
 
-
-
                 # run dynesty 2.1.15
                 if _params['_dynesty_class_'] == 'static':
                     _queue_size = int(_params['num_cpus_nested_sampling'])
@@ -652,7 +646,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
 
                     sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
-
 
                 elif _params['_dynesty_class_'] == 'dynamic':
                     _queue_size = int(_params['num_cpus_nested_sampling'])
@@ -767,14 +760,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
 
-                gfit_results[j][k][2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+0] = _logz
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+3] = _js
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+4] = _je
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+5] = i
-                gfit_results[j][k][2*(3*_max_ngauss+2)+_max_ngauss+6] = _js + j
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+0] = _logz
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+3] = _js
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+4] = _je
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+5] = i
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+6] = _js + j
                 #print(gfit_results[j][k])
 
 
@@ -837,49 +830,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 #|-----------------------------------------|
 
                 #________________________________________________________________________________________|
-                #|---------------------------------------------------------------------------------------|
                 # UNIT CONVERSION
-                # sigma-flux --> data cube units
-                gfit_results[j][k][0] = gfit_results[j][k][0]*(_f_max - _f_min) # sigma-flux
-
-                # background --> data cube units
-                gfit_results[j][k][1] = gfit_results[j][k][1]*(_f_max - _f_min) + _f_min # bg-flux
-                # background-e --> data cube units
-                gfit_results[j][k][6 + 3*k] = gfit_results[j][k][6 + 3*k]*(_f_max - _f_min) # bg-flux-e
-                _bg_flux = gfit_results[j][k][1]
-
-                # vectorization
-                velocity_indices = 2 + 3*np.arange(k+1)
-                velocity_dispersion_indices = 3 + 3*np.arange(k+1)
-                peak_flux_indices = 4 + 3*np.arange(k+1)
-
-                velocity_errors_indices = 7 + 3*np.arange(k+1) + 3*k  # Adjusted for the layout of your results array
-                velocity_dispersion_errors_indices = 8 + 3*np.arange(k+1) + 3*k
-                flux_errors_indices = 9 + 3*np.arange(k+1) + 3*k
-
-                # velocity, velocity-dispersion --> km/s
-                if _cdelt3 > 0:  # Velocity axis with increasing order
-                    gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_max - _vel_min) + _vel_min # velocity
-                else:  # Velocity axis with decreasing order
-                    gfit_results[j, k, velocity_indices] = gfit_results[j, k, velocity_indices] * (_vel_min - _vel_max) + _vel_max # velocity
-
-                # velocity dispersion --> km/s
-                gfit_results[j, k, velocity_dispersion_indices] *= (_vel_max - _vel_min) # velocity-dispersion
-
                 #________________________________________________________________________________________|
-                # peak flux --> data cube units : (_f_max - _bg_flux) should be used for scaling as the normalised peak flux is from the bg
-                #gfit_results[j][k][4 + 3*m] = gfit_results[j][k][4 + 3*m]*(_f_max - _f_min) + _f_min # flux
-                gfit_results[j, k, peak_flux_indices] *= (_f_max - _f_min)
-
-                #________________________________________________________________________________________|
-                # velocity-e, velocity-dispersion-e --> km/s
-                gfit_results[j, k, velocity_errors_indices] *= (_vel_max - _vel_min) # velocity-e
-                gfit_results[j, k, velocity_dispersion_errors_indices] *= (_vel_max - _vel_min) # velocity-dispersion-e
-
-                #________________________________________________________________________________________|
-                # flux-e, rms --> cube units 
-                gfit_results[j, k, flux_errors_indices] *= (_f_max - _f_min) # flux-e
-                gfit_results[j, k, 2*(3*_max_ngauss+2) + k] *= (_f_max - _f_min) # rms-(k+1)gfit
+                convert_units_norm_to_phys(
+                    gfit_results, j, k,
+                    f_min=_f_min, f_max=_f_max,
+                    vel_min=_vel_min, vel_max=_vel_max,
+                    cdelt3=_cdelt3,
+                    max_ngauss=_max_ngauss)
 
 
                 # SKIP CONDITION
@@ -914,7 +872,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     gfit_results[j, _l_indices, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 6] = _js + j
 
                     gfit_results[j, k, 2 * (3 * _max_ngauss + 2)] = gfit_results[j, k, 2*(3*_max_ngauss+2) + k] # rms
-                    gfit_results[j, k, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = _logz # log-Z
+                    gfit_results[j, k, 2 * (3 * _max_ngauss + 2) + _max_ngauss + 0] = _logz # log-Z
 
                     gfit_results[j, k+1:, 2 * (3 * _max_ngauss + 2) + _l_indices[k+1:]] = 0  # Adjust for proper indexing  | other rms = 0
                     gfit_results[j, k+1:, 2 * (3 * _max_ngauss + 2) + _max_ngauss] = -1E11  # other log-Z = nan
@@ -924,24 +882,6 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
         return gfit_results
     return baygaud_nested_sampling
     #-- END OF SUB-ROUTINE____________________________________________________________#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

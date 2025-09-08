@@ -136,7 +136,7 @@ _bulk_delv_limit_factor: 1.0
 # 1. global kinematics  # <---- UPDATE HERE
 vlos_lower: 0 # km/s
 vlos_upper: 1000 # km/s
-vdisp_lower: 1.6 # km/s
+vdisp_lower: 1.0 # km/s
 vdisp_upper: 999 # km/s
 
 # _______________________________________________________  #
