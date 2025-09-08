@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 
-# Numba-accelerated find_gaussian_seeds_matched_filter
+# Numba-accelerated find_gaussian_seeds_matched_filter_norm
 # ----------------------------------------------------
 try:
     from numba import njit
@@ -314,7 +314,7 @@ def _make_sigma_list(N, sigma_list_ch, k_sigma, *, min_sigma=0.8, max_frac=0.48)
 
 
 # --------------- Main function (overhead-minimized) ----------
-def find_gaussian_seeds_matched_filter(
+def find_gaussian_seeds_matched_filter_norm(
     v, f, *, rms=None, bg=None,
     sigma_list_ch=None, k_sigma=4.0,
     thres_sigma=3.0, amp_sigma_thres=3.0,
@@ -560,7 +560,7 @@ def find_gaussian_seeds_matched_filter(
 
 
 
-def make_single_gauss_bounds_from_seed_norm(
+def set_sgfit_bounds_from_matched_filter_seeds_norm(
     out,
     *,
     # (1) 모델 잔차 σ 경계
@@ -585,7 +585,7 @@ def make_single_gauss_bounds_from_seed_norm(
     v0_anchor=None, v1_anchor=None  # 직접 앵커 지정 시 cdelt3 무시
 ):
     """
-    out: find_gaussian_seeds_matched_filter 결과(dict)
+    out: find_gaussian_seeds_matched_filter_norm 결과(dict)
          components[:,0]=amp(정규화 플럭스), [:,1]=center(정규화 속도), [:,2]=sigma(정규화 속도)
          bg, rms도 0~1 정규화 단위라고 가정.
 
@@ -726,7 +726,7 @@ def _resolve_anchors(v_min, v_max, cdelt3=None, v0_anchor=None, v1_anchor=None):
 def out_norm_to_phys(out, f_min, f_max, v_min, v_max, *,
                      cdelt3=None, v0_anchor=None, v1_anchor=None):
     """
-    find_gaussian_seeds_matched_filter의 out(정규화 0~1)을 물리 단위로 변환.
+    find_gaussian_seeds_matched_filter_norm의 out(정규화 0~1)을 물리 단위로 변환.
     - bg/rms: 플럭스 스케일 적용(배경은 오프셋 포함)
     - components: [amp, center, sigma] -> [flux, velocity, velocity_sigma]
     - CDELT3<0(내림차순) 지원: anchors로 선형사상 정의

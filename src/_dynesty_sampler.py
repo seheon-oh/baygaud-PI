@@ -59,8 +59,8 @@ import multiprocessing as mp
 
 from _baygaud_params import read_configfile
 
-from _set_init_priors import find_gaussian_seeds_matched_filter, \
-                            make_single_gauss_bounds_from_seed_norm, \
+from _set_init_priors import find_gaussian_seeds_matched_filter_norm, \
+                            set_sgfit_bounds_from_matched_filter_seeds_norm, \
                             print_priors_both, \
                             print_gaussian_seeds_matched_filter_out, \
                             pin_threads_single, \
@@ -437,7 +437,6 @@ def convert_units_norm_to_phys(
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 # run dynesty for each line profile
-
 def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
    # 워커 환경변수(스레드 1 고정). _params에 없으면 기본값 사용
@@ -512,7 +511,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             denom  = (_f_max - _f_min) if (_f_max > _f_min) else 1.0
             f = (fl - _f_min) / denom  # normalization [0,1]
 
-            _gaussian_seeds = find_gaussian_seeds_matched_filter(
+            _gaussian_seeds = find_gaussian_seeds_matched_filter_norm(
                 _x, f,                       # _x는 이미 [0,1] 정규화된 속도축
                 rms=None, bg=None,
                 sigma_list_ch=[1.5,2,3,4,5],
@@ -530,7 +529,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
             # 단일 가우시안 경계(정규화 단위)
             #gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2,bg2, x2, std2, p2]
-            _seed_priors_using_matched_filter = make_single_gauss_bounds_from_seed_norm(
+            _seed_priors_using_matched_filter = set_sgfit_bounds_from_matched_filter_seeds_norm(
                     _gaussian_seeds,
                     use_phys_for_x_bounds=True,
                     v_min=v_min_phys, v_max=v_max_phys,
@@ -1646,10 +1645,126 @@ def multi_gaussian_model_d_classic(_x, _params, ngauss): # params: cube
 #-- END OF SUB-ROUTINE____________________________________________________________#
 
 
+
+# ----------------------------- #
+# JIT 코어: 단순 루프, in-place  #
+# ----------------------------- #
+@njit(cache=True, fastmath=True)
+def _optimal_prior_core(u, ngauss, bounds):
+    """
+    내부 코어: u, bounds는 1D float64 배열, ngauss는 int.
+    u를 in-place로 변환 후 반환.
+    """
+    nparams = 3 * ngauss + 2
+
+    # sigma
+    # args[2][0] : _sigma0
+    # args[2][nparams] : _sigma1
+    s0 = bounds[0]
+    s1 = bounds[nparams]
+    u[0] = s0 + u[0] * (s1 - s0)  # sigma: uniform prior between 0:1
+
+    # bg
+    # args[2][1] : _bg0
+    # args[2][nparams+1] : _bg1
+    b0 = bounds[1]
+    b1 = bounds[nparams + 1]
+    u[1] = b0 + u[1] * (b1 - b0)  # bg: uniform prior between 0:1
+
+    # n-gaussians
+    # x / std / p
+    # lower: args[2][2:nparams:3], [3:nparams:3], [4:nparams:3]
+    # upper: args[2][nparams+2:2*nparams:3], [nparams+3:2*nparams:3], [nparams+4:2*nparams:3]
+    base_lo = 2
+    base_hi = nparams + 2
+    for m in range(ngauss):
+        i_x = base_lo + 3 * m
+        i_s = i_x + 1
+        i_p = i_x + 2
+
+        lx = bounds[i_x]
+        ux = bounds[base_hi + 3 * m]
+        ls = bounds[i_s]
+        us = bounds[base_hi + 3 * m + 1]
+        lp = bounds[i_p]
+        up = bounds[base_hi + 3 * m + 2]
+
+        # x: uniform prior between xn0:xn1
+        u[i_x] = lx + u[i_x] * (ux - lx)
+        # std: uniform prior between stdn0:stdn1
+        u[i_s] = ls + u[i_s] * (us - ls)
+        # p: uniform prior between pn0:pn1
+        u[i_p] = lp + u[i_p] * (up - lp)
+
+    return u
+
+
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 # parameters are sigma, bg, _x01, _std01, _p01, _x02, _std02, _p02...
 def optimal_prior(*args):
+    #---------------------
+    # args[0][0] : sigma
+    # args[0][1] : bg0
+    # args[0][2] : x0
+    # args[0][3] : std0
+    # args[0][4] : p0
+    # ...
+    #_____________________
+    #---------------------
+    # args[1] : ngauss
+    # e.g., if ngauss == 3
+    #_____________________
+    #---------------------
+    # args[2][0] : _sigma0
+    # args[2][1] : _bg0
+    #.....................
+    # args[2][2] : _x10
+    # args[2][3] : _std10
+    # args[2][4] : _p10
+    #.....................
+    # args[2][5] : _x20
+    # args[2][6] : _std20
+    # args[2][7] : _p20
+    #.....................
+    # args[2][8] : _x30
+    # args[2][9] : _std30
+    # args[2][10] : _p30
+    #_____________________
+    #---------------------
+    # args[2][11] : _sigma1
+    # args[2][12] : _bg1
+    #.....................
+    # args[2][13] : _x11
+    # args[2][14] : _std11
+    # args[2][15] : _p11
+    #.....................
+    # args[2][16] : _x21
+    # args[2][17] : _std21
+    # args[2][18] : _p21
+    #.....................
+    # args[2][19] : _x31
+    # args[2][20] : _std31
+    # args[2][21] : _p31
+    #---------------------
+
+    # 안전·성능: dtype·연속성 정리
+    u      = np.ascontiguousarray(np.asarray(args[0], dtype=np.float64))
+    ngauss = int(args[1])
+    bounds = np.ascontiguousarray(np.asarray(args[2], dtype=np.float64))
+
+    # 코어 호출 (in-place 변환 후 같은 배열 반환)
+    return _optimal_prior_core(u, ngauss, bounds)
+
+
+
+
+
+
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+# parameters are sigma, bg, _x01, _std01, _p01, _x02, _std02, _p02...
+def optimal_prior0(*args):
 
     #---------------------
     # args[0][0] : sigma
