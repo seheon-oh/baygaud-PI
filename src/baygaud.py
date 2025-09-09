@@ -168,7 +168,7 @@ def main():
 
     #------------------------------
     # derive a rms_med using npoints lines via sgfit --> _params['_rms_med']
-    derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, 1)
+    #derive_rms_npoints(_inputDataCube, _cube_mask_2d, _x, _params, 1)
 
     #------------------------------
     # derive peak s/n map + integrated s/n map

@@ -57,9 +57,9 @@ _bg_med: 0
 
 # District to be fitted
 naxis1_s0: 10  # <---- UPDATE HERE
-naxis1_e0: 15 # <---- UPDATE HERE
+naxis1_e0: 30 # <---- UPDATE HERE
 naxis2_s0: 10  # <---- UPDATE HERE
-naxis2_e0: 15 # <---- UPDATE HERE
+naxis2_e0: 30 # <---- UPDATE HERE
 
 # Number of steps to sample for deriving the backround rms
 # Derive the background rms values of nsteps_x_rms * nsteps_y_rms line profiles 
@@ -105,9 +105,9 @@ bayes_factor_limit: 100 # <---- UPDATE HERE
 
 #'hanning_window_pre_sgfit':5,
 #'hanning_window_ngfit':1,
-max_ngauss: 5 # maximum number of Gaussian components : for initial baygaud run (non-recoverble)  # <---- UPDATE HERE
+max_ngauss: 3 # maximum number of Gaussian components : for initial baygaud run (non-recoverble)  # <---- UPDATE HERE
 mom0_nrms_limit: 1 # only profiles with peak fluxes > mom0_nrms_limit * rms + bg are used for computing mom0 : this is for deriving integrated S/N (for initial baygaud run - non-recoverble) # <---- UPDATE HERE
-peak_sn_pass_for_ng_opt: 2 # count Gaussians > peak_sn_pass_for_ng_opt (recoverble) # <---- UPDATE HERE
+peak_sn_pass_for_ng_opt: 3 # count Gaussians > peak_sn_pass_for_ng_opt (recoverble) # <---- UPDATE HERE
 peak_sn_limit: 2 # for initial baygaud run : do profile-decomposition for profiles only with > peak_sn_limit (for initial baygaud run: non-recoverable) # <---- UPDATE HERE
 int_sn_limit: 1.0 # for initial baygaud run : do profile-decomposition for profiles only with > peak_sn_limit (for initial baygaud run: non-recoverable) # <---- UPDATE HERE
 # _____________________________________  #
@@ -183,26 +183,26 @@ _j0: 20 # y-pixel
 # _______________________________________________________  #
 # parameters for the first 2nd gaussian fit : put a wide x range
 # x
-x_lowerbound_gfit: 0.01
-x_upperbound_gfit: 0.99
+#x_lowerbound_gfit: 0.01
+#x_upperbound_gfit: 0.99
 # _______________________________________________________  #
 # parameters for the current and subsequent N-Gaussian fits
-nsigma_prior_range_gfit: 3.0 # for the N-gaussians in the N+1 gaussian fit
+#nsigma_prior_range_gfit: 3.0 # for the N-gaussians in the N+1 gaussian fit
 # sigma
-sigma_prior_lowerbound_factor: 0.1
-sigma_prior_upperbound_factor: 5
+#sigma_prior_lowerbound_factor: 0.1
+#sigma_prior_upperbound_factor: 5
 # bg
-bg_prior_lowerbound_factor: 0.1
-bg_prior_upperbound_factor: 3.0
+#bg_prior_lowerbound_factor: 0.1
+#bg_prior_upperbound_factor: 3.0
 # x
-x_prior_lowerbound_factor: 10.0 # --> X_g1fit - lowerbound_factor * STD_g1fit
-x_prior_upperbound_factor: 10.0 # --> X_g1fit + upperbound_factor * STD_g1fit
+#x_prior_lowerbound_factor: 10.0 # --> X_g1fit - lowerbound_factor * STD_g1fit
+#x_prior_upperbound_factor: 10.0 # --> X_g1fit + upperbound_factor * STD_g1fit
 # std
-std_prior_lowerbound_factor: 0.1
-std_prior_upperbound_factor: 5.0
+#std_prior_lowerbound_factor: 0.1
+#std_prior_upperbound_factor: 5.0
 # p
-p_prior_lowerbound_factor: 0.1
-p_prior_upperbound_factor: 1.0
+#p_prior_lowerbound_factor: 0.1
+#p_prior_upperbound_factor: 1.0
 
 
 
@@ -224,7 +224,7 @@ gather_batch: 8         # ray.wait에서 한 번에 모아받는 개수(8–16)
 # parallellisation parameters
 ncolm_per_core: ''
 nsegments_nax2: ''
-num_cpus_ray: 6  # <---- UPDATE HERE (total number of cores to use)
+num_cpus_ray: 8  # <---- UPDATE HERE (total number of cores to use)
 numba_num_threads: 1    # (선택) Numba 스레드 수
 num_cpus_nested_sampling: 1  # <---- recommended
 

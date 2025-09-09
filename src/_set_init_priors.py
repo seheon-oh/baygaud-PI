@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 
-# Numba-accelerated find_gaussian_seeds_matched_filter_norm
+# Numba-accelerated search_gaussian_seeds_matched_filter_norm
 # ----------------------------------------------------
 try:
     from numba import njit
@@ -314,7 +314,7 @@ def _make_sigma_list(N, sigma_list_ch, k_sigma, *, min_sigma=0.8, max_frac=0.48)
 
 
 # --------------- Main function (overhead-minimized) ----------
-def find_gaussian_seeds_matched_filter_norm(
+def search_gaussian_seeds_matched_filter_norm(
     v, f, *, rms=None, bg=None,
     sigma_list_ch=None, k_sigma=4.0,
     thres_sigma=3.0, amp_sigma_thres=3.0,
@@ -561,7 +561,7 @@ def find_gaussian_seeds_matched_filter_norm(
 
 
 def set_sgfit_bounds_from_matched_filter_seeds_norm(
-    out,
+    _gaussian_seeds,
     *,
     # (1) 모델 잔차 σ 경계
     model_sigma_bounds=(0.0, 0.7),
@@ -585,7 +585,7 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     v0_anchor=None, v1_anchor=None  # 직접 앵커 지정 시 cdelt3 무시
 ):
     """
-    out: find_gaussian_seeds_matched_filter_norm 결과(dict)
+    _gaussian_seeds: search_gaussian_seeds_matched_filter_norm 결과(dict)
          components[:,0]=amp(정규화 플럭스), [:,1]=center(정규화 속도), [:,2]=sigma(정규화 속도)
          bg, rms도 0~1 정규화 단위라고 가정.
 
@@ -597,19 +597,19 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     msig_lo, msig_hi = map(float, model_sigma_bounds)
 
     # bg/rms (정규화 단위)
-    bg  = float(out.get('bg', 0.0))
-    rms = float(out.get('rms', 0.1))
+    bg  = float(_gaussian_seeds.get('bg', 0.0))
+    rms = float(_gaussian_seeds.get('rms', 0.1))
     if rms < 0.1: # to avoid small rms in case
         rms = 0.1 # put a large rms
 
-    ncomp = int(out.get('ncomp', 0))
-    comps = out.get('components', None)
+    ncomp = int(_gaussian_seeds.get('ncomp', 0))
+    comps = _gaussian_seeds.get('components', None)
 
     if ncomp > 0 and getattr(comps, "size", 0):
         comps = np.asarray(comps, dtype=float)
         xs_n = comps[:, 0]   # normalized center in [0,1]
         sigs_n = comps[:, 1] # normalized sigma (length on x_norm)
-        amps = comps[:, 2]
+        amps = comps[:, 2] # normalized peakflux in [0,1]
 
         # (2) 배경: 요청대로 lo=0.0 고정, hi=bg + k_bg*rms (클리핑)
         bg_lo = 0.0
@@ -725,10 +725,10 @@ def _resolve_anchors(v_min, v_max, cdelt3=None, v0_anchor=None, v1_anchor=None):
 
 
 
-def out_norm_to_phys(out, f_min, f_max, v_min, v_max, *,
+def gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max, *,
                      cdelt3=None, v0_anchor=None, v1_anchor=None):
     """
-    find_gaussian_seeds_matched_filter_norm의 out(정규화 0~1)을 물리 단위로 변환.
+    search_gaussian_seeds_matched_filter_norm의 _gaussian_seeds(정규화 0~1)을 물리 단위로 변환.
     - bg/rms: 플럭스 스케일 적용(배경은 오프셋 포함)
     - components: [amp, center, sigma] -> [flux, velocity, velocity_sigma]
     - CDELT3<0(내림차순) 지원: anchors로 선형사상 정의
@@ -737,25 +737,25 @@ def out_norm_to_phys(out, f_min, f_max, v_min, v_max, *,
     f_scale = (f_max - f_min) if (f_max > f_min) else 1.0
     v_scale = (v1 - v0)  # 부호 유지 (내림차순이면 음수)
 
-    bg_n  = float(out.get('bg', 0.0))
-    rms_n = float(out.get('rms', 0.0))
+    bg_n  = float(_gaussian_seeds.get('bg', 0.0))
+    rms_n = float(_gaussian_seeds.get('rms', 0.0))
     bg_phys  = bg_n  * f_scale + f_min
     rms_phys = rms_n * f_scale
 
-    comps_n = np.asarray(out.get('components', np.zeros((0,3))), dtype=float)
+    comps_n = np.asarray(_gaussian_seeds.get('components', np.zeros((0,3))), dtype=float)
     comps_p = comps_n.copy()
     if comps_p.size:
         # amp: 스케일만, center: v = v0 + v_scale*x_norm, sigma: |v_scale|*sigma_norm
-        comps_p[:, 0] = comps_n[:, 0] * f_scale
-        comps_p[:, 1] = v0 + v_scale * comps_n[:, 1]
-        comps_p[:, 2] = abs(v_scale) * comps_n[:, 2]
+        comps_p[:, 0] = v0 + v_scale * comps_n[:, 0]
+        comps_p[:, 1] = abs(v_scale) * comps_n[:, 1]
+        comps_p[:, 2] = f_scale      * comps_n[:, 2]
 
-    out_phys = dict(out)
-    out_phys['bg_phys'] = bg_phys
-    out_phys['rms_phys'] = rms_phys
-    out_phys['components_phys'] = comps_p
-    out_phys['anchors'] = (v0, v1)
-    return out_phys
+    gaussian_seeds_phys = dict(_gaussian_seeds)
+    gaussian_seeds_phys['bg_phys'] = bg_phys
+    gaussian_seeds_phys['rms_phys'] = rms_phys
+    gaussian_seeds_phys['components_phys'] = comps_p
+    gaussian_seeds_phys['anchors'] = (v0, v1)
+    return gaussian_seeds_phys
 
 
 
@@ -833,29 +833,29 @@ def priors_norm_to_phys(priors, f_min, f_max, v_min, v_max, *,
 
 
 
-def print_gaussian_seeds_matched_filter_out(out, f_min, f_max, v_min, v_max, *,
+def print_gaussian_seeds_matched_filter(_gaussian_seeds, f_min, f_max, v_min, v_max, *,
                    cdelt3=None, v0_anchor=None, v1_anchor=None,
                    unit_flux="Jy/beam", unit_vel="km/s", show_fwhm=True):
     """
-    out(정규화)과 물리 단위 변환본을 나란히 출력.
+    _gaussian_seeds(정규화)과 물리 단위 변환본을 나란히 출력.
     CDELT3<0(내림차순)일 때도 올바른 물리 좌표로 표시.
     """
-    out_p = out_norm_to_phys(out, f_min, f_max, v_min, v_max,
+    out_p = gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max,
                              cdelt3=cdelt3, v0_anchor=v0_anchor, v1_anchor=v1_anchor)
-    bg_n  = float(out.get('bg', 0.0));   rms_n = float(out.get('rms', 0.0))
+    bg_n  = float(_gaussian_seeds.get('bg', 0.0));   rms_n = float(_gaussian_seeds.get('rms', 0.0))
     bg_p  = float(out_p['bg_phys']);     rms_p = float(out_p['rms_phys'])
 
     print("=== BG / RMS ===")
     print(f"  bg  : {bg_n:10.6g} (norm) | {bg_p:10.6g} {unit_flux}")
     print(f"  rms : {rms_n:10.6g} (norm) | {rms_p:10.6g} {unit_flux}")
 
-    comps_n = np.asarray(out.get('components', np.zeros((0,3))), dtype=float)
+    comps_n = np.asarray(_gaussian_seeds.get('components', np.zeros((0,3))), dtype=float)
     comps_p = np.asarray(out_p.get('components_phys', np.zeros((0,3))), dtype=float)
 
     print("\n=== Components (amp, center, sigma) ===")
     for idx in range(comps_n.shape[0]):
-        a_n, x_n, s_n = comps_n[idx]
-        a_p, x_p, s_p = comps_p[idx]
+        x_n, s_n, a_n = comps_n[idx]
+        x_p, s_p, a_p = comps_p[idx]
         print(f"  comp[{idx:02d}]  amp: {a_n:8.5f} | {a_p:10.6g} {unit_flux}   "
               f"cen: {x_n:8.5f} | {x_p:10.6g} {unit_vel}   "
               f"sig: {s_n:8.5f} | {s_p:10.6g} {unit_vel}")
@@ -871,7 +871,7 @@ def set_init_priors_multiple_gaussians(
     M,
     seed_bounds,
     *,
-    seed_out=None,      # find_gaussian_seeds_matched_filter out(dict), bg/rms 참조(정규화 단위)
+    seed_out=None,      # search_gaussian_seeds_matched_filter_norm out(dict), bg/rms 참조(정규화 단위)
     prev_fit=None,      # prev_fit_from_results_slice(...) 반환값
     # 경계 팩터(이전 성분을 중심으로 타이트하게)
     k_x=3.0, # x - k_x*sigma ~ x + k_x*sigma
@@ -1015,3 +1015,9 @@ def prev_fit_from_results_slice(gfit_results_slice, n_prev):
         comps[m, 2] = np.clip(p, 0.0, 1.0)
 
     return {"model_sigma": model_sigma, "bg": bg, "components": comps}
+
+
+
+
+
+

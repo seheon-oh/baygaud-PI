@@ -56,10 +56,10 @@ _bg_med: 0
 #+++++++++++++++++++++++++++++++++
 
 # District to be fitted
-naxis1_s0: 499  # <---- UPDATE HERE
-naxis1_e0: 505 # <---- UPDATE HERE
-naxis2_s0: 577  # <---- UPDATE HERE
-naxis2_e0: 579 # <---- UPDATE HERE
+naxis1_s0: 472  # <---- UPDATE HERE
+naxis1_e0: 474 # <---- UPDATE HERE
+naxis2_s0: 407  # <---- UPDATE HERE
+naxis2_e0: 409 # <---- UPDATE HERE
 
 # Number of steps to sample for deriving the backround rms
 # Derive the background rms values of nsteps_x_rms * nsteps_y_rms line profiles 
@@ -221,7 +221,7 @@ gather_batch: 8         # ray.wait에서 한 번에 모아받는 개수(8–16)
 # parallellisation parameters
 ncolm_per_core: ''
 nsegments_nax2: ''
-num_cpus_ray: 6  # <---- UPDATE HERE (total number of cores to use)
+num_cpus_ray: 4  # <---- UPDATE HERE (total number of cores to use)
 numba_num_threads: 1    # (선택) Numba 스레드 수
 num_cpus_nested_sampling: 1  # <---- recommended
 

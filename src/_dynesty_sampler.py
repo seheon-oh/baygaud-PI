@@ -59,15 +59,21 @@ import multiprocessing as mp
 
 from _baygaud_params import read_configfile
 
-from _set_init_priors import find_gaussian_seeds_matched_filter_norm, \
+from _set_init_priors import search_gaussian_seeds_matched_filter_norm, \
                             set_sgfit_bounds_from_matched_filter_seeds_norm, \
                             print_priors_both, \
-                            print_gaussian_seeds_matched_filter_out, \
+                            print_gaussian_seeds_matched_filter, \
                             pin_threads_single, \
                             set_init_priors_multiple_gaussians, \
                             prev_fit_from_results_slice
 
 
+from _stats import _gaussian_sum_norm, \
+                    _rms_of_residual, \
+                    _little_derive_rms_core, \
+                    little_derive_rms
+
+from _utils import robust_bg_rms_from_seed_dict_norm, update_bg_rms_to_seeds
 
 
 #  _____________________________________________________________________________  #
@@ -274,70 +280,6 @@ def little_derive_rms_npoints_org(_inputDataCube, i, j, _x, _f_min, _f_max, ngau
 
 
 
-@njit(cache=True, fastmath=True)  # parallel 제거
-def _gaussian_sum_norm(x, theta, ngauss):
-    n = x.size
-    model = np.empty(n, dtype=np.float64)
-    bg = float(theta[1])
-    for t in range(n):
-        model[t] = bg
-    for m in range(ngauss):
-        mu  = float(theta[2 + 3*m])
-        sig = float(theta[3 + 3*m])
-        amp = float(theta[4 + 3*m])
-        invs = 1.0 / sig
-        for t in range(n):
-            dx = (x[t] - mu) * invs
-            model[t] += amp * np.exp(-0.5 * dx * dx)
-    return model
-
-@njit(cache=True, fastmath=True)  # parallel 제거
-def _rms_of_residual(data_norm, model):
-    n = data_norm.size
-    acc = 0.0
-    for t in range(n):
-        d = data_norm[t] - model[t]
-        acc += d * d
-    return np.sqrt(acc / n)
-
-@njit(cache=True, fastmath=True)  # parallel 제거
-def _neg_half_chi2(data_norm, model, inv_sigma2):
-    n = data_norm.size
-    s = 0.0
-    for t in range(n):
-        r = data_norm[t] - model[t]
-        s += r * r
-    return -0.5 * s * inv_sigma2
-
-
-@njit(cache=True, fastmath=True)
-def _little_derive_rms_npoints_core(profile, x, f_min, f_max, ngauss, theta):
-    """
-    profile: 원시 스펙트럼 (cube[:, j, i])
-    x: 채널 축 (정규화 동일 축)
-    f_min, f_max: 정규화에 사용된 min/max
-    ngauss: 사용 가우시안 개수
-    theta: dynesty가 반환한 (정규화 스케일) 파라미터 벡터 (길이 >= 3*ngauss+2)
-    """
-    scale = (f_max - f_min)
-    data_norm = (profile - f_min) / scale
-    model = _gaussian_sum_norm(x, theta, ngauss)
-    return _rms_of_residual(data_norm, model)
-
-
-def little_derive_rms_npoints(input_cube, i, j, x, f_min, f_max, ngauss, theta):
-    """
-    기존 코드가 호출하던 시그니처 유지. 내부는 JIT 코어 호출.
-    theta는 정규화 스케일 파라미터(단위변환 전)를 넣어야 합니다.
-    """
-    # C-contiguous 보장(필요 시)
-    prof = np.ascontiguousarray(input_cube[:, j, i], dtype=np.float64)
-    x64  = np.ascontiguousarray(x, dtype=np.float64)
-    th64 = np.ascontiguousarray(theta[:(3*ngauss+2)], dtype=np.float64)
-    return _little_derive_rms_npoints_core(prof, x64, float(f_min), float(f_max), int(ngauss), th64)
-
-
-
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 # _materialize function
@@ -464,7 +406,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
         # materialize first from ray id
         _inputDataCube = _mat(_inputDataCube_id)
-        _x             = _mat(_x_id)
+        _x_norm        = _mat(_x_id)
         _peak_sn_map   = _mat(_peak_sn_map_id)
         _sn_int_map    = _mat(_sn_int_map_id)
         _params        = _mat(_params_id)
@@ -495,8 +437,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             theta_d[2] = 0.5; theta_d[3] = 0.1; theta_d[4] = 1.0
             m = _gaussian_sum_norm(x_d, theta_d, 1)
             _ = _rms_of_residual(prof_d, m)
-            _ = _neg_half_chi2(prof_d, m, 1.0)
-            _ = _little_derive_rms_npoints_core(prof_d, x_d, 0.0, 1.0, 1, theta_d)
+            #_ = _neg_half_chi2(prof_d, m, 1.0)
+            _ = _little_derive_rms_core(prof_d, x_d, 0.0, 1.0, 1, theta_d)
             _NUMBA_WARMED = True
 
 
@@ -505,14 +447,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
         v_max_phys = _params['vel_max']   # 사용자 코드에서 정의
 
         for j in range(0, _je - _js):
-            fl = _inputDataCube[:, j+_js, i]
-            _f_min = float(np.min(fl))  # lowest flux : being used for normalization
-            _f_max = float(np.max(fl))  # peak flux : being used for normalization
+            _flux_phys = _inputDataCube[:, j+_js, i]
+            _f_min = float(np.min(_flux_phys))  # lowest flux : being used for normalization
+            _f_max = float(np.max(_flux_phys))  # peak flux : being used for normalization
             denom  = (_f_max - _f_min) if (_f_max > _f_min) else 1.0
-            f = (fl - _f_min) / denom  # normalization [0,1]
+            _f_norm = (_flux_phys - _f_min) / denom  # normalization [0,1]
 
-            _gaussian_seeds = find_gaussian_seeds_matched_filter_norm(
-                _x, f,                       # _x는 이미 [0,1] 정규화된 속도축
+            _gaussian_seeds = search_gaussian_seeds_matched_filter_norm(
+                _x_norm, _f_norm,                       # _x_norm는 이미 [0,1] 정규화된 속도축
                 rms=None, bg=None,
                 sigma_list_ch=[1.5,2,3,4,5],
                 k_sigma=3.0,
@@ -525,6 +467,26 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 detrend_halfwin=8, 
                 numba_threads=1 # ← 단일-스레드 JIT 경로(오버헤드 최소화)
             )
+
+            # _gaussian_seeds: 위 포맷의 dict (정규화 단위)
+            bg_norm, rms_norm = robust_bg_rms_from_seed_dict_norm(
+                _x_norm, _f_norm, _gaussian_seeds,
+                exclude_k=5.0, k_min=2.0,
+                shrink_factor=0.85, max_shrink_steps=6,
+                min_bg_frac=0.25,
+                clip_sigma=3.0, max_iter=8,
+                emission_positive=True
+            )
+
+            # in physical units
+            bg_phys  = bg_norm  * (_f_max - _f_min) + _f_min
+            rms_phys = rms_norm * (_f_max - _f_min)
+
+            # _gaussian_seeds 업데이트 (제자리 수정)
+            _gaussian_seeds = update_bg_rms_to_seeds(_gaussian_seeds, bg_norm, rms_norm, inplace=True)
+
+            # derive peakflux S/N
+            _peakflux_sn = (_f_max - bg_phys) / (rms_phys)
 
             # 단일 가우시안 경계(정규화 단위)
             #gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2,bg2, x2, std2, p2]
@@ -545,22 +507,22 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
             # __________________________________________________________________ #
             # CHECK POINT
-            if i == 499 and j+_js == 577:
-                print("-------------------")
-                print("pixel:", i, j+_js, "ncomp:", _gaussian_seeds['ncomp'])
-                print("model_sigma(norm):", _gaussian_seeds['rms'], "rms(phys):", _gaussian_seeds['rms'] * denom)
-                print("bg(norm):", _gaussian_seeds['bg'], "bg(phys):", _gaussian_seeds['bg'] * denom + _f_min)
-                print("components (x_norm, sigma_norm, peakflux_norm):\n", _gaussian_seeds['components'])
-                print("priors(single-gauss, normalized):", gfit_priors_init)
-                print("-------------------")
-                print_priors_both(gfit_priors_init, _f_min, _f_max, v_min_phys, v_max_phys,
-                  cdelt3=_cdelt3, unit_flux="Jy/beam", unit_vel="km/s")
-
-                print("-------------------")
-                print_gaussian_seeds_matched_filter_out(_gaussian_seeds, _f_min, _f_max, v_min_phys, v_max_phys, cdelt3=_cdelt3,
-                    unit_flux="Jy/beam", unit_vel="km/s") 
-                print("-------------------")
-            # __________________________________________________________________ #
+            #if i == 472 and j+_js == 407:
+            #    print("-------------------")
+            #    print("pixel:", i, j+_js, "ncomp:", _gaussian_seeds['ncomp'])
+            #    print("model_sigma(norm):", _gaussian_seeds['rms'], "rms(phys):", _gaussian_seeds['rms'] * denom)
+            #    print("bg(norm):", _gaussian_seeds['bg'], "bg(phys):", _gaussian_seeds['bg'] * denom + _f_min)
+            #    print("components (x_norm, sigma_norm, peakflux_norm):\n", _gaussian_seeds['components'])
+            #    print("priors(single-gauss, normalized):", gfit_priors_init)
+            #    print("-------------------")
+            #    print_priors_both(gfit_priors_init, _f_min, _f_max, v_min_phys, v_max_phys,
+            #      cdelt3=_cdelt3, unit_flux="Jy/beam", unit_vel="km/s")
+            #
+            #    print("-------------------")
+            #    print_gaussian_seeds_matched_filter(_gaussian_seeds, _f_min, _f_max, v_min_phys, v_max_phys, cdelt3=_cdelt3,
+            #        unit_flux="Jy/beam", unit_vel="km/s") 
+            #    print("-------------------")
+            ## __________________________________________________________________ #
 
 
 
@@ -571,7 +533,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 # save the current profile location
                 l_range = np.arange(_max_ngauss)
 
-                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = _params['_rms_med']
+                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = rms_phys
 
                 constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
 
@@ -586,7 +548,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 ])[np.newaxis, :]
                 continue
 
-            elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peak_sn_map[j+_js, i] < _params['peak_sn_limit'] \
+            #elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peak_sn_map[j+_js, i] < _params['peak_sn_limit'] \ # ... previous version ...
+            elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peakflux_sn < _params['peak_sn_limit'] \
                 or np.isnan(_f_max) or np.isnan(_f_min) \
                 or np.isinf(_f_min) or np.isinf(_f_min):
 
@@ -596,7 +559,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 # save the current profile location
                 l_range = np.arange(_max_ngauss)
 
-                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = _params['_rms_med']
+                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = rms_phys
 
                 constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
 
@@ -641,7 +604,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         facc=_params['facc'],
                         fmove=_params['fmove'],
                         max_move=_params['max_move'],
-                        logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                        logl_args=[_f_norm, _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                        #logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
 
                     sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
 
@@ -658,24 +622,25 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         facc=_params['facc'],
                         fmove=_params['fmove'],
                         max_move=_params['max_move'],
-                        logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                        logl_args=[_f_norm, _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                        #logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
                     sampler.run_nested(dlogz_init=_params['dlogz'], maxiter_init=_params['maxiter'], maxcall_init=_params['maxcall'], print_progress=False)
 
-                _gfit_results_temp, _logz = get_dynesty_sampler_results(sampler)
+                _gfit_results_temp, _logz = get_dynesty_sampler_results(sampler) # normalised units
 
                 #---------------------------------------------------------
                 # param1, param2, param3 ....param1-e, param2-e, param3-e
                 # gfit_results[j][k][0~2*nparams] = _gfit_results_temp[0~2*nparams]
                 #---------------------------------------------------------
-                gfit_results[j, k, :2*nparams] = _gfit_results_temp
+                gfit_results[j, k, :2*nparams] = _gfit_results_temp # normalised units
                 #---------------------------------------------------------
 
                 #---------------------------------------------------------
                 # derive rms of the profile given the current ngfit
                 #---------------------------------------------------------
-                _rms_ngfit = little_derive_rms_npoints(_inputDataCube, i, j+_js, _x, _f_min, _f_max, ngauss, _gfit_results_temp)
-                #---------------------------------------------------------
+                _rms_ngfit = little_derive_rms(_inputDataCube, i, j+_js, _x_norm, _f_min, _f_max, ngauss, _gfit_results_temp) # normalised unit [0~1]
 
+                #---------------------------------------------------------
                 if ngauss == 1: # check the peak s/n
                     # load the normalised sgfit results : --> derive rms for s/n
                     #_bg_sgfit = _gfit_results_temp[1]
@@ -691,8 +656,9 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
                     # peak s/n : more accurate peak s/n from the first sgfit 
                     _bg_sgfit = _gfit_results_temp[1]
-                    _p_sgfit = _gfit_results_temp[4] # bg already subtracted
+                    _p_sgfit = _gfit_results_temp[4] # bg already subtracted : normalised units
                     _peak_sn_sgfit = _p_sgfit/_rms_ngfit
+
 
                     if _peak_sn_sgfit < _params['peak_sn_limit']: 
 
@@ -730,6 +696,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     #|---------------------------------------------------------------------------------------|
 
 
+                #---------------------------------------------------------
                 # update optimal priors based on the current ngaussian fit results
                 if ngauss < _max_ngauss: # update gfit_priors_init with the g1fit results for the rest of the gaussians of the current profile
                     nparams_n = 3*(ngauss+1) + 2 # <-- (+ 1) for the next gaussians (e.g., ngauss=2, 3, 4 ...)
@@ -758,8 +725,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         peak_upper_cap=1.0
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
+                #|_______________________________________________________________________________________|
+                #|---------------------------------------------------------------------------------------|
 
-                gfit_results[j, k, 2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit
+
+
+                #---------------------------------------------------------
+                # update tail part of gfit_results 
+                gfit_results[j, k, 2*(3*_max_ngauss+2)+k] = _rms_ngfit # rms_(k+1)gfit : normalised units <-- this is from new little_derive_rms
                 gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+0] = _logz
                 gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+1] = _is
                 gfit_results[j, k, 2*(3*_max_ngauss+2)+_max_ngauss+2] = _ie
@@ -839,7 +812,9 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     max_ngauss=_max_ngauss)
 
 
+                #________________________________________________________________________________________|
                 # SKIP CONDITION
+                #________________________________________________________________________________________|
                 _m_indices = np.arange(k+1)
                 _peak_flux_indices = 4 + 3*_m_indices
                 gfit_peak_sn = (gfit_results[j, k, _peak_flux_indices] - gfit_results[j][k][1]) / gfit_results[j, k, 2*(3*_max_ngauss+2) + k]
@@ -1054,7 +1029,7 @@ def dynamic_baygaud_nested_sampling0(num_cpus_nested_sampling):
                 #---------------------------------------------------------
                 # derive rms of the profile given the current ngfit
                 #---------------------------------------------------------
-                _rms_ngfit = little_derive_rms_npoints(_inputDataCube, i, j+_js, _x, _f_min, _f_max, ngauss, _gfit_results_temp)
+                _rms_ngfit = little_derive_rms(_inputDataCube, i, j+_js, _x, _f_min, _f_max, ngauss, _gfit_results_temp)
                 #---------------------------------------------------------
 
                 if ngauss == 1: # check the peak s/n

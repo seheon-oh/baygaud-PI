@@ -56,10 +56,10 @@ _bg_med: 0
 #+++++++++++++++++++++++++++++++++
 
 # District to be fitted
-naxis1_s0: 301  # <---- UPDATE HERE
-naxis1_e0: 303 # <---- UPDATE HERE
-naxis2_s0: 282  # <---- UPDATE HERE
-naxis2_e0: 284 # <---- UPDATE HERE
+naxis1_s0: 297  # <---- UPDATE HERE
+naxis1_e0: 299 # <---- UPDATE HERE
+naxis2_s0: 306  # <---- UPDATE HERE
+naxis2_e0: 308 # <---- UPDATE HERE
 
 # Number of steps to sample for deriving the backround rms
 # Derive the background rms values of nsteps_x_rms * nsteps_y_rms line profiles 
