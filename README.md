@@ -237,4 +237,4 @@ Please open issues and pull requests on GitHub. When reporting bugs, include:
 - A minimal YAML snippet (`wdir`, `input_datacube`, ROI, `num_cpus_ray`, thresholds)  
 - Any console output (tracebacks, warnings) and your prompt + commands used
 
-Happy decomposing!
+Happy decomposing!!!
