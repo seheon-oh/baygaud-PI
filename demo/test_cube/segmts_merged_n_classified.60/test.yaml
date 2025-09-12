@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+#|-----------------------------------------|
+#| _baygaud_params.yaml
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
+
+# ==============================================================================
+# REQUIRED CHECKLIST — edit these before running
+# ==============================================================================
+# [ ] wdir                         --> working directory for the input cube                  *** REQUIRED ***
+# [ ] input_datacube               --> FITS filename under wdir                              *** REQUIRED ***
+# [ ] ROI indices                  --> naxis1_s0 / naxis1_e0 / naxis2_s0 / naxis2_e0         *** REQUIRED ***
+# [ ] Classification thresholds    --> max_ngauss / mom0_nrms_limit / peak_sn_pass_for_ng_opt /
+#                                      peak_sn_limit / int_sn_limit                          *** REQUIRED ***
+# [ ] Physical bounds (global & components) --> vlos_* / vdisp_* (global/cool/warm/hot)      *** REQUIRED ***
+# [ ] Parallelization              --> num_cpus_ray (total CPU cores for Ray)                *** REQUIRED ***
+
+# ==============================================================================
+# DATA PATHS & I/O
+# ==============================================================================
+# What to set before running:
+#   - wdir                --> working directory for the input cube          *** REQUIRED ***
+#   - input_datacube      --> FITS filename under wdir                      *** REQUIRED ***
+#   - _cube_mask          --> 'Y' or 'N'                                    [OPTIONAL]
+#   - _cube_mask_2d       --> required only when _cube_mask == 'Y'          [CONDITIONAL]
+# -----------------------------------------------------------------------------
+
+# ==============================================================================
+# PROGRESS BAR FORMAT
+# |-------------------------------------------------------------------------------|
+# |---:--:--:--:--:--:--:--:--:--:--:--:--:-->  :  :  :  :  :   |          73.75% |
+# | 1180/1600 profiles |  3.72 profiles/s | elapsed 00:00:05:17 | eta 00:00:01:53 | 
+# |                                       |         current tile: x[19]...y[0:20] |
+# |-------------------------------------------------------------------------------|
+# -----------------------------------------------------------------------------
+
+# Working directory where the input data cube resides.
+wdir: '/Users/seheon/research/projects/baygaud/baygaud-PI.dev/demo/test_cube'  # *** REQUIRED ***
+
+# Output subdirectories (created under wdir if your code does so).
+_segdir: 'segmts'                              # [RECOMMENDED]
+_combdir: 'segmts_merged_n_classified'         # [RECOMMENDED]
+
+# Input 3D cube FITS file name (inside wdir).
+input_datacube: 'ngc2403.regrid.testcube.0.fits'  # *** REQUIRED ***
+
+# Optional 2D mask usage.
+#  - 'Y' if a 2D signal mask is available (use _cube_mask_2d); 'N' otherwise.
+_cube_mask: 'N'          # [OPTIONAL]
+# Path (or file name under wdir) for the 2D mask FITS; ignored if _cube_mask == 'N'.
+_cube_mask_2d: ''        # [CONDITIONAL] set only when _cube_mask == 'Y'
+
+
+# ==============================================================================
+# INITIAL PLACEHOLDERS (filled at runtime by code; keep defaults)
+# ==============================================================================
+# Keep defaults; these are populated from the FITS header and data.
+# -----------------------------------------------------------------------------
+naxis1: 0          # X pixels                                  [DEFAULT OK]
+naxis2: 0          # Y pixels                                  [DEFAULT OK]
+naxis3: 0          # Spectral channels                         [DEFAULT OK]
+cdelt1: 0          # deg/rad per pixel (CDELT1)                [DEFAULT OK]
+cdelt2: 0          # deg/rad per pixel (CDELT2)                [DEFAULT OK]
+cdelt3: 0          # m/s per channel (CDELT3; sign = ordering) [DEFAULT OK]
+vel_min: 0         # km/s (computed later)                     [DEFAULT OK]
+vel_max: 0         # km/s (computed later)                     [DEFAULT OK]
+_rms_med: 0        # background RMS (median)                   [DEFAULT OK]
+_bg_med: 0         # background level (median)                 [DEFAULT OK]
+
+
+# ==============================================================================
+# ROI (REGION OF INTEREST) FOR PROFILE DECOMPOSITION
+# ==============================================================================
+# Recommended to set a small ROI for quick tests; for full runs you may cover all.
+# -----------------------------------------------------------------------------
+naxis1_s0: 0    # x start index                     *** REQUIRED ***
+naxis1_e0: 40   # x end index (inclusive)           *** REQUIRED ***
+naxis2_s0: 0    # y start index                     *** REQUIRED ***
+naxis2_e0: 40   # y end index (inclusive)           *** REQUIRED ***
+
+# ==============================================================================
+# NESTED SAMPLING (dynesty) CONFIGURATION
+# ==============================================================================
+# Defaults are sensible; tune only if you know what you are doing.
+# -----------------------------------------------------------------------------
+_dynesty_class_: 'static'    # 'static' (recommended) or 'dynamic'   [RECOMMENDED]
+
+# Sampling strategy: 'auto' | 'unif' | 'rwalk' | 'slice' | 'rslice'
+nlive: 100                   # [RECOMMENDED]
+sample: 'rwalk'              # [RECOMMENDED]
+
+# Termination
+dlogz: 0.01                  # evidence tolerance                    [RECOMMENDED]
+
+# Runtime limits
+maxiter: 999999              # [RECOMMENDED]
+maxcall: 999999              # [RECOMMENDED]
+
+# Efficiency & checks
+update_interval: 2.0         # updates every (2.0 * nlive)           [RECOMMENDED]
+vol_dec: 0.2                 # [RECOMMENDED]
+vol_check: 2                 # [RECOMMENDED]
+facc: 0.5                    # [RECOMMENDED]
+fmove: 0.9                   # [RECOMMENDED]
+
+# Moves
+walks: 25                    # [RECOMMENDED]
+rwalk: 100                   # [RECOMMENDED]
+max_move: 100                # [RECOMMENDED]
+
+# Bounds: 'multi' (multimodal) vs 'single' (unimodal)
+bound: 'multi'               # [RECOMMENDED]
+
+
+# ==============================================================================
+# CLASSIFICATION / PRE-SELECTION THRESHOLDS
+# ==============================================================================
+# Review for your target; defaults are a reasonable starting point.
+# -----------------------------------------------------------------------------
+bayes_factor_limit: 100      # model comparison threshold                             [RECOMMENDED]
+max_ngauss: 1                # max # of Gaussians (NON-RECOVERABLE)                   *** REQUIRED ***
+mom0_nrms_limit: 1           # peak > mom0_nrms_limit * rms + bg (NON-RECOVERABLE)    *** REQUIRED ***
+peak_sn_pass_for_ng_opt: 3   # Gaussians passing S/N for ng opt (RECOVERABLE)         *** REQUIRED ***
+peak_sn_limit: 2             # decompose only if peak S/N above (NON-RECOVERABLE)     *** REQUIRED ***
+int_sn_limit: 1.0            # integrated S/N threshold (NON-RECOVERABLE)             *** REQUIRED ***
+
+
+# ==============================================================================
+# BULK MOTION MODEL (OPTIONAL) : PUT BLANKS
+# ==============================================================================
+# Use only if bulk subtraction is desired; otherwise leave as is.
+# -----------------------------------------------------------------------------
+_bulk_model_dir: '/home/seheon/research/mhongoose/ngc2403/things_model_vf/'  # [OPTIONAL]
+_bulk_extraction: 'N'                                                        # [OPTIONAL] 'Y' or 'N'
+_bulk_ref_vf: 'ngc2403.bulk.vf.model.fits'                                   # [OPTIONAL]
+_bulk_delv_limit: 'sgfit.G5_1.2.fits'                                        # [OPTIONAL]
+_bulk_delv_limit_factor: 1.0                                                 # [OPTIONAL]
+
+
+# ==============================================================================
+# PHYSICAL BOUNDS FOR PROFILE PARAMETERS (for _baygaud_classify.py)
+# ==============================================================================
+# Adjust to your galaxy if needed; defaults span a broad, safe range.
+# -----------------------------------------------------------------------------
+# 1) Global kinematics
+vlos_lower: 0       # km/s   *** REQUIRED ***
+vlos_upper: 400     # km/s   *** REQUIRED ***
+vdisp_lower: 3      # km/s   *** REQUIRED ***
+vdisp_upper: 999    # km/s   *** REQUIRED ***
+
+# ==============================================================================
+# Adjust only for _baygaud_classify.py : defaults would be fine for baygaud.py run
+# -----------------------------------------------------------------------------
+# 2) Kinematically cool components
+vlos_lower_cool: 0    # km/s  *** REQUIRED ***
+vlos_upper_cool: 400  # km/s  *** REQUIRED ***
+vdisp_lower_cool: 5   # km/s  *** REQUIRED ***
+vdisp_upper_cool: 12  # km/s  *** REQUIRED ***
+
+# 3) Kinematically warm components
+vlos_lower_warm: 0    # km/s  *** REQUIRED ***
+vlos_upper_warm: 400  # km/s  *** REQUIRED ***
+vdisp_lower_warm: 12  # km/s  *** REQUIRED ***
+vdisp_upper_warm: 40  # km/s  *** REQUIRED ***
+
+# 4) Kinematically hot components
+vlos_lower_hot: 0     # km/s  *** REQUIRED ***
+vlos_upper_hot: 400   # km/s  *** REQUIRED ***
+vdisp_lower_hot: 40   # km/s  *** REQUIRED ***
+vdisp_upper_hot: 999  # km/s  *** REQUIRED ***
+# -----------------------------------------------------------------------------
+
+# 5) Single pixel to inspect (for quick checks)
+_i0: 20               # x-pixel    [OPTIONAL]
+_j0: 20               # y-pixel    [OPTIONAL]
+
+# 6) Gaussian ordering rules (uncomment to enforce a default)
+_sort_gauss_wrt_int: 'Y'        # [RECOMMENDED]
+# _sort_gauss_wrt_vdisp: 'Y'      # [OPTIONAL]
+# _sort_gauss_wrt_peak_amp: 'Y'   # [OPTIONAL]
+# _sort_gauss_wrt_vlos: 'Y'       # [OPTIONAL]
+
+
+# ==============================================================================
+# DETECTION / FITTING UTILITIES [DEFAULTS]
+# ==============================================================================
+# Typically leave as is unless you need specific behavior.
+# -----------------------------------------------------------------------------
+matched_filter:
+  sigma_list_ch: [1.5, 2, 3, 4, 5]   # Gaussian kernel widths (channels)  [RECOMMENDED]
+  k_sigma: 3.0                        # sigma multiplier for threshold     [RECOMMENDED]
+  thres_sigma: 2.0                    # primary S/N threshold              [RECOMMENDED]
+  amp_sigma_thres: 2.0                # amplitude S/N threshold            [RECOMMENDED]
+  sep_channels: 5                     # min separation (channels)          [RECOMMENDED]
+  max_components: null                # unlimited if null                  [RECOMMENDED]
+  refine_center: True                 # refine after coarse detection      [RECOMMENDED]
+  detrend_local: False                # local baseline detrending          [RECOMMENDED]
+  detrend_halfwin: 8                  # half window for detrending         [RECOMMENDED]
+  numba_threads: 1                    # Numba threads in this routine      [RECOMMENDED]
+
+robust_rms:
+  exclude_k: 5.0                      # [RECOMMENDED]
+  k_min: 2.0                          # [RECOMMENDED]
+  shrink_factor: 0.85                 # [RECOMMENDED]
+  max_shrink_steps: 6                 # [RECOMMENDED]
+  min_bg_frac: 0.25                   # [RECOMMENDED]
+  clip_sigma: 3.0                     # [RECOMMENDED]
+  max_iter: 8                         # [RECOMMENDED]
+  emission_positive: True             # [RECOMMENDED]
+
+sgfit_bounds:
+  use_phys_for_x_bounds: True         # [RECOMMENDED]
+  model_sigma_bounds: [0.0, 0.7]      # [RECOMMENDED]
+  k_bg: 3.0                           # [RECOMMENDED]
+  k_x: 5.0                            # [RECOMMENDED]
+  sigma_scale_bounds: [0.1, 3.0]      # [RECOMMENDED]
+  peak_scale_bounds: [0.3, 1.5]       # [RECOMMENDED]
+  min_x_span: 1.0e-5                  # [RECOMMENDED]
+  min_sigma: 1.0e-4                   # [RECOMMENDED]
+  clip_sigma_hi: 0.999                # [RECOMMENDED]
+
+
+# ==============================================================================
+# PRIORS (reserved; define here if needed)
+# ==============================================================================
+# Add prior definitions here only if required by your workflow.
+# -----------------------------------------------------------------------------
+# priors: {}                         # [OPTIONAL]
+
+
+# ==============================================================================
+# TILING / BATCHING (scheduling hints for parallel runs)
+# ==============================================================================
+# Defaults are okay; adjust for your memory/CPU characteristics if needed.
+# -----------------------------------------------------------------------------
+y_chunk_size: 10          # tile size along Y (typical 20–50)       [RECOMMENDED]
+gather_batch: 8           # how many results to aggregate per wait   [RECOMMENDED]
+
+
+# ==============================================================================
+# PARALLELIZATION SETTINGS (choose based on your environment)
+# ==============================================================================
+# Set these before running:
+#   - num_cpus_ray             --> total CPU cores allowed for Ray           *** REQUIRED ***
+#   - numba_num_threads        --> Numba threads per worker (avoid oversub)  [RECOMMENDED=1]
+#   - num_cpus_nested_sampling --> cores used inside nested sampling          [RECOMMENDED=1]
+# -----------------------------------------------------------------------------
+# On macOS you can check:
+#   sysctl -n hw.physicalcpu   --> physical cores
+#   sysctl -n hw.logicalcpu    --> logical cores (with HT)
+num_cpus_ray: 8                 # *** REQUIRED ***
+numba_num_threads: 1            # [RECOMMENDED]
+num_cpus_nested_sampling: 1     # [RECOMMENDED]
+
+
+# ==============================================================================
+# THREADING & ENVIRONMENT VARIABLES (set by launcher before workers)
+# ==============================================================================
+# Recommended to avoid BLAS/OpenMP over-threading conflicts when using Ray.
+# -----------------------------------------------------------------------------
+threading:
+  numba_threading_layer: workqueue   # alternatives: tbb, omp               [RECOMMENDED]
+  numba_num_threads: 1               # keep 1 under Ray workers             [RECOMMENDED]
+  omp_num_threads: 1                 # OpenMP                               [RECOMMENDED]
+  mkl_num_threads: 1                 # Intel MKL                            [RECOMMENDED]
+  openblas_num_threads: 1            # OpenBLAS                             [RECOMMENDED]
+  blis_num_threads: 1                # BLIS                                 [RECOMMENDED]
+  veclib_maximum_threads: 1          # macOS Accelerate/veclib              [RECOMMENDED]
+  numexpr_num_threads: 1             # numexpr                              [RECOMMENDED]
+
+#-- END OF SUB-ROUTINE____________________________________#

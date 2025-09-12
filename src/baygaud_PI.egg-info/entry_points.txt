@@ -1,0 +1,3 @@
+[console_scripts]
+baygaud = baygaud_pi.baygaud:main
+baygaud_classify = baygaud_pi.baygaud_classify:main
