@@ -345,7 +345,7 @@ Tips: hover to locate spectra; mouse wheel to zoom; choose which 2D map to displ
 
 ## Cite
 
-If you use baygaud-PI, please cite the main algorithm and relevant applications:
+If you use baygaud-PI, please cite the main algorithm paper or relevant application papers:
 
 1. Oh, S. H., Staveley-Smith, L., For, B. Q. (2019), **MNRAS**, 485, 5021–5034.  
 2. Oh, S.-H., Kim, S., For, B.-Q., Staveley-Smith, L. (2022), **ApJ**, 928, 177.  
