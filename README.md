@@ -66,17 +66,15 @@ Create a Python 3.13 venv in your prefered directory, then install: (recommended
   ...
   ...
 
-  # ---------------------------------------------------
-  # Activate (bash/zsh)
+  # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
   (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
 
-  # OR activate (csh/tcsh)
+  # OR activate (csh/tcsh) -----
   [seheon@Mac project] source .venv313/bin/activate.csh
   (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
-  # ---------------------------------------------------
 
 
   > Quick Tkinter check: 
@@ -84,10 +82,8 @@ Create a Python 3.13 venv in your prefered directory, then install: (recommended
   (.venv313) [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
 
   > If 'Tk OK' printed, the current python supports Tkinter.
-  ```
 
-  ```bash
-  >   Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
+  > Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
   ```
 
   > - **Linux (Debian/Ubuntu):**  
@@ -97,19 +93,17 @@ Create a Python 3.13 venv in your prefered directory, then install: (recommended
   [seheon@Mac project] python3.13 -m venv .venv313
   ```
 
-```
-# ---------------------------------------------------
-# Activate (bash/zsh)
-[seheon@Mac project] source .venv313/bin/activate
-(.venv313) [seheon@Mac baygaud-PI] python --version
-Python 3.13.7
+  # Activate (bash/zsh) --------
+  [seheon@Mac project] source .venv313/bin/activate
+  (.venv313) [seheon@Mac project] python --version
+  Python 3.13.7
 
-# OR activate (csh/tcsh)
-[seheon@Mac project] source .venv313/bin/activate.csh
-(.venv313) [seheon@Mac baygaud-PI] python --version
-Python 3.13.7
-# ---------------------------------------------------
-```
+  # OR activate (csh/tcsh) -----
+  [seheon@Mac project] source .venv313/bin/activate.csh
+  (.venv313) [seheon@Mac project] python --version
+  Python 3.13.7
+
+
 
 # Clone baygaud-PI from github (it will take a while...)
 (.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
