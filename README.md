@@ -231,10 +231,5 @@ If you use baygaud-PI, please cite the main algorithm and relevant applications:
 
 ## Support & Issues
 
-Please open issues and pull requests on GitHub. When reporting bugs, include:
-
-- OS & version, Python version  
-- A minimal YAML snippet (`wdir`, `input_datacube`, ROI, `num_cpus_ray`, thresholds)  
-- Any console output (tracebacks, warnings) and your prompt + commands used
 
 Happy decomposing!!!
