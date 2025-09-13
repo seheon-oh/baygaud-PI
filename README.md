@@ -59,10 +59,12 @@ Create and activate a fresh venv, then install:
 # Activate (bash/zsh)
 [seheon@Mac project] source .venv313/bin/activate
 (.venv313) [seheon@Mac baygaud-PI] python --version
+Python 3.13.7
 
 # OR activate (csh/tcsh)
 [seheon@Mac project] source .venv313/bin/activate.csh
 (.venv313) [seheon@Mac baygaud-PI] python --version
+Python 3.13.7
 
 # Clone
 (.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
