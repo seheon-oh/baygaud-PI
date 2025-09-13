@@ -52,33 +52,28 @@
 Create and activate a fresh venv, then install:
 
 ```bash
-# Clone
-[seheon@Mac ~] git clone https://github.com/seheon-oh/baygaud-PI.git
-[seheon@Mac ~] cd baygaud-PI
 
 # Create a Python 3.13 venv in the repo (recommended)
-[seheon@Mac baygaud-PI] python3.13 -m venv .venv313
+[seheon@Mac project] python3.13 -m venv .venv313
 
 # Activate (bash/zsh)
-[seheon@Mac baygaud-PI] source .venv313/bin/activate
+[seheon@Mac project] source .venv313/bin/activate
 (.venv313) [seheon@Mac baygaud-PI] python --version
 
 # OR activate (csh/tcsh)
-[seheon@Mac baygaud-PI] source .venv313/bin/activate.csh
+[seheon@Mac project] source .venv313/bin/activate.csh
 (.venv313) [seheon@Mac baygaud-PI] python --version
+
+# Clone
+(.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
+# Move into baygaud-PI
+(.venv313) [seheon@Mac project] cd baygaud-PI
+
 ```
 
-Linux-only prerequisites and install:
-
 ```bash
-# System dependency (Ubuntu)
-(.venv313) [seheon@Mac baygaud-PI] sudo apt-get install -y libbz2-dev
-
 # Install package + pinned deps
 (.venv313) [seheon@Mac baygaud-PI] pip install .
-
-# (Optional) developer mode
-(.venv313) [seheon@Mac baygaud-PI] python3 setup.py develop
 
 # (Optional) viewer on Ubuntu
 (.venv313) [seheon@Mac baygaud-PI] sudo apt-get install -y python3.13-tk
