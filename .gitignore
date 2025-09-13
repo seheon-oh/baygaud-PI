@@ -8,17 +8,29 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.DS_Store
+.python-version
+
 
 # ----------------------
 # Virtual environments
 .venv312
-.venv312
+.venv313
 .venv/
 
 
 # ----------------------
 # git
 .gitignore
+git_quick.txt
+
+
+# ----------------------
+# data cube
+demo/test_cube/segmts
+demo/test_cube/segmts_*
+demo/test_cube/baygaud_segs*
+
 
 # ----------------------
 # etc
@@ -26,10 +38,13 @@ __pycache__/
 *.swo
 .idea/
 .vscode/
-requirements-py312.txt
+requirements-py310.txt
 requirements-py313.txt
 scan_requirements.py
 install_python3.12.10.csh
 src/baygaud_pi/_dynesty_sampler.v1.0.py
 src/baygaud_pi/_baygaud_params.lvhis009.yaml
 src/baygaud_pi/_baygaud_params.ddo154.yaml
+src/baygaud_pi/README.md
+
+
