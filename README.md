@@ -122,18 +122,16 @@
   (.venv313) [seheon@Mac project] export PYTHONNOUSERSITE=1
 
   # In tcsh or csh
-  (.venv313) [seheon@Mac project] unset PYTHONPATH PYTHONHOME PIP_PREFIX
-  (.venv313) [seheon@Mac project] export PYTHONNOUSERSITE=1
+  (.venv313) [seheon@Mac project] unsetenv PYTHONPATH PYTHONHOME PIP_PREFIX
+  (.venv313) [seheon@Mac project] setenv PYTHONNOUSERSITE 1
 
   # (3) Upgrade pip and build tools: 
-  Always use python3 -m pip (never just pip) to ensure you are inside the virtual environment.
+  Always use *** python3 -m pip *** (never just pip) to ensure you are inside the virtual environment.
 
   (.venv313) [seheon@Mac project] python3 -m ensurepip --upgrade
   (.venv313) [seheon@Mac project] python3 -m pip install --upgrade pip setuptools wheel
 
   # (4) Quick sanity check
-  (.venv313) [seheon@Mac project] 
-
   (.venv313) [seheon@Mac project] python -V                 # --> Python 3.13.x
   (.venv313) [seheon@Mac project] python -m pip -V          # --> .../venv/.../python3.13/site-packages
   (.venv313) [seheon@Mac project] which python; which pip   # --> both should point inside your venv
@@ -149,7 +147,7 @@
 ```bash
 (.venv313) [seheon@Mac project] cd baygaud-PI
 
-# Install package + pinned deps : Always use python3 -m pip (not just pip)
+# Install package + pinned deps : *** Always use python3 -m pip (not just pip) ***
 (.venv313) [seheon@Mac baygaud-PI] python3 -m pip install .
 
 
