@@ -40,28 +40,9 @@
 - **Python:** 3.13 recommended (3.10–3.12 also work)  
 - **OS:** Tested on Ubuntu 20.04.6 LTS (expected to work on most releases) and macOS 15.6.1 (Apple M2 Pro)  
 - **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `numpy`, `matplotlib`, etc.  
-- **Viewer (optional):** `python3.x-tk`
-
-
-
-## Requirements
-
-- **Python:** 3.13 recommended (3.10–3.12 also work)
-
-  > **Tkinter note (for the viewer only)**  
+- **Tkinter note (or the viewer only):** `python3.x-tk` (see Tkinter installation note below)
   > `baygaud_viewer.py` requires **Tkinter**. The core pipeline (`baygaud.py`, `baygaud_classify.py`) does **not** need it.
   >
-
-- **OS:** Ubuntu 20.04.6 LTS (expected to work on most releases) and macOS 15.6.1 (Apple M2 Pro).
-- **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `numpy`, `matplotlib`, …
-- **System deps (Linux):** `libbz2-dev` (needed by `fitsio`)
-- **Viewer (optional):** `python3.x-tk` (see Tkinter note above)
-
-
-
-
-
-
 
 > **Always use a dedicated virtual environment.** If any dependency does not yet support 3.13 on your system, use Python 3.10–3.12 with the same steps.
 
@@ -71,25 +52,32 @@
 
 Create and activate a fresh venv, then install:
 
-```bash
 
 # Create a Python 3.13 venv in your prefered directory (recommended)
 
-  > - **macOS (Recommended):** Install **Python 3.13 from python.org** — it **includes Tkinter** out of the box. Then create your venv **with that interpreter**:  
+  > - **macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box.
+  > Then create your venv with that interpreter:  
 
-  ```bash
+```bash
   [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
+
   [seheon@Mac project] source .venv313/bin/activate
+
+  > ** Quick Tkinter check: 
+
   [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
+
+  > If 'Tk OK' printed, the current python supports Tkinter.
   ```
 
   ```bash
-  >   Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run the **viewer** under that version.
+  >   Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
   ```
 
   > - **Linux (Debian/Ubuntu):**  
   ```bash
   [seheon@Mac project] sudo apt-get install -y python3-tk
+
   [seheon@Mac project] python3.13 -m venv .venv313
   ```
 
