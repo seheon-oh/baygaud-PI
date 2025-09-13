@@ -123,8 +123,7 @@
 # Install package + pinned deps
 (.venv313) [seheon@Mac baygaud-PI] pip install .
 
-To leave the environment later:
-
+# To leave the environment later:
 (.venv313) [seheon@Mac baygaud-PI] deactivate 
 [seheon@Mac baygaud-PI] 
 ```
@@ -202,11 +201,8 @@ num_cpus_ray: 8
 
 From the source tree:
 
-```diff
-- (.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
-- (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
-```
-
+(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 
 ```
  ____________________________________________
