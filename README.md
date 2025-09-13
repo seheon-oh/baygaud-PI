@@ -147,7 +147,8 @@
 ```bash
 (.venv313) [seheon@Mac project] cd baygaud-PI
 
-# Install package + pinned deps : *** Always use python3 -m pip (not just pip) ***
+# Install package + pinned deps:
+*** Always use python3 -m pip (not just pip) ***
 (.venv313) [seheon@Mac baygaud-PI] python3 -m pip install .
 
 
