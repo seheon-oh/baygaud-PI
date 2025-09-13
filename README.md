@@ -56,7 +56,9 @@
   > Then create your venv with that interpreter:  
 
 ```bash
-  [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
+```diff
+-  [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
+```
 
   # Check the created .venv313
   [seheon@Mac project] ls -al
@@ -133,7 +135,7 @@ To leave the environment later: `deactivate`.
 
 ### 1) Prepare your data & YAML
 
-Put your H I data cube (FITS) in a working directory. Copy and edit a YAML template:
+**Put your H I data cube (FITS) in a working directory. Copy and edit a YAML template:**
 
 ```bash
 (.venv313) [seheon@Mac baygaud-PI] cp src/baygaud_pi/_baygaud_params.ngc2403.yaml my_params.yaml
