@@ -68,6 +68,7 @@ Python 3.13.7
 
 # Clone
 (.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
+
 # Move into baygaud-PI
 (.venv313) [seheon@Mac project] cd baygaud-PI
 
