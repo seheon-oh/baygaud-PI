@@ -1,5 +1,13 @@
 # baygaud-PI
 
+ _                                       _         ___ _____ 
+| |__   __ _ _   _  __ _  __ _ _   _  __| |       / _ \\_   \
+| '_ \ / _` | | | |/ _` |/ _` | | | |/ _` |_____ / /_)/ / /\/
+| |_) | (_| | |_| | (_| | (_| | |_| | (_| |_____/ ___/\/ /_  
+|_.__/ \__,_|\__, |\__, |\__,_|\__,_|\__,_|     \/   \____/  
+             |___/ |___/                                     
+                           v.2.0.0
+
 **BAY**esian **GAU**ssian **D**ecomposer — a tool to decompose spectral-line profiles into multiple Gaussian components using Bayesian nested sampling.
 
 - **Version:** 2.0.0 (2025-09-12)  
@@ -17,7 +25,7 @@
 ## Features
 
 - Bayesian nested sampling (via **dynesty**) for robust model selection  
-- **Automatic component counting** using Bayes factors  
+- **Classification of Gaussian components** using Bayes factors  
 - **Ray**-based parallel processing for large cubes  
 - **Segment-wise** saving and safe resume  
 - Post-processing utilities to **merge segments** and **classify components**  
