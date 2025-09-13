@@ -162,7 +162,57 @@ From the source tree:
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py ../my_params.yaml
 ```
 
-*(Prompts are shown as examples; adjust paths as needed.)*
+
+```
+ ____________________________________________
+[____________________________________________]
+
+ :: Running baygaud.py with config: _baygaud_params.ngc2403.yaml
+
+2025-09-13 04:08:04,647 INFO worker.py:1951 -- Started a local Ray instance.
+
+ _                                       _         ___ _____ 
+| |__   __ _ _   _  __ _  __ _ _   _  __| |       / _ \\_   \
+| '_ \ / _` | | | |/ _` |/ _` | | | |/ _` |_____ / /_)/ / /\/
+| |_) | (_| | |_| | (_| | (_| | |_| | (_| |_____/ ___/\/ /_  
+|_.__/ \__,_|\__, |\__, |\__,_|\__,_|\__,_|     \/   \____/  
+             |___/ |___/                                     
+                           v.2.0.0
+
++------------------------------------------------------------------------+
+| Data cube / key params  |     Value | Note                             |
++------------------------------------------------------------------------+
+| naxis1 (pixels)         |        41 | [0 : 40]                         |
+| naxis2 (pixels)         |        41 | [0 : 40]                         |
+| naxis3 (channels)       |        74 | [:]                              |
+| max_ngauss (number)     |         3 | Maximum Gaussian components      |
+| peak-flux S/N limit     |       2.0 | Minimum peak-flux S/N            |
++------------------------------------------------------------------------+
+| Velocity min (km/s)     |      9.46 |                                  |
+| Velocity max (km/s)     |    396.36 |                                  |
+| CDELT3 (m/s)            |   5299.95 | (+) spectral axis increasing     |
+| Spec axis unit check    |      km/s | <- displayed here should be km/s |
++------------------------------------------------------------------------+
+| Runtime (Ray)           |     Value |                                  |
++------------------------------------------------------------------------+
+| Ray initialized         |      True |                                  |
+| Total physical cores    |        12 |                                  |
+| Ray allocated cores     |         8 |                                  |
+| Sampler allocated cores |         1 |                                  |
+| Numba allocated threads |         1 |                                  |
+| System memory (GB)      |      16.0 |                                  |
+| Process memory (GB)     |       0.2 |                                  |
+| (y chunk size)          |      (10) |                                  |
+| (gather batch)          |       (8) |                                  |
++------------------------------------------------------------------------+
+
+|--------------------------------------------------------------------------------------|
+|  :   :   :   :   :   :   :   :   :   :   :   :   :   :   :   :   :   :     |    0.00% 
+| 0/1600 profiles |  0.00 profiles/s | elapsed 00:00:00:04 | eta 00:00:00:00 |          
+|                                                                            |          
+|--------------------------------------------------------------------------------------|
+
+```
 
 ---
 
