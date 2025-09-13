@@ -50,7 +50,7 @@
 
 ## Installation
 
-Create a Python 3.13 venv in your prefered directory, then install: (recommended)
+### 1) Create a Python 3.13 venv in your prefered directory, then install: (recommended)
 
   > - **macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box.
   > Then create your venv with that interpreter:  
@@ -89,9 +89,15 @@ Create a Python 3.13 venv in your prefered directory, then install: (recommended
   > - **Linux (Debian/Ubuntu):**  
   ```bash
   [seheon@Mac project] sudo apt-get install -y python3-tk
-
   [seheon@Mac project] python3.13 -m venv .venv313
-  ```
+
+  # Check the created .venv313
+  [seheon@Mac project] ls -al
+  ...
+  ...
+  drwxr-xr-x@  8 seheon  staff    256 Sep 10 15:23 .venv313
+  ...
+  ...
 
   # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
@@ -102,28 +108,21 @@ Create a Python 3.13 venv in your prefered directory, then install: (recommended
   [seheon@Mac project] source .venv313/bin/activate.csh
   (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
+  ```
 
 
 
-# Clone baygaud-PI from github (it will take a while...)
+### 2) Clone baygaud-PI from github (it will take a while...)
 (.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
 
-# Move into baygaud-PI
-(.venv313) [seheon@Mac project] cd baygaud-PI
-
-```
+### 3) Move into baygaud-PI directory and install
 
 ```bash
+(.venv313) [seheon@Mac project] cd baygaud-PI
+
 # Install package + pinned deps
 (.venv313) [seheon@Mac baygaud-PI] pip install .
 
-# (Optional) for baygaud_viewer.py
-
-
-
-
-
-(.venv313) [seheon@Mac baygaud-PI] sudo apt-get install -y python3.13-tk
 ```
 
 To leave the environment later: `deactivate`.
