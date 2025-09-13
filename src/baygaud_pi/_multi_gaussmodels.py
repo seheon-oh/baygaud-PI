@@ -18,26 +18,26 @@ from numba import njit
 @njit(cache=True, fastmath=True)
 def _multi_gaussian_model_norm_core(x, params, ngauss):
     """
-    x      : 정규화 채널 축 (1D)
+    x      : normalized channel axis (1D)
     params : [sigma, bg, g1_x, g1_std, g1_p, g2_x, g2_std, g2_p, ...]
-             (정규화 스케일; sigma는 여기서 사용하지 않음)
-    ngauss : 가우시안 개수
-    return : model spectrum (정규화 스케일)
+             (all values in normalized scale; note: sigma is NOT used here)
+    ngauss : number of Gaussian components
+    return : model spectrum (normalized scale)
     """
     n = x.size
     out = np.empty(n, dtype=np.float64)
 
-    # 배경부터 채움
+    # Fill with background first
     bg = params[1]
     for t in range(n):
         out[t] = bg
 
-    # 가우시안 성분 합산
+    # Add Gaussian components
     for m in range(ngauss):
         mu  = params[2 + 3*m]
         sig = params[3 + 3*m]
         amp = params[4 + 3*m]
-        if sig <= 1e-12:  # 안전 하한
+        if sig <= 1e-12:  # safety lower bound
             sig = 1e-12
         invs = 1.0 / sig
         for t in range(n):
@@ -51,11 +51,11 @@ def _multi_gaussian_model_norm_core(x, params, ngauss):
 # [_____________________________________________________________________________] #
 def multi_gaussian_model_d(x, params, ngauss):
     """
-    드롭인 교체용 파이썬 래퍼 (원본 시그니처 유지).
-    x, params를 float64 C-contiguous로 정리해 JIT 코어 호출.
+    Drop-in Python wrapper (keep original signature).
+    Convert x and params to float64 C-contiguous arrays and call the JIT core.
     """
     x64 = np.ascontiguousarray(x, dtype=np.float64)
-    # 필요한 길이까지만 잘라 전달 (3*ngauss+2)
+    # Pass only the required length (3*ngauss + 2)
     p64 = np.ascontiguousarray(params[:(3*int(ngauss)+2)], dtype=np.float64)
     return _multi_gaussian_model_norm_core(x64, p64, int(ngauss))
 #-- END OF SUB-ROUTINE____________________________________________________________#
@@ -67,7 +67,7 @@ def multi_gaussian_model_d(x, params, ngauss):
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 def multi_gaussian_model_d_org(_x, _params, ngauss): # params: cube : non_njit version
-    #_bg0 : _params[1]
+    # _bg0 : _params[1]
     try:
         g = ((_params[3*i+4] * exp( -0.5*((_x - _params[3*i+2]) / _params[3*i+3])**2)) \
             for i in range(0, ngauss) \
@@ -82,7 +82,7 @@ def multi_gaussian_model_d_org(_x, _params, ngauss): # params: cube : non_njit v
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 def f_gaussian_model(_x, gfit_results, ngauss):
-    #_bg0 : gfit_results[1]
+    # _bg0 : gfit_results[1]
     try:
         g = ((gfit_results[3*i+4] * exp( -0.5*((_x - gfit_results[3*i+2]) / gfit_results[3*i+3])**2)) \
             for i in range(0, ngauss) \
@@ -100,7 +100,7 @@ def f_gaussian_model(_x, gfit_results, ngauss):
 def multi_gaussian_model_d_vectorization(_x, _params, ngauss): # _x: global array, params: cube
 
     _gparam = _params[2:].reshape(ngauss, 3).T
-    #_bg0 : _params[1]
+    # _bg0 : _params[1]
     return (_gparam[2].reshape(ngauss, 1)*exp(-0.5*((_x-_gparam[0].reshape(ngauss, 1)) / _gparam[1].reshape(ngauss, 1))**2)).sum(axis=0) + _params[1]
 #-- END OF SUB-ROUTINE____________________________________________________________#
 
@@ -116,11 +116,11 @@ def multi_gaussian_model_d_classic(_x, _params, ngauss): # params: cube
         _p0 = _params[3*i+4]
 
         _y += _p0 * exp( -0.5*((_x - _x0) / _std0)**2)
-        #y += _p0 * (scipy.stats.norm.pdf(_x, loc=_x0, scale=_std0))
+        # y += _p0 * (scipy.stats.norm.pdf(_x, loc=_x0, scale=_std0))
 
     _y += _bg0
     return _y
-#-- END OF SUB-ROUTINE____________________________________________________________#
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 

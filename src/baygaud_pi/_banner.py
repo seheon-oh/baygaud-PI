@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#|-----------------------------------------|
+#| _banner.py
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
+
 import importlib.util
 import os
 from pathlib import Path
 from pyfiglet import Figlet, FigletFont
 
 TITLE = "baygaud-PI"
-TITLE_FONT  = "ogre"   # 더 작게: 'straight', 더 크게: 'slant'
+TITLE_FONT  = "ogre"   # Smaller: 'straight', bigger: 'slant'
 #TITLE_FONT  = os.environ.get("standar", "smslent", "gothic")
-LEFT_MARGIN = 0           # 제목 왼쪽 여백 공백 수 (0이면 완전 좌측)
+LEFT_MARGIN = 0           # Left indentation (spaces) for the title; 0 = flush left
 
 # --- version loader -----------------------------------------------------------
 
 def load_version_from_version_py(filename: str = "_version.py") -> str:
     """
-    현재 스크립트 경로 기준으로 _version.py를 찾아 __version__을 반환.
-    없거나 읽기 실패 시 빈 문자열 반환.
+    Locate _version.py relative to this script and return __version__.
+    Return an empty string if the file is missing or cannot be read.
     """
     here = Path(__file__).resolve().parent
     candidates = [
         here / filename,
-        here.parent / filename,            # 상위 폴더도 한번 시도
+        here.parent / filename,            # also try the parent directory
     ]
     for p in candidates:
         if p.is_file():
@@ -35,18 +43,18 @@ def load_version_from_version_py(filename: str = "_version.py") -> str:
 
 def load_version() -> str:
     """
-    우선순위:
-      1) 환경변수 BAYGAUD_VERSION
-      2) 로컬/상위 폴더의 _version.py 의 __version__
-      3) 폴백 'dev'
-    그리고 출력용 라벨은 기존 스타일 유지 위해 'v.' 접두어 자동 부여.
+    Priority order:
+      1) Environment variable BAYGAUD_VERSION
+      2) __version__ from _version.py in the current or parent directory
+      3) Fallback to 'dev'
+    For display, automatically prepend 'v.' if not already present to match the existing style.
     """
     ver = os.environ.get("BAYGAUD_VERSION", "").strip()
     if not ver:
         ver = load_version_from_version_py("_version.py")
     if not ver:
         ver = "dev"
-    # 기존 스타일 유지: 'v.' 프리픽스 없으면 붙여줌
+    # Keep the existing style: if there's no 'v' prefix, add 'v.' automatically
     vlabel = ver if ver.lower().startswith("v") else f"v.{ver}"
     return vlabel
 
@@ -58,14 +66,14 @@ def load_version() -> str:
 
 
 def figlet_lines(text: str, font: str) -> list[str]:
-    # 선호 순서: gothic → block → standard → straight
+    # preferred order: gothic → block → standard → straight
     candidates = (font, "gothic", "block", "standard", "straight")
     available = set(FigletFont.getFonts())
     for f in candidates:
         if f in available:
             art = Figlet(font=f, width=200).renderText(text).rstrip("\n")
             return art.splitlines()
-    # 폴백: 폰트가 전혀 없으면 그냥 텍스트 반환
+    # fallback: if no figlet fonts are available, return plain text
     return [text]
 
 def visible_width(line: str) -> int:
@@ -77,19 +85,21 @@ def print_banner():
         pad = " " * LEFT_MARGIN
         title_lines = [pad + ln for ln in title_lines]
 
-    # 1) 제목: 왼쪽 정렬 출력
+    # 1) Title: print left-aligned
     print()
     for ln in title_lines:
         print(ln)
 
-    # 2) 버전: 제목 아트 폭 기준 가운데 정렬
+    # 2) Version: center under the title art width
     title_width = max(visible_width(ln) for ln in title_lines) - LEFT_MARGIN
     if title_width < 0:
         title_width = 0
-    version_label = load_version()                    # ← 여기서 _version.py 읽음
+    version_label = load_version()                    # read from _version.py here
     inner_pad = max((title_width - len(version_label)) // 2, 0)
     print(" " * (LEFT_MARGIN + inner_pad) + version_label)
     print()
 
 if __name__ == "__main__":
     print_banner()
+
+#-- END OF SUB-ROUTINE____________________________________________________________#

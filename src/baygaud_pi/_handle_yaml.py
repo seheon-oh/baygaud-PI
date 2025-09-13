@@ -46,14 +46,14 @@ def read_configfile(configfile):
 # _______________________________________________________  #
 def _get_threading_env_from_params(_params):
     """
-    YAML의 'threading' 섹션(권장) 또는 top-level 키(레거시)를 읽어
-    Ray 워커/드라이버에서 사용할 환경 변수 dict를 생성합니다.
-    모든 값은 문자열이어야 하므로 str()로 감쌉니다.
+    Read the 'threading' section from YAML (preferred) or fall back to
+    top-level keys (legacy), then build an environment variable dict for
+    Ray workers/drivers. All values must be strings, so we wrap with str().
     """
     thr = _params.get("threading", {}) or {}
 
     def _get(key, default):
-        # threading 섹션 우선, 없으면 top-level 키를 fallback
+        # Prefer the 'threading' section; otherwise use top-level key as fallback.
         val = thr.get(key, _params.get(key, default))
         return str(val)
 
@@ -77,7 +77,7 @@ def _get_threading_env_from_params(_params):
 # [ read yaml parameters 
 # _______________________________________________________  #
 def _sec(params, name):
-    """섹션 딕셔너리(없으면 {})"""
+    """Return a section dict if present, otherwise {}."""
     s = params.get(name, {})
     return {} if s is None else s
 #-- END OF SUB-ROUTINE____________________________________#
@@ -88,6 +88,7 @@ def _sec(params, name):
 # [ _as_int_or_none
 # _______________________________________________________  #
 def _as_int_or_none(v):
+    """Cast to int unless v is None or the string 'null'."""
     if v is None or v == "null":
         return None
     return int(v)
@@ -99,6 +100,7 @@ def _as_int_or_none(v):
 # [ _as_float_or_none
 # _______________________________________________________  #
 def _as_float_or_none(v):
+    """Cast to float unless v is None or the string 'null'."""
     if v is None or v == "null":
         return None
     return float(v)
@@ -111,50 +113,56 @@ def _as_float_or_none(v):
 # _______________________________________________________  #
 def build_dynesty_run_config_dynesty_v2_1_5(dy: dict, _params: dict):
     """
-    dynesty 섹션(dict) -> 실행에 필요한 설정을 정리해 반환.
-    반환:
-      - dyn_class            : 'static' | 'dynamic'
-      - common_kwargs        : NestedSampler / DynamicNestedSampler 공통 kwargs
-      - static_run_kwargs    : sampler.run_nested(...) 인자 (static 전용)
-      - dynamic_run_kwargs   : sampler.run_nested(...) 인자 (dynamic 전용)
+    Convert the 'dynesty' section (dict) into a set of run configurations.
+
+    Returns
+    -------
+    dyn_class : str
+        'static' or 'dynamic'.
+    common_kwargs : dict
+        Keyword args shared by NestedSampler / DynamicNestedSampler.
+    static_run_kwargs : dict
+        Arguments for sampler.run_nested(...) (static-only).
+    dynamic_run_kwargs : dict
+        Arguments for sampler.run_nested(...) (dynamic-only).
     """
 
-    # (recommended) 사용할 샘플러 모드: static | dynamic
-    dyn_class = str(dy.get("class", "static")).lower()   # 추천: static
+    # (recommended) sampler mode: static | dynamic
+    dyn_class = str(dy.get("class", "static")).lower()   # recommended: static
 
-    # 라이브 포인트 개수
+    # number of live points
     nlive     = int(dy.get("nlive", 100))
 
-    # 샘플링 방식: auto | unif | rwalk | slice | rslice
-    sample    = dy.get("sample", "rwalk")                # 또는 auto
+    # sampling method: auto | unif | rwalk | slice | rslice
+    sample    = dy.get("sample", "rwalk")                # or 'auto'
 
-    # 수렴 기준 (static 모드)
+    # convergence target (static mode)
     dlogz     = float(dy.get("dlogz", 0.01))
     maxiter   = _as_int_or_none(dy.get("maxiter", 999999))
     maxcall   = _as_int_or_none(dy.get("maxcall", 999999))
 
-    # 업데이트 주기: 2.0이면 "2.0 × nlive"로 이해해도 무방
+    # update interval: 2.0 can be interpreted as "2.0 x nlive"
     update_interval = float(dy.get("update_interval", 2.0))     # ===> 2.0 x nlive : CAUTION !!! : update_interval should be float not integer!!! (e.g., not 2 but 2.0)
 
-    # 볼륨 축소/체크(샘플링 효율 튜닝)
+    # volume shrink/check (sampling efficiency tuning)
     #vol_dec   = float(dy.get("vol_dec", 0.2))
     #vol_check = int(dy.get("vol_check", 2))
 
-    # 이동/수용률 튜닝
+    # move/acceptance tuning
     facc      = float(dy.get("facc", 0.5))
     fmove     = float(dy.get("fmove", 0.9))
     max_move  = int(dy.get("max_move", 100))
 
-    # rwalk 전용 스텝 수 (둘 다 있을 때 rwalk 값이 우선)
+    # rwalk-specific steps (if both are present, 'rwalk' takes precedence)
     walks = dy.get("rwalk", None)
     if walks is None:
         walks = dy.get("walks", 25)
     walks = int(walks)
 
-    # 경계 설정: single | multi | none | balls ...
-    bound     = dy.get("bound", "multi")  # 단봉형이면 'single' 가능. 효율 문제 시 'multi' 권장.
+    # bound setting: single | multi | none | balls ...
+    bound     = dy.get("bound", "multi")  # for unimodal, 'single' may work; 'multi' often more robust.
 
-    # ── 아래는 dynamic 모드에서만 유효 ────────────────────────────────
+    # -- the following are only used for dynamic mode --
     queue_size = dy.get("queue_size", None)
     if queue_size is None or queue_size == "null":
         queue_size = int(_params.get("num_cpus_nested_sampling", 1))
@@ -165,30 +173,30 @@ def build_dynesty_run_config_dynesty_v2_1_5(dy: dict, _params: dict):
     maxiter_init = _as_int_or_none(dy.get("maxiter_init", None))
     maxcall_init = _as_int_or_none(dy.get("maxcall_init", None))
 
-    # 재현성을 위한 RNG 시드
+    # RNG seed for reproducibility
     seed   = int(dy.get("seed", 2))
     rstate = np.random.default_rng(seed)
 
-    # 공통 kwargs (dynesty가 kwargs로 받는 것들 포함)
+    # common kwargs (as accepted by dynesty)
     common_kwargs = dict(
         nlive=nlive,
         sample=sample,
         bound=bound,
         rstate=rstate,
-        # run-time 튜닝 관련
+        # runtime tuning
         facc=facc,
         fmove=fmove,
         max_move=max_move,
         #vol_dec=vol_dec,
         #vol_check=vol_check,
-        update_interval=update_interval,  # float/정수 그대로 전달
+        update_interval=update_interval,  # pass through as float/int as given
     )
 
-    # sample='rwalk'이면 walks 전달
+    # if sample == 'rwalk', include 'walks'
     if str(sample).lower() == "rwalk":
         common_kwargs["walks"] = walks
 
-    # run_nested 인자들
+    # run_nested argument sets
     static_run_kwargs  = dict(dlogz=dlogz, maxiter=maxiter, maxcall=maxcall, print_progress=False)
     dynamic_run_kwargs = dict(dlogz_init=dlogz_init, maxiter_init=maxiter_init,
                               maxcall_init=maxcall_init, print_progress=False,
@@ -213,7 +221,7 @@ _PATH_TOKEN = re.compile(r"""
 
 def _parse_param_path(param_path: str) -> List[Union[str, int]]:
     """
-    Parse 'a.b[0].c' -> ['a','b',0,'c']
+    Parse 'a.b[0].c' -> ['a','b',0,'c'].
     """
     tokens: List[Union[str, int]] = []
     for m in _PATH_TOKEN.finditer(param_path.strip()):
@@ -241,11 +249,11 @@ def _walk_to_parent(doc: Any, tokens: List[Union[str,int]], create_missing: bool
                 if not create_missing:
                     raise KeyError(f"Expected mapping at {tokens[:i+1]}, got {type(cur).__name__}")
                 # replace with mapping
-                # (ruamel.yaml CommentedMap 권장)
+                # (ruamel.yaml CommentedMap recommended)
                 from ruamel.yaml.comments import CommentedMap
                 parent = cur
                 cur = CommentedMap()
-                # we cannot set back here without the parent ref; better require mapping
+                # cannot set back here without the parent ref; require mapping
                 raise KeyError(f"Path segment {tok!r} not found and parent is not a mapping.")
             if tok not in cur:
                 if not create_missing:
@@ -330,7 +338,7 @@ def update_yaml_param(
     tokens = _parse_param_path(param_path)
     parent, last = _walk_to_parent(doc, tokens, create_missing=create_missing)
 
-    # Get old value
+    # Get old value and set the new value
     old_value = None
     if isinstance(last, str):
         if isinstance(parent, dict) and last in parent:
@@ -364,3 +372,5 @@ def update_yaml_param(
         "written": True,
         "backup": bak,
     }
+
+

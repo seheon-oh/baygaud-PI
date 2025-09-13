@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #|-----------------------------------------|
-#| combine_segs.py
+#| _combine_segs.py
 #|-----------------------------------------|
 #| by Se-Heon Oh
 #| Dept. of Physics and Astronomy
@@ -87,4 +87,4 @@ _hdulist_nparray_gfit_result.writeto('test1.fits', overwrite=True)
 _hdulist_nparray_gfit_result.close()
 print(_fitsarray_gfit_results2.shape)
 
-
+#-- END OF SUB-ROUTINE____________________________________________________________#

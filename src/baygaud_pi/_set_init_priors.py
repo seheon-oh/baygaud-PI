@@ -65,8 +65,8 @@ TWO_SQRT2_LN2 = 2.355
 # ----------------- Thread pinning helper --------------------
 def pin_threads_single():
     """
-    Ray 워커(프로세스) 시작 시 1회 호출 권장.
-    - BLAS/OMP/Numba 스레드를 모두 1로 고정 → 과구독 방지.
+    Recommended to call once when a Ray worker (process) starts.
+    - Pin BLAS/OMP/Numba threads to 1 --> avoid oversubscription.
     """
     os.environ["OMP_NUM_THREADS"]        = "1"
     os.environ["MKL_NUM_THREADS"]        = "1"
@@ -115,7 +115,7 @@ if NUMBA_OK:
 
     @njit(cache=True)
     def _conv_same_reflect(y, g):
-        # 대칭 커널 가정(가우시안) → 뒤집기 불필요
+        # Assume symmetric kernel (Gaussian) --> no need to flip.
         n = y.size
         L = g.size
         h = (L - 1) // 2
@@ -153,14 +153,14 @@ if NUMBA_OK:
         mad = _mad(x, m)
         s = 1.4826 * mad if mad > 0 else (np.std(x) + 1e-12)
 
-        # uint8 마스크
+        # uint8 mask
         mask = np.ones(N, dtype=np.uint8)
         for _ in range(max_iter):
             new_mask = ((x - m) < (clip_sigma * s)).astype(np.uint8)
             new_cnt = int(np.sum(new_mask))
             if new_cnt < max(int(min_bg_frac * N), 3):
-                # 하위 분위수 폴백
-                # 간단화를 위해 정렬 후 하위 k개
+                # Fallback to lower quantiles.
+                # Simplify by sorting and taking lowest k samples.
                 k = max(3, int(0.3 * N))
                 xs = np.sort(x.copy())
                 bgc = xs[:k]
@@ -228,7 +228,7 @@ if NUMBA_OK:
         return Rstd, Rraw
 
 else:
-    # ---- NumPy fallbacks (Numba 미사용 환경) ----
+    # ---- NumPy fallbacks (non-Numba environment) ----
     def _parabolic_subsample_jit(y, i):
         N = len(y)
         if i <= 0 or i >= N - 1:
@@ -275,7 +275,7 @@ else:
         return r[h:h+len(y)]
 
     def _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list):
-        # NumPy 환경에선 단일 스레드 버전만 제공
+        # In pure NumPy, provide the single-threaded version only.
         K = len(g_list)
         N = y.size
         Rstd = np.empty((K, N), dtype=np.float64)
@@ -329,11 +329,11 @@ def search_gaussian_seeds_matched_filter_norm(
     thres_sigma=3.0, amp_sigma_thres=3.0,
     sep_channels=5, max_components=None,
     refine_center=True, detrend_local=False, detrend_halfwin=8,
-    numba_threads=1  # 기본 1: Ray와 함께 과구독 방지 + parallel 오버헤드 제거
+    numba_threads=1  # Default 1: with Ray, avoid oversubscription + remove parallel overhead.
 ):
     
     # USE RMS to set model_sigma boundary
-    # Numba 스레드 수 설정(옵션)
+    # Numba threads setup (optional)
     if NUMBA_OK and (numba_threads is not None):
         try:
             set_num_threads(int(numba_threads))
@@ -349,7 +349,7 @@ def search_gaussian_seeds_matched_filter_norm(
 
     dv = float(np.median(np.abs(np.diff(v)))) if N > 1 else 1.0
 
-    # robust bg/rms
+    # Robust background and rms
     if (bg is None) or (rms is None):
         bh, sh = _robust_bg_rms_emission_jit(f, clip_sigma=3.0, max_iter=8, min_bg_frac=0.25)
         if bg is None:  bg  = float(bh)
@@ -362,14 +362,14 @@ def search_gaussian_seeds_matched_filter_norm(
         rms = float(1.4826 * mad) if mad > 0 else float(np.std(y) + 1e-12)
     y_w = np.nan_to_num(y / rms, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # σ 리스트 & 커널 뱅크
+    # sigma list & kernel bank
     sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
     bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
     if not bank:
         return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
                     indices=[], debug={"reason":"empty_bank_after_cap","N":int(N),"cap":float(cap1)})
 
-    # Typed list로 포장 (Numba 병렬/단일 공통)
+    # Wrap into typed lists (Numba parallel/single both use this)
     if NUMBA_OK:
         g_list     = NumbaList()
         gnorm_list = NumbaList()
@@ -388,18 +388,18 @@ def search_gaussian_seeds_matched_filter_norm(
         halfwidth_arr[k]   = h
         sigma_ch_arr[k]    = s_ch
 
-    # --- 핫패스: 커널 뱅크 전체 컨볼브 + robust 표준화 ---
+    # --- Hot path: convolve entire bank + robust standardization ---
     if NUMBA_OK and int(numba_threads) == 1:
         Rstd, Rraw = _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list)
     else:
-        # 병렬(Numba) 또는 NumPy fallback
+        # Parallel (Numba) or NumPy fallback
         Rstd, Rraw = _bank_convolve_and_standardize_par(y, y_w, g_list, gnorm_list)
 
-    # 채널별 최적 σ 선택
+    # Choose best sigma per channel
     k_best = np.argmax(np.abs(Rstd), axis=0)
     Rbest  = Rstd[k_best, np.arange(N)]
 
-    # 1차 후보
+    # First-pass candidates
     mask = np.abs(Rbest) >= float(thres_sigma)
     cand_idx = np.flatnonzero(mask)
 
@@ -410,7 +410,7 @@ def search_gaussian_seeds_matched_filter_norm(
         "cand_n1": int(cand_idx.size),
     }
 
-    # 후보 없을 때 σ 확장 재시도
+    # If no candidates, expand sigma bank and retry
     if cand_idx.size == 0:
         sigmas2, cap2 = _make_sigma_list(N, np.r_[sigmas, 6,8,10,12,15,18], k_sigma, max_frac=0.90)
         bank2 = gaussian_kernel_bank(sigmas2, k_sigma=k_sigma)
@@ -449,7 +449,7 @@ def search_gaussian_seeds_matched_filter_norm(
             })
 
             if cand_idx2.size > 0:
-                # 새 은행으로 교체
+                # Switch to the new bank
                 sigmas            = sigmas2
                 Rstd, Rraw        = R2, RR2
                 k_best, Rbest     = k_best2, Rbest2
@@ -459,7 +459,7 @@ def search_gaussian_seeds_matched_filter_norm(
                 halfwidth_arr     = halfwidth_arr2
                 sigma_ch_arr      = sigma_ch_arr2
 
-    # 구조적 구제
+    # Structural rescue when still no candidates
     if cand_idx.size == 0:
         i0 = int(np.argmax(np.abs(Rbest))) if N>0 else -1
         if i0 >= 0 and np.isfinite(Rbest[i0]):
@@ -485,7 +485,7 @@ def search_gaussian_seeds_matched_filter_norm(
         return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
                     indices=[], debug=debug)
 
-    # 정상 경로: NMS + 진폭 게이트
+    # Normal path: NMS + amplitude gate
     order = np.argsort(-np.abs(Rbest[cand_idx]))
     cand_idx = cand_idx[order]
     kept_idx, kept_sig, kept_A = [], [], []
@@ -509,7 +509,7 @@ def search_gaussian_seeds_matched_filter_norm(
             xv = np.arange(lsl.start, lsl.stop, dtype=float)
             yy = y[lsl]
             X = np.vstack([xv, np.ones_like(xv)]).T
-            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)  # BLAS 사용 가능 → pin 권장
+            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)  # BLAS may be used --> pin threads recommended
             y_loc = y.copy()
             y_loc[lsl] = yy - (X @ coef)
             rr = _conv_same_reflect(y_loc, g_list[kb] if NUMBA_OK else bank[kb][0])
@@ -572,44 +572,44 @@ def search_gaussian_seeds_matched_filter_norm(
 def set_sgfit_bounds_from_matched_filter_seeds_norm(
     _gaussian_seeds,
     *,
-    # (1) 모델 잔차 σ 경계
+    # (1) model residual sigma bounds
     model_sigma_bounds=(0.0, 0.7),
-    # (2) 배경 상한 = bg + k_bg * rms
+    # (2) background upper bound = bg + k_bg * rms
     k_bg=3.0,
-    # (3) 중심 경계 = [x - k_x * s, x + k_x * s]
+    # (3) center bounds = [x - k_x * s, x + k_x * s]
     k_x=5.0,
-    # (4) σ 경계 = [k_sig_lo * s, k_sig_hi * s]
+    # (4) sigma bounds = [k_sig_lo * s, k_sig_hi * s]
     sigma_scale_bounds=(0.1, 3.0),
-    # (5) 피크 경계 = [k_p_lo * A, k_p_hi * A]
+    # (5) peak bounds = [k_p_lo * A, k_p_hi * A]
     peak_scale_bounds=(0.3, 2.0),
-    # 안정화(최소 폭)
+    # Stabilization (minimum width)
     min_x_span=1e-5,
     min_sigma=1e-4,
-    # 클리핑 상한 (정규화 축이므로 0~1)
+    # Clipping upper bound (normalized axis is 0..1)
     clip_sigma_hi=0.999,
-    # ---- 물리축 고려 옵션 ----
-    use_phys_for_x_bounds=True,  # True면 x-경계를 물리축에서 계산 후 역변환
-    v_min=None, v_max=None,      # 물리 속도 범위
-    cdelt3=None,                 # FITS CDELT3 (부호 반영)
-    v0_anchor=None, v1_anchor=None  # 직접 앵커 지정 시 cdelt3 무시
+    # ---- Consider physical axis options ----
+    use_phys_for_x_bounds=True,  # If True, compute x-bounds in physical axis and map back to normalized
+    v_min=None, v_max=None,      # Physical velocity range
+    cdelt3=None,                 # FITS CDELT3 (sign respected)
+    v0_anchor=None, v1_anchor=None  # If set, override cdelt3 when mapping
 ):
     """
-    _gaussian_seeds: search_gaussian_seeds_matched_filter_norm 결과(dict)
-         components[:,0]=amp(정규화 플럭스), [:,1]=center(정규화 속도), [:,2]=sigma(정규화 속도)
-         bg, rms도 0~1 정규화 단위라고 가정.
+    _gaussian_seeds: output dict from search_gaussian_seeds_matched_filter_norm
+         components[:,0]=amp (normalized flux), [:,1]=center (normalized velocity), [:,2]=sigma (normalized velocity)
+         bg, rms are assumed to be in 0..1 normalized units.
 
-    반환(list, 길이 10):
+    Return (list, length 10):
       [model_sigma_lo, bg_lo, x_lo, s_lo, p_lo,
        model_sigma_hi, bg_hi, x_hi, s_hi, p_hi]
     """
-    # (1) 모델 잔차 σ 경계
+    # (1) model residual sigma bounds
     msig_lo, msig_hi = map(float, model_sigma_bounds)
 
-    # bg/rms (정규화 단위)
+    # bg/rms (normalized)
     bg  = float(_gaussian_seeds.get('bg', 0.0))
     rms = float(_gaussian_seeds.get('rms', 0.1))
-    if rms < 0.1: # to avoid small rms in case
-        rms = 0.1 # put a large rms
+    if rms < 0.1: # avoid too small rms just in case
+        rms = 0.1 # set a large rms
 
     ncomp = int(_gaussian_seeds.get('ncomp', 0))
     comps = _gaussian_seeds.get('components', None)
@@ -618,27 +618,28 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
         comps = np.asarray(comps, dtype=float)
         xs_n = comps[:, 0]   # normalized center in [0,1]
         sigs_n = comps[:, 1] # normalized sigma (length on x_norm)
-        amps = comps[:, 2] # normalized peakflux in [0,1]
+        amps = comps[:, 2] # normalized peak flux in [0,1]
 
-        # (2) 배경: 요청대로 lo=0.0 고정, hi=bg + k_bg*rms (클리핑)
+        # (2) background: lo=0.0 fixed as requested, hi=bg + k_bg*rms (clipped)
         bg_lo = 0.0
         bg_hi = max(bg_lo + 1e-6, min(1.0, bg + k_bg * rms))
 
-        # ----- x 경계 계산 -----
+        # ----- compute x bounds -----
         if use_phys_for_x_bounds:
-            # 물리축에서 min/max를 잡고 k_x*해당 σ(물리)만큼 확장 → 다시 정규화로 역변환
+            # Compute bounds in physical axis: [min(center) - k_x*sigma, max(center) + k_x*sigma]
+            # then map back to normalized axis.
             if (v_min is None) or (v_max is None):
-                raise ValueError("use_phys_for_x_bounds=True 이면 v_min, v_max를 제공해야 합니다.")
+                raise ValueError("When use_phys_for_x_bounds=True, you must provide v_min and v_max.")
             v0, v1 = _resolve_anchors(v_min, v_max, cdelt3, v0_anchor, v1_anchor)
-            v_scale = (v1 - v0)   # 부호 보존 (내림차순이면 음수)
+            v_scale = (v1 - v0)   # keep sign (negative if descending)
             if abs(v_scale) < 1e-20:
-                # 비정상 축 보호
+                # Guard against degenerate axis
                 v_scale = 1e-12
 
-            xs_p = v0 + v_scale * xs_n          # 물리 중심
-            sigs_p = abs(v_scale) * sigs_n      # 물리 σ (길이 스케일)
+            xs_p = v0 + v_scale * xs_n          # physical centers
+            sigs_p = abs(v_scale) * sigs_n      # physical sigmas (length scale)
 
-            # min/max는 '물리값' 기준
+            # min/max in physical values
             idx_min = int(np.argmin(xs_p))
             idx_max = int(np.argmax(xs_p))
             xl_p, xl_sig_p = xs_p[idx_min], sigs_p[idx_min]
@@ -647,13 +648,13 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             x_lo_p = xl_p - k_x * xl_sig_p
             x_hi_p = xh_p + k_x * xh_sig_p
 
-            # 물리 → 정규화 역변환 (부호 주의)
+            # Map physical --> normalized (respect sign)
             x_lo = (x_lo_p - v0) / v_scale
             x_hi = (x_hi_p - v0) / v_scale
-            # 정규화 구간으로 클리핑
+            # Clip to normalized range
             x_lo = float(np.clip(x_lo, 0.0, 1.0))
             x_hi = float(np.clip(x_hi, 0.0, 1.0))
-            # 표시·안정화를 위해 정렬
+            # Ensure order for readability
             if x_lo > x_hi:
                 x_lo, x_hi = x_hi, x_lo
             if (x_hi - x_lo) < min_x_span:
@@ -661,7 +662,7 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
                 x_lo = max(0.0, mid - 0.02)
                 x_hi = min(1.0, mid + 0.02)
         else:
-            # 기존: 정규화축에서 바로 계산 (cdelt3 부호 무시)
+            # Legacy: compute directly on normalized axis (ignore cdelt3 sign)
             idx_min = int(np.argmin(xs_n))
             idx_max = int(np.argmax(xs_n))
             xl_n, xl_sig_n = xs_n[idx_min], sigs_n[idx_min]
@@ -673,12 +674,12 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
                 x_lo = max(0.0, mid - 0.02)
                 x_hi = min(1.0, mid + 0.02)
 
-        # ----- σ 경계 -----
+        # ----- sigma bounds -----
         k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
         if use_phys_for_x_bounds:
             s_min_p = float(np.min(sigs_p))
             s_max_p = float(np.max(sigs_p))
-            # 물리에서 스케일 → 다시 정규화 σ로 환산
+            # Convert physical scale back to normalized sigma
             s_lo = max(min_sigma, (k_sig_lo * s_min_p) / abs(v_scale))
             s_hi = max(s_lo * 1.05, (k_sig_hi * s_max_p) / abs(v_scale))
         else:
@@ -688,19 +689,19 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             s_hi = max(s_lo * 1.05, k_sig_hi * s_max_n)
         s_hi = min(clip_sigma_hi, s_hi)
 
-        # ----- 피크 경계 -----
+        # ----- peak bounds -----
         a_min = float(np.min(amps))
         a_max = float(np.max(amps))
         k_p_lo, k_p_hi = map(float, peak_scale_bounds)
         p_lo = float(np.clip(k_p_lo * a_min, 0.0, 1.0))
-        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 3.0)) # set 3.0 in case
+        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 3.0)) # allow up to 3.0 just in case
         if (p_hi - p_lo) < min_x_span:
             mid = 0.5 * (p_lo + p_hi)
             p_lo = max(0.0, mid - 0.05)
             p_hi = min(1.0, mid + 0.05)
 
     else:
-        # 시드 없음: 넓은 기본 경계
+        # No seeds: provide broad default bounds
         bg_lo = 0.0
         bg_hi = min(1.0, bg + k_bg * rms if np.isfinite(rms) else 0.5)
         x_lo, x_hi = 0.0, 1.0
@@ -716,12 +717,12 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
 
 def _resolve_anchors(v_min, v_max, cdelt3=None, v0_anchor=None, v1_anchor=None):
     """
-    x_norm=0 -> v0_anchor, x_norm=1 -> v1_anchor 결정.
-    - v0_anchor/v1_anchor가 주어지면 그대로 사용
-    - 아니면 cdelt3 부호로 자동:
+    Decide mapping for x_norm: x_norm=0 --> v0_anchor, x_norm=1 --> v1_anchor.
+    - If v0_anchor/v1_anchor are provided, use them directly.
+    - Else infer by sign of cdelt3:
         cdelt3>=0: v0=v_min, v1=v_max
         cdelt3< 0: v0=v_max, v1=v_min
-    - cdelt3 없으면 v0=v_min, v1=v_max
+    - If cdelt3 is None, use v0=v_min, v1=v_max.
     """
     if (v0_anchor is not None) and (v1_anchor is not None):
         return float(v0_anchor), float(v1_anchor)
@@ -737,14 +738,15 @@ def _resolve_anchors(v_min, v_max, cdelt3=None, v0_anchor=None, v1_anchor=None):
 def gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max, *,
                      cdelt3=None, v0_anchor=None, v1_anchor=None):
     """
-    search_gaussian_seeds_matched_filter_norm의 _gaussian_seeds(정규화 0~1)을 물리 단위로 변환.
-    - bg/rms: 플럭스 스케일 적용(배경은 오프셋 포함)
-    - components: [amp, center, sigma] -> [flux, velocity, velocity_sigma]
-    - CDELT3<0(내림차순) 지원: anchors로 선형사상 정의
+    Convert normalized 0..1 _gaussian_seeds (from search_gaussian_seeds_matched_filter_norm)
+    to physical units.
+    - bg/rms: apply flux scaling (background includes offset).
+    - components: [amp, center, sigma] --> [flux, velocity, velocity_sigma].
+    - Supports CDELT3<0 (descending): define linear mapping by anchors.
     """
     v0, v1 = _resolve_anchors(v_min, v_max, cdelt3, v0_anchor, v1_anchor)
     f_scale = (f_max - f_min) if (f_max > f_min) else 1.0
-    v_scale = (v1 - v0)  # 부호 유지 (내림차순이면 음수)
+    v_scale = (v1 - v0)  # keep sign (negative if descending)
 
     bg_n  = float(_gaussian_seeds.get('bg', 0.0))
     rms_n = float(_gaussian_seeds.get('rms', 0.0))
@@ -754,7 +756,7 @@ def gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max, *,
     comps_n = np.asarray(_gaussian_seeds.get('components', np.zeros((0,3))), dtype=float)
     comps_p = comps_n.copy()
     if comps_p.size:
-        # amp: 스케일만, center: v = v0 + v_scale*x_norm, sigma: |v_scale|*sigma_norm
+        # amp: only scale, center: v = v0 + v_scale*x_norm, sigma: |v_scale|*sigma_norm
         comps_p[:, 0] = v0 + v_scale * comps_n[:, 0]
         comps_p[:, 1] = abs(v_scale) * comps_n[:, 1]
         comps_p[:, 2] = f_scale      * comps_n[:, 2]
@@ -774,13 +776,13 @@ def print_priors_both(
     unit_flux="Jy", unit_vel="km/s"
 ):
     """
-    priors_norm: [msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi] (정규화 0~1)
-    f_min,f_max : 플럭스 물리 범위
-    v_min,v_max : 속도 물리 범위
-    cdelt3     : FITS CDELT3(부호 반영). 음수면 내림차순 처리
-    v0_anchor, v1_anchor: x_norm=0/1에 대응하는 물리 속도(명시 시 cdelt3 무시)
+    priors_norm: [msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi] (normalized 0..1)
+    f_min,f_max : physical flux range
+    v_min,v_max : physical velocity range
+    cdelt3     : FITS CDELT3 (respect sign). If negative, handle descending axis.
+    v0_anchor, v1_anchor: if provided, x_norm=0/1 map to these physical velocities (ignore cdelt3).
 
-    출력은 정규화 경계와 물리 경계를 나란히 보여줍니다.
+    Prints normalized bounds and physical bounds side by side.
     """
     priors_phys = priors_norm_to_phys(
         priors_norm, f_min, f_max, v_min, v_max,
@@ -803,36 +805,35 @@ def print_priors_both(
 def priors_norm_to_phys(priors, f_min, f_max, v_min, v_max, *,
                         cdelt3=None, v0_anchor=None, v1_anchor=None):
     """
-    [msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi] (정규화)
-    -> 같은 순서의 물리 단위 리스트로 변환.
-    - x_lo/x_hi는 앵커 선형사상 후, 출력은 [작은값, 큰값]으로 정렬해 가독성 보장.
-    - sigma는 길이 스케일이므로 abs(v1-v0) 사용.
+    [msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi] (normalized)
+    --> convert to a list in the same order but in physical units.
+    - x_lo/x_hi: linear mapping by anchors; ensure [smaller, larger] order for readability.
+    - sigma uses absolute length scale abs(v1-v0).
     """
     msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi = map(float, priors)
     v0, v1 = _resolve_anchors(v_min, v_max, cdelt3, v0_anchor, v1_anchor)
     f_scale = (f_max - f_min) if (f_max > f_min) else 1.0
     v_scale = (v1 - v0)
 
-    # model sigma(잔차)는 플럭스 표준편차 → 스케일만
+    # model sigma (residual) scales with flux
     msig_lo_p = msig_lo * f_scale
     msig_hi_p = msig_hi * f_scale
 
-    # 배경: 오프셋 포함
+    # background includes offset
     bg_lo_p = bg_lo * f_scale + f_min
     bg_hi_p = bg_hi * f_scale + f_min
-    # 정렬 보장(혹시 lo>hi가 될 수 있는 값들은 여기선 배경이라 그럴 일은 드묾)
 
-    # 중심: 선형사상 후 정렬
+    # center: linear mapping and then ensure order
     x_lo_p = v0 + v_scale * x_lo
     x_hi_p = v0 + v_scale * x_hi
     if x_lo_p > x_hi_p:
         x_lo_p, x_hi_p = x_hi_p, x_lo_p
 
-    # 시그마: 길이 스케일
+    # sigma: length scale
     s_lo_p = abs(v_scale) * s_lo
     s_hi_p = abs(v_scale) * s_hi
 
-    # 피크 플럭스: 스케일만
+    # peak flux: scale only
     p_lo_p = p_lo * f_scale
     p_hi_p = p_hi * f_scale
 
@@ -846,8 +847,8 @@ def print_gaussian_seeds_matched_filter(_gaussian_seeds, f_min, f_max, v_min, v_
                    cdelt3=None, v0_anchor=None, v1_anchor=None,
                    unit_flux="Jy/beam", unit_vel="km/s", show_fwhm=True):
     """
-    _gaussian_seeds(정규화)과 물리 단위 변환본을 나란히 출력.
-    CDELT3<0(내림차순)일 때도 올바른 물리 좌표로 표시.
+    Print normalized _gaussian_seeds and the converted physical units side by side.
+    Handles CDELT3<0 (descending) by mapping to correct physical coordinates.
     """
     out_p = gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max,
                              cdelt3=cdelt3, v0_anchor=v0_anchor, v1_anchor=v1_anchor)
@@ -880,29 +881,29 @@ def set_init_priors_multiple_gaussians(
     M,
     seed_bounds,
     *,
-    seed_out=None,      # search_gaussian_seeds_matched_filter_norm out(dict), bg/rms 참조(정규화 단위)
-    prev_fit=None,      # prev_fit_from_results_slice(...) 반환값
-    # 경계 팩터(이전 성분을 중심으로 타이트하게)
+    seed_out=None,      # search_gaussian_seeds_matched_filter_norm out(dict); use bg/rms (normalized)
+    prev_fit=None,      # output of prev_fit_from_results_slice(...)
+    # Tighter bounds around previous components if available
     k_x=3.0, # x - k_x*sigma ~ x + k_x*sigma
     sigma_scale_bounds=(0.5, 2.0),
     peak_scale_bounds=(0.5, 1.5),
-    # bg 폭: bg ± k_bg * rms(seed)
+    # bg width: bg +/- k_bg * rms(seed)
     k_bg=3.0,
     k_msig=3.0,
-    # 안정화/클리핑
+    # Stabilization / clipping
     min_x_span=1e-5,
     min_sigma=1e-4,
     clip_sigma_hi=0.999,
     peak_upper_cap=1.0,
 ):
     """
-    M개의 다중 가우시안 피팅을 위한 priors 벡터 생성.
-    - seed_bounds: make_single_gauss_bounds_from_seed_norm()의 반환(길이 10)
+    Build an initial priors vector for fitting M Gaussian components.
+    - seed_bounds: output (length 10) of make_single_gauss_bounds_from_seed_norm()
       [msig_lo, bg_lo, x_lo, s_lo, p_lo, msig_hi, bg_hi, x_hi, s_hi, p_hi]
-      → 이전 성분이 *없는* 새 성분(g_{n_prev+1}..g_M)에 복제하여 사용.
-    - prev_fit: 직전 결과가 있으면 그 파라미터로 각 성분의 타이트 경계를 구성.
+      --> replicate for new components (g_{n_prev+1}..g_M) when no previous component exists.
+    - prev_fit: if available, tighten bounds around prior parameters of each component.
 
-    반환: gfit_priors_init (길이 = 4 + 6*M)
+    Return: gfit_priors_init (length = 4 + 6*M)
       [msig_lo, bg_lo, g1_x_lo, g1_s_lo, g1_p_lo, ..., gM_x_lo, gM_s_lo, gM_p_lo,
        msig_hi, bg_hi, g1_x_hi, g1_s_hi, g1_p_hi, ..., gM_x_hi, gM_s_hi, gM_p_hi]
     """
@@ -911,7 +912,7 @@ def set_init_priors_multiple_gaussians(
     msig_hi_seed, bg_hi_seed, x_hi_seed, s_hi_seed, p_hi_seed = map(float, seed_bounds)
 
 
-    # bg 경계: prev_fit가 있으면 bg_center ± k_bg * rms(seed), 없으면 seed의 넓은 경계
+    # bg bounds: if prev_fit exists, use bg_center +/- k_bg * rms(seed); otherwise use seed's broad bounds
     if prev_fit is not None and ("bg" in prev_fit) and (seed_out is not None):
         bg_center = float(prev_fit["bg"])
         rms_seed  = float(prev_fit.get("model_sigma", 0.1))
@@ -929,7 +930,7 @@ def set_init_priors_multiple_gaussians(
         bg_hi = float(bg_hi_seed)
 
 
-    # 이전 성분 개수
+    # number of previous components
     n_prev = 0
     prev_components = None
     if prev_fit is not None and ("components" in prev_fit) and (prev_fit["components"] is not None):
@@ -940,15 +941,15 @@ def set_init_priors_multiple_gaussians(
     k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
     k_p_lo,  k_p_hi    = map(float, peak_scale_bounds)
 
-    # 누적
+    # accumulate
     lo_parts = [msig_lo, bg_lo]
     hi_parts = [msig_hi, bg_hi]
 
-    # 1) 이전 결과가 있는 성분: 타이트 경계
+    # 1) For existing components from previous fit: tight bounds
     for m in range(n_prev):
         x_c, s, amp = map(float, prev_components[m, :3])
 
-        # x 경계
+        # x bounds
         x_lo = float(np.clip(x_c - k_x * s, 0.0, 1.0))
         x_hi = float(np.clip(x_c + k_x * s, 0.0, 1.0))
         if (x_hi - x_lo) < min_x_span:
@@ -956,11 +957,11 @@ def set_init_priors_multiple_gaussians(
             x_lo = max(0.0, mid - 0.02)
             x_hi = min(1.0, mid + 0.02)
 
-        # sigma 경계
+        # sigma bounds
         s_lo = max(min_sigma, k_sig_lo * s)
         s_hi = min(clip_sigma_hi, max(s_lo * 1.05, k_sig_hi * s))
 
-        # peak 경계
+        # peak bounds
         p_lo = float(np.clip(k_p_lo * amp, 0.0, peak_upper_cap))
         p_hi = float(np.clip(k_p_hi * amp, 0.0, peak_upper_cap))
         if (p_hi - p_lo) < min_x_span:
@@ -971,26 +972,26 @@ def set_init_priors_multiple_gaussians(
         lo_parts += [x_lo, s_lo, p_lo]
         hi_parts += [x_hi, s_hi, p_hi]
 
-    # 2) 남은 성분: 시드 기반 넓은 경계 복제
+    # 2) For remaining components: replicate broad seed-based bounds
     for m in range(n_prev, M):
         lo_parts += [x_lo_seed, s_lo_seed, p_lo_seed]
         hi_parts += [x_hi_seed, s_hi_seed, p_hi_seed]
 
 
-    return np.asarray(lo_parts + hi_parts, dtype=np.float32)  # conver to np.array
+    return np.asarray(lo_parts + hi_parts, dtype=np.float32)  # convert to np.array
 
 
 
 
 def prev_fit_from_results_slice(gfit_results_slice, n_prev):
     """
-    gfit_results[j, k_prev] 슬라이스에서 이전 단계 파라미터를 읽어 prev_fit dict로 변환.
-    - n_prev: 이전 단계 가우시안 개수 (k_prev = n_prev, 보통 1..M-1)
-    - gfit_results_slice[:2*nparams_prev] 에서 파라미터/에러를 추출
+    Read previous-step parameters from a slice gfit_results[j, k_prev] and convert to prev_fit dict.
+    - n_prev: number of Gaussians in the previous step (k_prev = n_prev, typically 1..M-1)
+    - Extract params/errors from gfit_results_slice[:2*nparams_prev]
       nparams_prev = 2 + 3*n_prev
-      파라미터 순서: [model_sigma, bg, g1_x, g1_sigma, g1_peak, g2_x, g2_sigma, g2_peak, ...]
-      (에러는 뒤에 이어지지만 여기선 사용하지 않음)
-    반환:
+      Parameter order: [model_sigma, bg, g1_x, g1_sigma, g1_peak, g2_x, g2_sigma, g2_peak, ...]
+      (errors follow, but not used here)
+    Return:
       {
         "model_sigma": float,
         "bg": float,
@@ -1004,11 +1005,11 @@ def prev_fit_from_results_slice(gfit_results_slice, n_prev):
     nparams_prev = 2 + 3*n_prev
     vec = np.asarray(gfit_results_slice[:2*nparams_prev], dtype=float)
     if vec.size < 2*nparams_prev:
-        # 데이터가 비정상적으로 짧을 때: 빈 prev_fit
+        # If the vector is unexpectedly short: return empty prev_fit
         return {"model_sigma": 0.0, "bg": 0.0, "components": np.zeros((0,3), dtype=float)}
 
     pars = vec[:nparams_prev]  # [msig, bg, g1_x, g1_s, g1_p, g2_x, ...]
-    # errs = vec[nparams_prev:2*nparams_prev]  # 필요하면 사용
+    # errs = vec[nparams_prev:2*nparams_prev]  # not used here
 
     model_sigma = float(np.clip(pars[0], 0.0, 1.0)) # model sigma
     bg          = float(np.clip(pars[1], 0.0, 1.0)) # bg
@@ -1017,16 +1018,12 @@ def prev_fit_from_results_slice(gfit_results_slice, n_prev):
     for m in range(n_prev):
         x = float(pars[2 + 3*m + 0])  # x
         s = float(pars[2 + 3*m + 1])  # s
-        p = float(pars[2 + 3*m + 2])  # peak(amp)
-        # prev_fit 형식은 [x, sigma, peak_flux]
+        p = float(pars[2 + 3*m + 2])  # peak (amp)
+        # prev_fit format is [x, sigma, peak_flux]
         comps[m, 0] = np.clip(x, 0.0, 1.0)
-        comps[m, 1] = max(0.0, s)  # sigma는 하단 0 클립만(상단은 경계 생성 단계에서 처리)
+        comps[m, 1] = max(0.0, s)  # sigma only clipped at lower bound (upper handled when making bounds)
         comps[m, 2] = np.clip(p, 0.0, 1.0)
 
     return {"model_sigma": model_sigma, "bg": bg, "components": comps}
 
-
-
-
-
-
+#-- END OF SUB-ROUTINE____________________________________________________________#

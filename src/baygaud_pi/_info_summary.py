@@ -1,4 +1,16 @@
-# ── banner 아래 요약 테이블 출력 서브루틴 ─────────────────────────────────────
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+#|-----------------------------------------|
+#| _info_summary.py
+#|-----------------------------------------|
+#| by Se-Heon Oh
+#| Dept. of Physics and Astronomy
+#| Sejong University, Seoul, South Korea
+#|-----------------------------------------|
+
+
+# -- Subroutines to print a compact summary table under a banner --
 
 from typing import Dict, List, Tuple, Optional
 import shutil
@@ -16,8 +28,14 @@ def _box_print(rows,
                max_width: int | None = None,
                labels: tuple[str, str, str] = ("Quantity", "Value", "Note")) -> None:
     """
-    rows: [(col1, col2, col3), ...]
-    labels: 헤더 라벨 (기본: Quantity / Value / Note)
+    Print a 3-column ASCII table.
+
+    Parameters
+    ----------
+    rows : list of tuples
+        Each row as (col1, col2, col3).
+    labels : tuple of str
+        Header labels (default: Quantity / Value / Note).
     """
     import shutil
 
@@ -28,7 +46,7 @@ def _box_print(rows,
     def cut(s: str, w: int) -> str:
         return s if len(s) <= w else (s[:max(0, w-1)] + "…")
 
-    # 폭 계산
+    # Compute column widths
     name_w = max([len(r[0]) for r in rows] + [len(labels[0]), 4])
     val_w  = max([len(r[1]) for r in rows] + [len(labels[1]), 5])
     note_w = max([len(r[2]) for r in rows] + [len(labels[2]), 4])
@@ -36,7 +54,8 @@ def _box_print(rows,
     total = name_w + val_w + note_w + 8
     if total > width - left_margin:
         overflow = total - (width - left_margin)
-        for target in (2, 1, 0):  # note -> value -> name 순 축소
+        # Reduce width preferentially: note -> value -> name
+        for target in (2, 1, 0):
             if overflow <= 0:
                 break
             take = min(overflow, [name_w, val_w, note_w][target] - 4)
@@ -58,7 +77,7 @@ def _box_print(rows,
 
     print(hbar)
     col1, col2, col3 = labels
-    # 헤더: Value도 우측 정렬
+    # Header: right-align the Value column
     header = pad + f"| {col1.ljust(name_w)} | {col2.rjust(val_w)} | {col3.ljust(note_w)} |"
     print(header)
     print(hbar)
@@ -68,7 +87,7 @@ def _box_print(rows,
         c2 = cut(c2, val_w)
         c3 = cut(c3, note_w)
 
-        # Value 컬럼은 항상 우측 정렬
+        # Value column is always right-aligned
         c1 = c1.ljust(name_w)
         c2 = c2.rjust(val_w)
         c3 = c3.ljust(note_w)
@@ -81,25 +100,26 @@ def _box_print(rows,
 
 def get_ray_info():
     """
-    Ray 런타임 요약을 dict로 반환.
-    Ray 미설치/미초기화면 최소 정보만 반환하거나 None.
+    Return a dict summarizing Ray runtime status.
+    If Ray is not installed/initialized, return minimal info or None,
+    so that the caller can omit the Ray section in the table gracefully.
     """
     try:
         import ray
     except ImportError:
-        return None  # Ray를 안 쓰면 표에 섹션을 안 붙이도록
+        return None  # If Ray is not used, skip the section in the table
 
     info = {"Ray initialized": str(ray.is_initialized())}
 
     if not ray.is_initialized():
-        return info  # 미초기화면 여기까지만
+        return info  # If not initialized, only report this flag
 
     try:
-        # 전체/가용 리소스
-        resources = ray.cluster_resources()       # 전체
-        avail     = ray.available_resources()     # 가용
+        # Total and available resources
+        resources = ray.cluster_resources()       # totals
+        avail     = ray.available_resources()     # currently available
 
-        # 노드 수
+        # Number of nodes
         try:
             nodes = ray.nodes()
             info["nodes"] = str(len(nodes))
@@ -113,7 +133,7 @@ def get_ray_info():
             info["total_GPUs"] = str(int(resources.get("GPU", 0)))
             info["avail_GPUs"] = str(int(avail.get("GPU", 0)))
 
-        # 메모리 (Ray 2.x는 바이트 단위 키가 있을 수 있음)
+        # Memory (Ray 2.x may expose byte-based keys)
         mem_bytes = int(resources.get("memory", 0))
         obj_bytes = int(resources.get("object_store_memory", 0))
         if mem_bytes:
@@ -129,34 +149,34 @@ def get_ray_info():
 
 
 
-# ── 시스템/할당 리소스 요약: total_CPUs, avail_CPUs, memory_GB, object_store_GB ──
+# -- System/allocated resource summary: total_CPUs, avail_CPUs, memory_GB, object_store_GB --
 def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
     """
-    반환 예:
+    Return a compact resource summary. Example:
       {
         "Ray initialized": "True" | "False",
-        "total_CPUs": "12",                 # 물리 코어 수 (psutil), 실패 시 논리
-        "avail_CPUs": "8",                  # baygaud에 할당한 CPU 수(우선순위: _params -> Ray 제한 -> CPU affinity -> 논리)
-        "memory_GB": "64.0",                # 시스템 전체 메모리(GB)
-        "object_store_GB": "3.2",           # 현재 프로세스 RSS 메모리(GB)
+        "total_CPUs": "12",                 # physical core count (psutil); fallback to logical
+        "avail_CPUs": "8",                  # CPUs allocated to baygaud (priority: _params -> Ray limit -> CPU affinity -> logical)
+        "memory_GB": "64.0",                # total system memory (GB)
+        "object_store_GB": "3.2",           # current process RSS memory (GB)
       }
     """
     info = {}
-    # 1) Ray 상태
+    # (1) Ray status
     try:
         import ray
         info["Ray initialized"] = "True" if ray.is_initialized() else "False"
     except Exception:
         info["Ray initialized"] = "False"
 
-    # 2) CPU: 물리/논리/affinity/파라미터/환경변수
+    # (2) CPUs: physical/logical/affinity/parameters/environment variables
     import os
     try:
         import psutil
     except Exception:
         psutil = None
 
-    # total_CPUs: 물리 코어 수 우선
+    # total_CPUs: prefer physical core count
     total_phys = None
     if psutil:
         try:
@@ -164,12 +184,12 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
         except Exception:
             total_phys = None
     if not total_phys:
-        # 물리 실패 시 논리로 대체
+        # Fallback to logical if physical fails
         total_phys = os.cpu_count() or 1
     info["Total physical cores"] = str(total_phys)
 
-    # avail_CPUs: baygaud에 "할당"한 수
-    # 우선순위: _params['num_cpus'] -> CPU affinity 길이 -> Ray 제한/환경 -> 논리
+    # avail_CPUs: CPUs "allocated" to baygaud
+    # Priority: _params['num_cpus'] -> CPU affinity size -> Ray limit/env -> logical
     avail = None
     if _params and isinstance(_params, dict):
         nc = _params.get("num_cpus_ray")
@@ -184,7 +204,7 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
 
     if avail is None and psutil:
         try:
-            # Linux 등에서 affinity가 설정되어 있으면 그 길이가 실사용 가능 코어 수
+            # On Linux, if CPU affinity is restricted, its length is usable core count
             p = psutil.Process()
             if hasattr(p, "cpu_affinity"):
                 aff = p.cpu_affinity()
@@ -194,15 +214,15 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
             pass
 
     if avail is None:
-        # Ray가 초기화되어 있고 num_cpus 제한이 걸려 있으면 추정
+        # If Ray is initialized and a num_cpus limit exists, estimate conservatively
         try:
             if info["Ray initialized"] == "True":
-                # 1) ray.init(num_cpus=...)로 제한했다면 환경변수에 노출된 경우가 있음
+                # (1) If ray.init(num_cpus=...) was used, sometimes env var exists
                 env_nc = os.environ.get("RAY_NUM_CPUS")
                 if env_nc:
                     avail = int(float(env_nc))
                 else:
-                    # 2) 노드 리소스에서 이 프로세스가 쓸 수 있는 상한(보수적 추정: 논리 코어 수)
+                    # (2) Otherwise, fall back to logical core count
                     avail = os.cpu_count() or total_phys
         except Exception:
             pass
@@ -214,7 +234,7 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
     info["Sampler allocated cores"] = str(_params['num_cpus_nested_sampling'])
     info["Numba allocated threads"] = str(_params['numba_num_threads'])
 
-    # 3) 메모리: 전체/현재 프로세스 RSS
+    # (3) Memory: total system / current process RSS
     total_mem_gb = None
     proc_rss_gb = None
     if psutil:
@@ -227,13 +247,12 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
         except Exception:
             pass
     if total_mem_gb is None:
-        # 매우 보수적인 fallback: 알 수 없음
         total_mem_gb = 0.0
     if proc_rss_gb is None:
         proc_rss_gb = 0.0
 
     info["System memory (GB)"] = f"{total_mem_gb:.1f}"
-    # 요구사항: object_store에는 "지금 코드에 할당된 메모리" → 프로세스 RSS로 표시
+    # Note: for "object_store", we show memory currently used by this process (RSS)
     info["Process memory (GB)"] = f"{proc_rss_gb:.1f}"
 
     info["(y chunk size)"] = '(' + str(_params['y_chunk_size']) + ')'
@@ -245,17 +264,17 @@ def get_runtime_resource_info(_params: dict | None = None) -> dict | None:
 
 from typing import Optional, Dict, List
 
-# ────────────── helpers (no color) ──────────────
+# ---------- helpers (no color) ----------
 def _mk_row(c1: str, c2: str, c3: str, w1: int, w2: int, w3: int, *, left_margin: int = 0) -> str:
     sp = " " * left_margin
     return f"{sp}| {c1:<{w1}} | {c2:>{w2}} | {c3:<{w3}}|"
 
 def _hline(w1: int, w2: int, w3: int, *, left_margin: int = 0) -> str:
     sp = " " * left_margin
-    inner = (w1 + w2 + w3) + 9  # 공백/구분 포함
+    inner = (w1 + w2 + w3) + 9  # include spaces/separators
     return f"{sp}+" + "-" * (inner - 2) + "+"
 
-# ────────────── main table ──────────────
+# ---------- main table ----------
 def print_cube_summary(
     naxis1: int,
     naxis2: int,
@@ -266,29 +285,29 @@ def print_cube_summary(
     *,
     vel_unit_label: str = "km/s",
     cdelt3_unit_label: str = "m/s",
-    # 추가(있으면 표에 표시)
+    # Optional (shown if provided)
     naxis1_s0: int | None = None, naxis1_e0: int | None = None,
     naxis2_s0: int | None = None, naxis2_e0: int | None = None,
     max_ngauss: int | None = None,
     peak_sn_limit: float | None = None,
     y_chunk_size: int | None = None,
     gather_batch: int | None = None,
-    # 런타임/Ray
+    # Runtime/Ray
     left_margin: int = 0,
     title: str = "Data cube / key params",
     ray_info: Optional[Dict[str, str]] = None,
 ) -> None:
-    """스크린샷과 동일한 3-컬럼 ASCII 표(모노크롬)."""
+    """Render a plain 3-column ASCII table (monochrome), similar to screenshots."""
 
-    # 고정 폭(스크린샷 기준)
+    # Fixed widths (tuned for screenshot-like appearance)
     W1, W2, W3 = 23, 9, 33
 
-    # 헤더
+    # Header
     print(_hline(W1, W2, W3, left_margin=left_margin))
     print(_mk_row(title, "Value", "Note", W1, W2, W3, left_margin=left_margin))
     print(_hline(W1, W2, W3, left_margin=left_margin))
 
-    # 1) Key params
+    # (1) Key params
     roi1 = f"[{naxis1_s0} : {naxis1_e0}]" if (naxis1_s0 is not None and naxis1_e0 is not None) else "[:]"
     roi2 = f"[{naxis2_s0} : {naxis2_e0}]" if (naxis2_s0 is not None and naxis2_e0 is not None) else "[:]"
     print(_mk_row("naxis1 (pixels)",      str(naxis1), roi1, W1, W2, W3, left_margin=left_margin))
@@ -303,18 +322,18 @@ def print_cube_summary(
 
     print(_hline(W1, W2, W3, left_margin=left_margin))
 
-    # 2) Velocity / spectral
+    # (2) Velocity / spectral axis
     sign_note = "(+) spectral axis increasing" if cdelt3_ms >= 0 else "(-) spectral axis decreasing"
-    print(_mk_row(f"Velocity min [{vel_unit_label}]", f"{vel_min_kms:.4f}", "", W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(f"Velocity max [{vel_unit_label}]", f"{vel_max_kms:.4f}", "", W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(f"CDELT3 [{cdelt3_unit_label}]", f"{abs(cdelt3_ms):.2f}", sign_note,
+    print(_mk_row(f"Velocity min ({vel_unit_label})", f"{vel_min_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
+    print(_mk_row(f"Velocity max ({vel_unit_label})", f"{vel_max_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
+    print(_mk_row(f"CDELT3 ({cdelt3_unit_label})", f"{abs(cdelt3_ms):.2f}", sign_note,
                   W1, W2, W3, left_margin=left_margin))
-    print(_mk_row("Spec axis unit check", vel_unit_label, "displayed here should be km/s",
+    print(_mk_row("Spec axis unit check", vel_unit_label, "<- displayed here should be km/s",
                   W1, W2, W3, left_margin=left_margin))
 
     print(_hline(W1, W2, W3, left_margin=left_margin))
 
-    # 3) Runtime (Ray)
+    # (3) Runtime (Ray)
     print(_mk_row("Runtime (Ray)", "Value", "", W1, W2, W3, left_margin=left_margin))
     print(_hline(W1, W2, W3, left_margin=left_margin))
 
@@ -344,7 +363,7 @@ def print_cube_summary(
 
 
 
-# 간단 YAML 로더 (PyYAML 우선, 없으면 ruamel.yaml)
+# Simple YAML loader (prefer PyYAML; fall back to ruamel.yaml)
 def _yaml_load(path: str) -> dict:
     try:
         import yaml  # PyYAML
@@ -360,34 +379,43 @@ def print_cube_summary_from_info(
     info: dict | None = None,
     *,
     cube_info: dict | None = None,
-    yaml_path: str | None = None,       # ← YAML 파일 경로 추가
+    yaml_path: str | None = None,       # YAML file path (optional)
     left_margin: int = 0,
     title: str = "Data cube / key params",
     ray_info: dict | None = None,
-    prefer: str = "info",               # "info" 우선(기본) 또는 "cube"
+    prefer: str = "info",               # Merge rule: "info" (default, info overrides cube) or "cube"
 ) -> None:
     """
-    info + (cube_info | yaml_path) 를 병합해 print_cube_summary 호출.
-    - yaml_path 가 주어지면 YAML을 읽어 cube_info에 병합합니다(명시 cube_info가 YAML을 덮어씀).
-    - prefer="info": 최종 병합에서 info 값이 cube 쪽 값을 덮어씀(기본).
-      prefer="cube":  cube 쪽 값이 info를 덮어씀.
+    Merge info with (cube_info or YAML) and call print_cube_summary.
+
+    Behavior
+    --------
+    - If yaml_path is provided, load YAML and merge into cube_info
+      (explicit cube_info values override YAML values).
+    - prefer="info": in the final merge, values from `info` override cube values (default).
+      prefer="cube": cube-side values override `info`.
+
+    Raises
+    ------
+    ValueError
+        If none of (info, cube_info, yaml_path) are provided.
     """
     if (info is None) and (cube_info is None) and (yaml_path is None):
-        raise ValueError("info, cube_info, yaml_path 중 최소 하나는 제공해야 합니다.")
+        raise ValueError("Provide at least one of: info, cube_info, yaml_path.")
 
-    # 1) cube 쪽 소스 만들기: YAML → cube_info 순서로 병합(명시 dict 우선)
+    # (1) Build cube-side source: YAML --> cube_info (explicit dict has priority)
     base_cube: dict = {}
     if yaml_path:
         base_cube.update(_yaml_load(yaml_path))
     if cube_info:
         base_cube.update(cube_info)
 
-    # 2) 최종 병합 (우선순위 선택)
+    # (2) Final merge (choose precedence)
     a = info or {}
     b = base_cube
     merged = ({**b, **a} if prefer == "info" else {**a, **b})
 
-    # 3) 동의어/키 가져오기 유틸
+    # (3) Helper to get value by synonyms/keys
     def g(keys, default=None):
         if isinstance(keys, str):
             return merged.get(keys, default)
@@ -396,7 +424,7 @@ def print_cube_summary_from_info(
                 return merged[k]
         return default
 
-    # 4) print_cube_summary 호출
+    # (4) Call print_cube_summary
     print_cube_summary(
         naxis1=g("naxis1", 0),
         naxis2=g("naxis2", 0),
