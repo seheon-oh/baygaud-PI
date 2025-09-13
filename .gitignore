@@ -6,3 +6,9 @@ scan_requirements.py
 install_python3.12.10.csh
 .venv312
 .venv312
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.venv/
