@@ -56,9 +56,7 @@
   > Then create your venv with that interpreter:  
 
 ```bash
-```diff
--  [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
-```
+  [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
 
   # Check the created .venv313
   [seheon@Mac project] ls -al
