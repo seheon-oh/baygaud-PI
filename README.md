@@ -123,9 +123,11 @@
 # Install package + pinned deps
 (.venv313) [seheon@Mac baygaud-PI] pip install .
 
-```
+To leave the environment later:
 
-To leave the environment later: `deactivate`.
+(.venv313) [seheon@Mac baygaud-PI] deactivate 
+[seheon@Mac baygaud-PI] 
+```
 
 ---
 
