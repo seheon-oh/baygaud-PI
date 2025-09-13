@@ -273,13 +273,13 @@ If a run stops, you can **resume** by adjusting the ROI in your YAML to skip alr
 
 ---
 
-## Post-processing (merge & classify)
+## Classification (merge & classify)
 
 After segments are done, merge and classify components:
 
 ```bash
 # Prints usage when run without args
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py
+<mark>(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py</mark>
 
 # Recommended: specify YAML and output index (1, 2, …)
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py ../my_params.yaml 1
