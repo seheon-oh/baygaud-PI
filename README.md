@@ -202,7 +202,7 @@ From the source tree:
 
 ```bash
 (.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py ../my_params.yaml
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 ```
 
 
@@ -323,7 +323,7 @@ If you use baygaud-PI, please cite the main algorithm and relevant applications:
 1. Oh, S. H., Staveley-Smith, L., For, B. Q. (2019), **MNRAS**, 485, 5021–5034.  
 2. Oh, S.-H., Kim, S., For, B.-Q., Staveley-Smith, L. (2022), **ApJ**, 928, 177.  
 3. Park, H. J., Oh, S. H., Wang, J., et al. (2022), **AJ**, 164, 82.  
-4. Kim, S. J., Oh, S. H., et al. (2023), **MNRAS** (WALLABY Pilot).  
+4. Kim, S. J., Oh, S. H., et al. (2023), **MNRAS**.  
 5. Kim, M., Oh, S. H. (2022), **JKAS**, 55, 149–172.  
 6. Wang, J., Yang, D., Oh, S.-H., et al. (2023), **ApJ**.  
 7. Oh, S.-H., Wang, J. (2025), **MNRAS**, 538, 1816.
