@@ -87,8 +87,15 @@
   ```
 
   > - **Linux (Debian/Ubuntu):**  
-  ```bash
+
   [seheon@Mac project] sudo apt-get install -y python3-tk
+
+
+  ```bash
+
+  > If have just installed Python 3.13 on Ubuntu and want to set up baygaud-PI cleanly without conflicts from the system’s older Python (e.g., 3.8), please follow these steps to prepare a clean environment before installing baygaud-PI. With these steps, you ensure that your installation is fully isolated in Python 3.13 and will not conflict with the system’s default Python (3.8). Or you go jump to ((### 2) Clone baygaud-PI from github below)
+
+  # (1) Create and activate a Python 3.13 virtual environment (e.g., .venv313)
   [seheon@Mac project] python3.13 -m venv .venv313
 
   # Check the created .venv313
@@ -108,20 +115,44 @@
   [seheon@Mac project] source .venv313/bin/activate.csh
   (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
-  ```
 
+  # (2) Clean up environment variables and disable user site-packages: This prevents accidental mixing with the system’s Python 3.8
 
+  # In bash or zsh
+  (.venv313) [seheon@Mac project] unset PYTHONPATH PYTHONHOME PIP_PREFIX
+  (.venv313) [seheon@Mac project] export PYTHONNOUSERSITE=1
+
+  # In tcsh or csh
+  (.venv313) [seheon@Mac project] unset PYTHONPATH PYTHONHOME PIP_PREFIX
+  (.venv313) [seheon@Mac project] export PYTHONNOUSERSITE=1
+
+  # (3) Upgrade pip and build tools: 
+  Always use python3 -m pip (never just pip) to ensure you are inside the virtual environment.
+
+  (.venv313) [seheon@Mac project] python3 -m ensurepip --upgrade
+  (.venv313) [seheon@Mac project] python3 -m pip install --upgrade pip setuptools wheel
+
+  # (4) Quick sanity check
+  (.venv313) [seheon@Mac project] 
+
+  (.venv313) [seheon@Mac project] python -V                 # --> Python 3.13.x
+  (.venv313) [seheon@Mac project] python -m pip -V          # --> .../venv/.../python3.13/site-packages
+  (.venv313) [seheon@Mac project] which python; which pip   # --> both should point inside your venv
+```
 
 ### 2) Clone baygaud-PI from github (it will take a while...)
+```bash
 (.venv313) [seheon@Mac project] git clone https://github.com/seheon-oh/baygaud-PI.git
+```
 
 ### 3) Move into baygaud-PI directory and install
 
 ```bash
 (.venv313) [seheon@Mac project] cd baygaud-PI
 
-# Install package + pinned deps
-(.venv313) [seheon@Mac baygaud-PI] pip install .
+# Install package + pinned deps : Always use python3 -m pip (not just pip)
+(.venv313) [seheon@Mac baygaud-PI] python3 -m pip install .
+
 
 # To leave the environment later:
 (.venv313) [seheon@Mac baygaud-PI] deactivate 
