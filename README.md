@@ -52,7 +52,7 @@
 
 ### 1) Create a Python 3.13 venv in your prefered directory, then install: (recommended)
 
-#### 1-1) macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box. Then create your venv with that interpreter:  
+#### 1-1) macOS (recommended): Install Python 3.13 from python.org — it includes Tkinter out of the box. Then create your venv with that interpreter:  
 
 ```bash
   [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
@@ -85,15 +85,15 @@
   > Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
   ```
 
-  > - **Linux (Debian/Ubuntu):**  
-
-  [seheon@Mac project] sudo apt-get install -y python3-tk
-
+  #### 1-2) Linux (Debian/Ubuntu):
 
   ```bash
+  [seheon@Mac project] sudo apt-get install -y python3-tk
+  ```
 
   > If have just installed Python 3.13 on Ubuntu and want to set up baygaud-PI cleanly without conflicts from the system’s older Python (e.g., 3.8), please follow these steps to prepare a clean environment before installing baygaud-PI. With these steps, you ensure that your installation is fully isolated in Python 3.13 and will not conflict with the system’s default Python (3.8). Or you go jump to ((### 2) Clone baygaud-PI from github below)
 
+  ```bash
   # (1) Create and activate a Python 3.13 virtual environment (e.g., .venv313)
   [seheon@Mac project] python3.13 -m venv .venv313
 
