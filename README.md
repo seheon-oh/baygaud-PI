@@ -50,10 +50,7 @@
 
 ## Installation
 
-Create and activate a fresh venv, then install:
-
-
-# Create a Python 3.13 venv in your prefered directory (recommended)
+Create a Python 3.13 venv in your prefered directory, then install: (recommended)
 
   > - **macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box.
   > Then create your venv with that interpreter:  
@@ -61,11 +58,30 @@ Create and activate a fresh venv, then install:
 ```bash
   [seheon@Mac project] /Library/Frameworks/Python/Frameworks/Versions/3.13/bin/python3 -m venv .venv313
 
+  # Check the created .venv313
+  [seheon@Mac project] ls -al
+  ...
+  ...
+  drwxr-xr-x@  8 seheon  staff    256 Sep 10 15:23 .venv313
+  ...
+  ...
+
+  # ---------------------------------------------------
+  # Activate (bash/zsh)
   [seheon@Mac project] source .venv313/bin/activate
+  (.venv313) [seheon@Mac project] python --version
+  Python 3.13.7
 
-  > ** Quick Tkinter check: 
+  # OR activate (csh/tcsh)
+  [seheon@Mac project] source .venv313/bin/activate.csh
+  (.venv313) [seheon@Mac project] python --version
+  Python 3.13.7
+  # ---------------------------------------------------
 
-  [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
+
+  > Quick Tkinter check: 
+
+  (.venv313) [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
 
   > If 'Tk OK' printed, the current python supports Tkinter.
   ```
@@ -80,10 +96,6 @@ Create and activate a fresh venv, then install:
 
   [seheon@Mac project] python3.13 -m venv .venv313
   ```
-
-
-# Check the created .venv313
-[seheon@Mac project] ls -al
 
 ```
 # ---------------------------------------------------
