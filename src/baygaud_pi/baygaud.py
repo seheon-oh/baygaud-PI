@@ -57,7 +57,7 @@ import ray
 # load baygaudpy modules
 #|-----------------------------------------|
 # _params.py
-from _handle_yaml import read_configfile, _get_threading_env_from_params, update_yaml_param
+from _handle_yaml import read_configfile, _get_threading_env_from_params, update_yaml_param, recommend_tiling_from_yaml
 global _x
 
 #|-----------------------------------------|
@@ -168,6 +168,10 @@ def main():
     _g_sigma_lower = min_sigma_from_cdelt3(cube_info['cdelt3_ms'], unit="m/s", hanning_passes=_params['num_hanning_passes'])
     _params['g_sigma_lower'] = _g_sigma_lower
     update_yaml_param(configfile, "g_sigma_lower", _g_sigma_lower)
+
+    _tile_opt = recommend_tiling_from_yaml(configfile, write_back=False)
+    update_yaml_param(configfile, "y_chunk_size", _tile_opt['y_chunk_size'])
+    update_yaml_param(configfile, "gather_batch", _tile_opt['gather_batch'])
 
     # load cube_mask if provided
     if _params['_cube_mask'] == 'Y':

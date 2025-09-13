@@ -1,5 +1,9 @@
 [build-system]
-# PEP 517/518: define the build backend and bootstrap requirements.
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "baygaud-PI"
+version = "2.0.0"
+dependencies = ["numpy>=1.26"]
 

@@ -41,7 +41,7 @@
 # -----------------------------------------------------------------------------
 
 # Working directory where the input data cube resides.
-wdir: '/Users/seheon/research/projects/baygaud/baygaud-PI.dev/demo/test_cube'  # *** REQUIRED ***
+wdir: '../../demo/test_cube'  # *** REQUIRED ***
 
 # Output subdirectories (created under wdir if your code does so).
 _segdir: 'segmts'                              # [RECOMMENDED]
@@ -242,8 +242,10 @@ sgfit_bounds:
 # ==============================================================================
 # Defaults are okay; adjust for your memory/CPU characteristics if needed.
 # -----------------------------------------------------------------------------
-y_chunk_size: 10          # tile size along Y (typical 20–50)       [RECOMMENDED]
-gather_batch: 8           # how many results to aggregate per wait   [RECOMMENDED]
+y_chunk_size: 10          # tile size along Y (typical 20–50)       [DEFAULT OK]
+                          # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
+gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK]
+                          # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
 
 
 # ==============================================================================
@@ -257,7 +259,7 @@ gather_batch: 8           # how many results to aggregate per wait   [RECOMMENDE
 # On macOS you can check:
 #   sysctl -n hw.physicalcpu   --> physical cores
 #   sysctl -n hw.logicalcpu    --> logical cores (with HT)
-num_cpus_ray: 8                 # *** REQUIRED ***
+num_cpus_ray: 10                 # *** REQUIRED ***
 numba_num_threads: 1            # [RECOMMENDED]
 num_cpus_nested_sampling: 1     # [RECOMMENDED]
 

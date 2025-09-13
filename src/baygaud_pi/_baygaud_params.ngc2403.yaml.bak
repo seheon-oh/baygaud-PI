@@ -242,7 +242,7 @@ sgfit_bounds:
 # ==============================================================================
 # Defaults are okay; adjust for your memory/CPU characteristics if needed.
 # -----------------------------------------------------------------------------
-y_chunk_size: 10          # tile size along Y (typical 20–50)       [RECOMMENDED]
+y_chunk_size: 2          # tile size along Y (typical 20–50)       [RECOMMENDED]
 gather_batch: 8           # how many results to aggregate per wait   [RECOMMENDED]
 
 

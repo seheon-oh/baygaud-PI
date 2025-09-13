@@ -9,6 +9,8 @@
 #| Sejong University, Seoul, South Korea
 #|-----------------------------------------|
 
+from __future__ import annotations
+import math
 import sys
 import numpy as np
 import yaml
@@ -372,5 +374,191 @@ def update_yaml_param(
         "written": True,
         "backup": bak,
     }
+
+
+# _tiling_auto.py
+# ---------------------------------------------------------------------------
+# Purpose
+#   Compute good values for y_chunk_size and gather_batch automatically
+#   from your YAML config. This helps you use your CPUs efficiently when
+#   running baygaud with Ray.
+#
+# What it does
+#   - Reads naxis2_s0 / naxis2_e0 and CPU settings from the YAML
+#   - Estimates a tile height along Y ("y_chunk_size") so that there are
+#     enough tiles in the queue to keep all CPU workers busy
+#   - Picks a reasonable "gather_batch" (how many finished tasks to gather
+#     in one wait cycle) and a safe "inflight_factor" (how many tasks to
+#     have in flight per CPU)
+#   - Optionally writes the recommendations back into the YAML
+#
+# How to use (programmatically)
+#   from _tiling_auto import recommend_tiling_from_yaml
+#   out = recommend_tiling_from_yaml("_baygaud_params.yaml", write_back=True)
+#
+# How to use (CLI)
+#   python _tiling_auto.py /path/to/_baygaud_params.yaml [--write]
+#   (with --write it will update the YAML in-place)
+# ---------------------------------------------------------------------------
+
+
+
+def _compute_tiling_params(
+    y_span: int,
+    num_cpus_ray: int,
+    num_cpus_nested_sampling: int,
+    *,
+    # --- Tuning knobs with safe defaults ---
+    # We want several tiles per core so the queue never runs dry.
+    target_tiles_per_core: float = 3.0,
+    # Avoid extremely small tiles (too much overhead) or overly big ones (bad load balance).
+    min_tile: int = 10,
+    max_tile: int = 50,
+    # Do not gather too many results at once; it only delays progress printing.
+    gather_cap: int = 16,
+) -> dict:
+    """
+    Compute recommended tiling parameters.
+
+    Parameters
+    ----------
+    y_span : int
+        Number of rows along Y to process = (naxis2_e0 - naxis2_s0).
+    num_cpus_ray : int
+        Number of CPU workers Ray may use (from YAML: num_cpus_ray).
+    num_cpus_nested_sampling : int
+        Threads/cores used inside each nested-sampling task (from YAML: num_cpus_nested_sampling).
+        Usually 1 is best to avoid oversubscription.
+
+    Keyword-only parameters (safe defaults)
+    ---------------------------------------
+    target_tiles_per_core : float
+        Aim for this many tiles per core in the queue.
+        More tiles → better load balancing; too many → not needed.
+    min_tile, max_tile : int
+        Clamp the tile height to this range.
+        Experience shows 10–50 is a good balance on most machines.
+    gather_cap : int
+        Upper limit for gather_batch. Keep it modest (e.g., ≤16).
+
+    Returns
+    -------
+    dict
+        {
+          "y_chunk_size": int,      # tile height along Y to request from Ray workers
+          "gather_batch": int,      # how many results we gather per wait cycle
+          "inflight_factor": int,   # how many in-flight tasks per CPU (3 is safe if RAM is plenty)
+          "y_span": int,            # echo input
+          "cpus_total": int         # total CPU concurrency considered (ray * nested_sampling)
+        }
+
+    Notes
+    -----
+    Heuristic for y_chunk_size:
+      T ≈ H / (target_tiles_per_core * C)
+      where H = y_span, and C = num_cpus_ray * num_cpus_nested_sampling.
+      Then clamp T into [min_tile, max_tile].
+
+    Rationale
+    ---------
+    - Too small tiles: too much Python/Ray overhead.
+    - Too big tiles: some workers finish early and sit idle while others
+      process huge tiles (stragglers).
+    - A small fixed gather_batch keeps the UI/progress responsive and
+      avoids long waits for output.
+    """
+    # Sanitize inputs
+    H = max(1, int(y_span))
+    # Total "parallelism" is Ray workers times per-task threads.
+    C = max(1, int(num_cpus_ray) * int(num_cpus_nested_sampling))
+
+    # First guess for tile height T:
+    # If we want k tiles per core, and we have C cores,
+    # we want ~k*C tiles in total → each tile ~ H / (k*C).
+    raw = H / max(1.0, target_tiles_per_core * C)
+    T = int(math.floor(raw))
+
+    # Keep T within a healthy range [min_tile, max_tile].
+    T = max(min_tile, min(max_tile, T))
+
+    # If Y is very small, T can exceed H; fix that.
+    if T > H:
+        # Use the smaller of H and min_tile, but at least 1.
+        T = max(1, min(H, min_tile))
+
+    # How many results to collect per wait.
+    # A good rule: near the amount of concurrent work C, but cap it.
+    gather_batch = max(1, min(C, gather_cap))
+
+    # Memory is available (as you said), so we can keep more tasks in flight.
+    # This helps absorb variability in task durations.
+    inflight_factor = 3
+
+    return dict(
+        y_chunk_size=int(T),
+        gather_batch=int(gather_batch),
+        inflight_factor=int(inflight_factor),
+        y_span=int(H),
+        cpus_total=int(C),
+    )
+
+
+def recommend_tiling_from_yaml(configfile: str, *, write_back: bool = False) -> dict:
+    """
+    Read required fields from a baygaud YAML file and compute tiling parameters.
+
+    Parameters
+    ----------
+    configfile : str
+        Path to your _baygaud_params.yaml.
+    write_back : bool, default False
+        If True, immediately write y_chunk_size, gather_batch, and inflight_factor
+        back into the YAML (top-level keys). If False, only return the values.
+
+    Returns
+    -------
+    dict
+        Same structure as _compute_tiling_params(...) plus input echo.
+
+    Raises
+    ------
+    KeyError
+        If the YAML is missing required keys (naxis2_s0/e0, num_cpus_ray).
+
+    Usage (code)
+    ------------
+    >>> out = recommend_tiling_from_yaml("_baygaud_params.yaml", write_back=True)
+    >>> print(out["y_chunk_size"], out["gather_batch"])
+    """
+    # Load YAML into a dict
+    p = read_configfile(configfile)
+
+    # Required keys. We keep the error messages clear if any are missing.
+    try:
+        y0 = int(p["naxis2_s0"])
+        y1 = int(p["naxis2_e0"])
+        num_cpus_ray = int(p["num_cpus_ray"])
+        num_cpus_nested_sampling = int(p.get("num_cpus_nested_sampling", 1))
+    except KeyError as e:
+        raise KeyError(f"Missing required YAML key: {e!s}")
+
+    # Compute recommendations
+    out = _compute_tiling_params(
+        y_span=(y1 - y0),
+        num_cpus_ray=num_cpus_ray,
+        num_cpus_nested_sampling=num_cpus_nested_sampling,
+    )
+
+    # Optionally write them back to the YAML
+    if write_back:
+        # If keys do not exist yet, create them (create_missing=True).
+        update_yaml_param(configfile, "y_chunk_size",     out["y_chunk_size"],     create_missing=True)
+        update_yaml_param(configfile, "gather_batch",     out["gather_batch"],     create_missing=True)
+        update_yaml_param(configfile, "inflight_factor",  out["inflight_factor"],  create_missing=True)
+
+    return out
+
+
+#-- END OF SUB-ROUTINE____________________________________#
 
 
