@@ -158,7 +158,7 @@ Put your H I data cube (FITS) in a working directory. Copy and edit a YAML templ
 
 > Keys like `g_sigma_lower`, `naxis1/2/3`, `cdelt*`, `vel_min/max`, `_rms_med`, `_bg_med` are filled at runtime — leave defaults.
 
-**Minimal starter snippet:**
+**Minimal required params:**
 
 ```yaml
 # --- REQUIRED minimum you should customize ---
@@ -172,7 +172,7 @@ naxis1_e0: 40
 naxis2_s0: 0
 naxis2_e0: 40
 
-# thresholds and model size
+# thresholds
 max_ngauss: 3
 mom0_nrms_limit: 1
 peak_sn_pass_for_ng_opt: 3
@@ -201,8 +201,9 @@ num_cpus_ray: 8
 From the source tree:
 
 ```bash
-(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
+diff
++ (.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
++ (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 ```
 
 
@@ -279,7 +280,7 @@ After segments are done, merge and classify components:
 
 ```bash
 # Prints usage when run without args
-<mark>(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py</mark>
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py
 
 # Recommended: specify YAML and output index (1, 2, …)
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py ../my_params.yaml 1
