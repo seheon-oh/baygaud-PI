@@ -52,7 +52,7 @@
 
 ### 1) Create a Python 3.13 venv in your prefered directory, then install: (recommended)
 
-#### **macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box.
+#### 1-1) macOS (recommended):** Install Python 3.13 from python.org — it includes Tkinter out of the box.
   > Then create your venv with that interpreter:  
 
 ```bash
