@@ -64,6 +64,11 @@ install_requires = [
     "urllib3==2.5.0",
 ]
 
+
+root = Path(__file__).parent
+readme = (root / "README.md").read_text(encoding="utf-8")
+
+
 # Distribution name can use hyphen; import package uses underscore.
 setup(
     name="baygaud-pi",
@@ -73,24 +78,19 @@ setup(
     long_description_content_type="text/markdown",
     author="Se-Heon Oh",
     author_email="seheon.oh@gmail.com",
-    url="https://github.com/seheon-oh/baygaud-PI.git",
-    license="MIT",                       # Adjust if needed
+    url="https://github.com/seheon-oh/baygaud-PI",
+    license="MIT",
     python_requires=">=3.10",
 
-    # Package layout: code lives under src/baygaud_pi/
     package_dir={"": "src"},
     packages=find_packages(where="src", include=["baygaud_pi", "baygaud_pi.*"]),
-    include_package_data=True,           # Include package data files (see MANIFEST.in if needed)
+    include_package_data=True,
 
     install_requires=install_requires,
 
-    # CLI entry point: ensure one of these exists, then keep the matching line.
-    # If you have src/baygaud_pi/__main__.py with def main(): use the first.
-    # If you have src/baygaud_pi/cli.py with def main(): use the second instead.
     entry_points={
         "console_scripts": [
-            "baygaud-pi=baygaud_pi.__main__:main",
-            # "baygaud-pi=baygaud_pi.cli:main",
+            "baygaud-pi=baygaud_pi.baygaud:main",
         ]
     },
 

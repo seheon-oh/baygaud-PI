@@ -1,9 +1,27 @@
+# pyproject.toml
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "baygaud-PI"
+name = "baygaud-pi"
 version = "2.0.0"
-dependencies = ["numpy>=1.26"]
+description = "BAYesian GAUssian Decomposer for spectral-line profiles"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+authors = [
+  { name = "Se-Heon Oh", email = "seheon.oh@gmail.com" }
+]
+
+dependencies = [
+]
+
+[project.urls]
+Homepage = "https://github.com/seheon-oh/baygaud-PI"
+
+# (optinal) console script
+[project.scripts]
+baygaud = "baygaud_pi.baygaud:main"
 
