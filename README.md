@@ -39,7 +39,7 @@
 
 - **Python:** 3.13 recommended (3.10–3.12 also work)  
 - **OS:** Tested on Ubuntu 20.04.6 LTS (expected to work on most releases) and macOS 15.6.1 (Apple M2 Pro)  
-- **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `scipy`, `numpy`, `matplotlib`, etc.  
+- **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `numpy`, `matplotlib`, etc.  
 - **Tkinter note (or the viewer only):** `python3.x-tk` (see Tkinter installation note below)
   > `baygaud_viewer.py` requires **Tkinter**. The core pipeline (`baygaud.py`, `baygaud_classify.py`) does **not** need it.
   >
@@ -67,20 +67,20 @@
 
   # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
-  (.venv313) [seheon@Mac project] python3 --version
+  (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
 
   # OR activate (csh/tcsh) -----
   [seheon@Mac project] source .venv313/bin/activate.csh
-  (.venv313) [seheon@Mac project] python3 --version
+  (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
 
 
   > Quick Tkinter check: 
 
-  (.venv313) [seheon@Mac project] python3 -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
+  (.venv313) [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
 
-  > If 'Tk OK' printed, the current python3 supports Tkinter.
+  > If 'Tk OK' printed, the current python supports Tkinter.
 
   > Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
   ```
@@ -107,12 +107,12 @@
 
   # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
-  (.venv313) [seheon@Mac project] python3 --version
+  (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
 
   # OR activate (csh/tcsh) -----
   [seheon@Mac project] source .venv313/bin/activate.csh
-  (.venv313) [seheon@Mac project] python3 --version
+  (.venv313) [seheon@Mac project] python --version
   Python 3.13.7
 
   # (2) Clean up environment variables and disable user site-packages: This prevents accidental mixing with the system’s Python 3.8
@@ -132,9 +132,9 @@
   (.venv313) [seheon@Mac project] python3 -m pip install --upgrade pip setuptools wheel
 
   # (4) Quick sanity check
-  (.venv313) [seheon@Mac project] python3 -V                 # --> Python 3.13.x
-  (.venv313) [seheon@Mac project] python3 -m pip -V          # --> .../venv/.../python3.13/site-packages
-  (.venv313) [seheon@Mac project] which python3; which pip   # --> both should point inside your venv
+  (.venv313) [seheon@Mac project] python -V                 # --> Python 3.13.x
+  (.venv313) [seheon@Mac project] python -m pip -V          # --> .../venv/.../python3.13/site-packages
+  (.venv313) [seheon@Mac project] which python; which pip   # --> both should point inside your venv
 ```
 
 ### 2) Clone baygaud-PI from github (it will take a while...)
@@ -166,9 +166,8 @@
 **Put your H I data cube (FITS) in a working directory. Copy and edit a YAML template:**
 
 ```bash
-(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
-(.venv313) [seheon@Mac baygaud-PI.dev/src/baygaud_pi] cp _baygaud_params.ngc2403.yaml my_params.yaml
-(.venv313) [seheon@Mac baygaud-PI.dev/src/baygaud_pi] vi my_params.yaml
+(.venv313) [seheon@Mac baygaud-PI] cp src/baygaud_pi/_baygaud_params.ngc2403.yaml my_params.yaml
+(.venv313) [seheon@Mac baygaud-PI] vim my_params.yaml
 ```
 
 **What you must edit (REQUIRED):**
@@ -231,6 +230,7 @@ num_cpus_ray: 8
 
 From the source tree:
 
+(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 
 ```
@@ -240,7 +240,6 @@ From the source tree:
  :: Running baygaud.py with config: _baygaud_params.ngc2403.yaml
 
 2025-09-13 04:18:56,052 INFO worker.py:1951 -- Started a local Ray instance.
-
  _                                       _         ___ _____ 
 | |__   __ _ _   _  __ _  __ _ _   _  __| |       / _ \\_   \
 | '_ \ / _` | | | |/ _` |/ _` | | | |/ _` |_____ / /_)/ / /\/
@@ -248,40 +247,38 @@ From the source tree:
 |_.__/ \__,_|\__, |\__, |\__,_|\__,_|\__,_|     \/   \____/  
              |___/ |___/                                     
                            v.2.0.0
-
 +------------------------------------------------------------------------+
-| Data cube / key params  |     Value | Note                             |
+| Input Cube:   ngc2403.regrid.testcube.0.fits                           |
+| WDIR:   /Users/seheon/research/PROJECTS/baygaud/baygaud-PI.dev/demo/tes|
+|         t_cube                                                         |
++------------------------------------------------------------------------+
+| Key header params       |     Value | Note                             |
 +------------------------------------------------------------------------+
 | naxis1 (pixels)         |        41 | [0 : 40]                         |
 | naxis2 (pixels)         |        41 | [0 : 40]                         |
 | naxis3 (channels)       |        74 | [:]                              |
-| max_ngauss (number)     |         3 | Maximum Gaussian components      |
-| peak-flux S/N limit     |       2.0 | Minimum peak-flux S/N            |
-+------------------------------------------------------------------------+
 | Velocity min (km/s)     |      9.46 |                                  |
 | Velocity max (km/s)     |    396.36 |                                  |
-| CDELT3 (m/s)            |   5299.95 | (+) spectral axis increasing     |
+| CDELT3 (m/s)            |  +5299.95 | (+) spectral axis increasing     |
 | Spec axis unit check    |      km/s | <- displayed here should be km/s |
++------------------------------------------------------------------------+
+| Key baygaud params      |     Value | Note                             |
++------------------------------------------------------------------------+
+| max_ngauss (number)     |         3 | Maximum Gaussian components      |
+| peak-flux S/N limit     |       2.0 | Minimum peak-flux S/N            |
 +------------------------------------------------------------------------+
 | Runtime (Ray)           |     Value |                                  |
 +------------------------------------------------------------------------+
 | Ray initialized         |      True |                                  |
 | Total physical cores    |        12 |                                  |
-| Ray allocated cores     |         8 |                                  |
+| Ray allocated cores     |        10 |                                  |
 | Sampler allocated cores |         1 |                                  |
 | Numba allocated threads |         1 |                                  |
 | System memory (GB)      |      16.0 |                                  |
 | Process memory (GB)     |       0.2 |                                  |
 | (y chunk size)          |      (10) |                                  |
-| (gather batch)          |       (8) |                                  |
+| (gather batch)          |      (10) |                                  |
 +------------------------------------------------------------------------+
-
-|----------------------------------------------------------------------------------------|
-|---:---:---:---:---:-->   :   :   :   :   :   :   :   :   :   :   :   :   :   |   33.12% 
-| 530/1600 profiles |  5.44 profiles/s | elapsed 00:00:01:37 | eta 00:00:03:16 |          
-|                                         last processed tile: x[14]...y[0:10] |          
-|----------------------------------------------------------------------------------------|
-
 ```
 
 ---
@@ -345,7 +342,7 @@ Tips: hover to locate spectra; mouse wheel to zoom; choose which 2D map to displ
 
 ## Cite
 
-If you use baygaud-PI, please cite the main algorithm paper or relevant application papers:
+If you use baygaud-PI, please cite the main algorithm and relevant applications:
 
 1. Oh, S. H., Staveley-Smith, L., For, B. Q. (2019), **MNRAS**, 485, 5021–5034.  
 2. Oh, S.-H., Kim, S., For, B.-Q., Staveley-Smith, L. (2022), **ApJ**, 928, 177.  
