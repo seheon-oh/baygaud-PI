@@ -166,8 +166,9 @@
 **Put your H I data cube (FITS) in a working directory. Copy and edit a YAML template:**
 
 ```bash
-(.venv313) [seheon@Mac baygaud-PI] cp src/baygaud_pi/_baygaud_params.ngc2403.yaml my_params.yaml
-(.venv313) [seheon@Mac baygaud-PI] vim my_params.yaml
+(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
+(.venv313) [seheon@Mac baygaud-PI.dev/src/baygaud_pi] cp _baygaud_params.ngc2403.yaml my_params.yaml
+(.venv313) [seheon@Mac baygaud-PI.dev/src/baygaud_pi] vi my_params.yaml
 ```
 
 **What you must edit (REQUIRED):**
@@ -230,7 +231,6 @@ num_cpus_ray: 8
 
 From the source tree:
 
-(.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 
 ```
