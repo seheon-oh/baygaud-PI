@@ -1,27 +1,87 @@
-# pyproject.toml
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "baygaud-pi"
 version = "2.0.0"
-description = "BAYesian GAUssian Decomposer for spectral-line profiles"
+description = "BAYesian GAUssian Decomposer for spectral-line profiles."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
-
-authors = [
-  { name = "Se-Heon Oh", email = "seheon.oh@gmail.com" }
+authors = [{ name = "Se-Heon Oh", email = "seheon.oh@gmail.com" }]
+license = { text = "MIT" }
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 
+# baygaud.py dependencies
 dependencies = [
+  "astropy>=5",
+  "astropy-iers-data>=0.2024.1",
+  "attrs>=23",
+  "casa-formats-io>=0.2",
+  "certifi>=2023",
+  "charset-normalizer>=3.0",
+  "click>=8.1",
+  "cloudpickle>=2.2",
+  "contourpy>=1.2",
+  "cycler>=0.11",
+  "dask>=2024.5",
+  "dynesty>=2.1.5",
+  "filelock>=3.12",
+  "fitsio>=1.1",
+  "fonttools>=4.42",
+  "fsspec>=2024.5",
+  "idna>=3.4",
+  "imageio>=2.31",
+  "joblib>=1.3",
+  "jsonschema>=4.20",
+  "jsonschema-specifications>=2023.7",
+  "kiwisolver>=1.4",
+  "lazy_loader>=0.3",
+  "numba>=0.59",
+  "llvmlite>=0.42",
+  "networkx>=3.1",
+  "packaging>=23",
+  "partd>=1.4",
+  "pillow>=10",
+  "protobuf>=4",
+  "pyerfa>=2.0",
+  "pyfiglet>=1.0",
+  "pyparsing>=3.1",
+  "python-dateutil>=2.8",
+  "radio-beam>=0.3",
+  "ray>=2.5",
+  "referencing>=0.30",
+  "requests>=2.31",
+  "rpds-py>=0.10",
+  "ruamel.yaml>=0.17",
+  "ruamel.yaml.clib>=0.2",
+  "scikit-image>=0.22",
+  "scipy>=1.11",
+  "six>=1.16",
+  "spectral-cube>=0.6",
+  "tifffile>=2023.7",
+  "toolz>=0.12",
+  "tqdm>=4.64",
+  "typing_extensions>=4.7",
+  "urllib3>=2.0"
 ]
 
-[project.urls]
-Homepage = "https://github.com/seheon-oh/baygaud-PI"
+[project.optional-dependencies]
+speedups = ["numba>=0.58"]
+# ruamel.yaml
+yaml-alt = ["ruamel.yaml>=0.17"]
 
-# (optinal) console script
 [project.scripts]
-baygaud = "baygaud_pi.baygaud:main"
+baygaud-pi = "baygaud_pi.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["baygaud_pi", "baygaud_pi.*"]
 

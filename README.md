@@ -67,20 +67,20 @@
 
   # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
-  (.venv313) [seheon@Mac project] python --version
+  (.venv313) [seheon@Mac project] python3 --version
   Python 3.13.7
 
   # OR activate (csh/tcsh) -----
   [seheon@Mac project] source .venv313/bin/activate.csh
-  (.venv313) [seheon@Mac project] python --version
+  (.venv313) [seheon@Mac project] python3 --version
   Python 3.13.7
 
 
   > Quick Tkinter check: 
 
-  (.venv313) [seheon@Mac project] python -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
+  (.venv313) [seheon@Mac project] python3 -c "import tkinter; import tkinter as tk; print('Tk OK, version=', tk.TkVersion)"
 
-  > If 'Tk OK' printed, the current python supports Tkinter.
+  > If 'Tk OK' printed, the current python3 supports Tkinter.
 
   > Homebrew’s `python@3.13` may not ship Tkinter. If you prefer Homebrew, install a Tk-enabled Python (e.g., `python-tk@3.12`) and run baygaud_viewer.py under that version.
   ```
@@ -107,12 +107,12 @@
 
   # Activate (bash/zsh) --------
   [seheon@Mac project] source .venv313/bin/activate
-  (.venv313) [seheon@Mac project] python --version
+  (.venv313) [seheon@Mac project] python3 --version
   Python 3.13.7
 
   # OR activate (csh/tcsh) -----
   [seheon@Mac project] source .venv313/bin/activate.csh
-  (.venv313) [seheon@Mac project] python --version
+  (.venv313) [seheon@Mac project] python3 --version
   Python 3.13.7
 
   # (2) Clean up environment variables and disable user site-packages: This prevents accidental mixing with the system’s Python 3.8
@@ -132,9 +132,9 @@
   (.venv313) [seheon@Mac project] python3 -m pip install --upgrade pip setuptools wheel
 
   # (4) Quick sanity check
-  (.venv313) [seheon@Mac project] python -V                 # --> Python 3.13.x
-  (.venv313) [seheon@Mac project] python -m pip -V          # --> .../venv/.../python3.13/site-packages
-  (.venv313) [seheon@Mac project] which python; which pip   # --> both should point inside your venv
+  (.venv313) [seheon@Mac project] python3 -V                 # --> Python 3.13.x
+  (.venv313) [seheon@Mac project] python3 -m pip -V          # --> .../venv/.../python3.13/site-packages
+  (.venv313) [seheon@Mac project] which python3; which pip   # --> both should point inside your venv
 ```
 
 ### 2) Clone baygaud-PI from github (it will take a while...)
