@@ -152,6 +152,19 @@ def main():
         os.environ[k] = v  # overwrite
         # os.environ.setdefault(k, v)  # use this line instead if you want to preserve existing values
 
+    # 2-1) Remove driver contamination messages in case...
+    os.environ.pop("LD_PRELOAD", None)
+    # filtering LD_LIBRARY_PATH에서 anaconda/conda
+    ld = os.environ.get("LD_LIBRARY_PATH", "")
+    parts = [p for p in ld.split(":") if "anaconda" not in p and "conda" not in p]
+    os.environ["LD_LIBRARY_PATH"] = ":".join([p for p in parts if p])
+    # send to workers
+    env_vars.update({
+        "LD_PRELOAD": "",
+        "LD_LIBRARY_PATH": ":".join([p for p in parts if p]),
+        "RAY_DEDUP_LOGS": "1",
+    })
+
     # 3) Pass the same env to Ray workers at init
     ray.init(
         num_cpus=num_cpus_total,
