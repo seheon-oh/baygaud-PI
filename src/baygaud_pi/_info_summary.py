@@ -269,6 +269,64 @@ def _mk_row(c1: str, c2: str, c3: str, w1: int, w2: int, w3: int, *, left_margin
     sp = " " * left_margin
     return f"{sp}| {c1:<{w1}} | {c2:>{w2}} | {c3:<{w3}}|"
 
+
+def _mk_cube_wdir_row(
+    _params: str,
+    c1: str, c2: str, c3: str,  # keep signature; c2,c3 are unused
+    w1: int, w2: int, w3: int,
+    *, left_margin: int = 0,
+    gap: str = "   ",
+) -> str:
+    """
+    Render something like:
+      | Input Cube:   test_input.fits                                      |
+    If the filename/path overflows, wrap to a second line that starts
+    at the SAME column where the filename began on the first line.
+    Total inner width matches _mk_row(c1,c2,c3,w1,w2,w3,...).
+    """
+    sp = " " * left_margin
+    inner = w1 + w2 + w3 + 6   # same inner width as _mk_row lines
+
+    prefix = f"{c1}{gap}"      # label + gap
+    fname  = str(_params)
+
+    # Safety: if prefix alone already eats (almost) the line, ellipsize one-liner
+    if len(prefix) >= inner - 1:
+        text = (prefix + fname)
+        if len(text) > inner:
+            text = text[:inner-1] + "…"
+        else:
+            text = text.ljust(inner)
+        return f"{sp}| {text}|"
+
+    # Room left on line 1 after prefix:
+    avail1 = inner - len(prefix)
+
+    # Case 1: everything fits on one line
+    if len(fname) <= avail1:
+        line1 = (prefix + fname).ljust(inner)
+        return f"{sp}| {line1}|"
+
+    # Case 2: wrap to second line; align under filename start
+    part1 = fname[:avail1]
+    rest  = fname[avail1:]
+
+    line1 = (prefix + part1).ljust(inner)
+
+    # Second line content starts with spaces equal to prefix width
+    pad   = " " * len(prefix)
+    avail2 = inner - len(prefix)
+    if len(rest) > avail2:
+        line2_body = rest[:avail2-1] + "…"
+    else:
+        line2_body = rest.ljust(avail2)
+    line2 = (pad + line2_body)
+
+    return f"{sp}| {line1}|\n{sp}| {line2}|"
+
+
+
+
 def _hline(w1: int, w2: int, w3: int, *, left_margin: int = 0) -> str:
     sp = " " * left_margin
     inner = (w1 + w2 + w3) + 9  # include spaces/separators
@@ -276,6 +334,7 @@ def _hline(w1: int, w2: int, w3: int, *, left_margin: int = 0) -> str:
 
 # ---------- main table ----------
 def print_cube_summary(
+    _params,
     naxis1: int,
     naxis2: int,
     naxis3: int,
@@ -304,34 +363,48 @@ def print_cube_summary(
 
     # Header
     print(_hline(W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(title, "Value", "Note", W1, W2, W3, left_margin=left_margin))
+    _inputcube = _mk_cube_wdir_row(_params['input_datacube'], "Input Cube:", "", "", W1, W2, W3, left_margin=0)
+    _wdir = _mk_cube_wdir_row(_params['wdir'], "WDIR:", "", "", W1, W2, W3, left_margin=0)
+    #--------------------------
+    print(_inputcube)
+    print(_wdir)
+    #--------------------------
+    print(_hline(W1, W2, W3, left_margin=left_margin))
+    #--------------------------
+    _subtitle = 'Key header params'
+    print(_mk_row(_subtitle, "Value", "Note", W1, W2, W3, left_margin=left_margin))
+    #--------------------------
     print(_hline(W1, W2, W3, left_margin=left_margin))
 
-    # (1) Key params
+    # (1) Key header params
     roi1 = f"[{naxis1_s0} : {naxis1_e0}]" if (naxis1_s0 is not None and naxis1_e0 is not None) else "[:]"
     roi2 = f"[{naxis2_s0} : {naxis2_e0}]" if (naxis2_s0 is not None and naxis2_e0 is not None) else "[:]"
     print(_mk_row("naxis1 (pixels)",      str(naxis1), roi1, W1, W2, W3, left_margin=left_margin))
     print(_mk_row("naxis2 (pixels)",      str(naxis2), roi2, W1, W2, W3, left_margin=left_margin))
     print(_mk_row("naxis3 (channels)",    str(naxis3), "[:]", W1, W2, W3, left_margin=left_margin))
+    # (2) Velocity / spectral axis
+    sign_note = "(+) spectral axis increasing" if cdelt3_ms >= 0 else "(-) spectral axis decreasing"
+    print(_mk_row(f"Velocity min ({vel_unit_label})", f"{vel_min_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
+    print(_mk_row(f"Velocity max ({vel_unit_label})", f"{vel_max_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
+    print(_mk_row(f"CDELT3 ({cdelt3_unit_label})", f"{cdelt3_ms:+.2f}", sign_note,
+                  W1, W2, W3, left_margin=left_margin))
+    print(_mk_row("Spec axis unit check", vel_unit_label, "<- displayed here should be km/s",
+                  W1, W2, W3, left_margin=left_margin))
+
+    #--------------------------
+    print(_hline(W1, W2, W3, left_margin=left_margin))
+    _subtitle = 'Key baygaud params'
+    print(_mk_row(_subtitle, "Value", "Note", W1, W2, W3, left_margin=left_margin))
+    print(_hline(W1, W2, W3, left_margin=left_margin))
+    #--------------------------
     if max_ngauss is not None:
         print(_mk_row("max_ngauss (number)", str(max_ngauss), "Maximum Gaussian components",
                       W1, W2, W3, left_margin=left_margin))
     if peak_sn_limit is not None:
         print(_mk_row("peak-flux S/N limit", f"{float(peak_sn_limit):.1f}", "Minimum peak-flux S/N",
                       W1, W2, W3, left_margin=left_margin))
-
     print(_hline(W1, W2, W3, left_margin=left_margin))
-
-    # (2) Velocity / spectral axis
-    sign_note = "(+) spectral axis increasing" if cdelt3_ms >= 0 else "(-) spectral axis decreasing"
-    print(_mk_row(f"Velocity min ({vel_unit_label})", f"{vel_min_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(f"Velocity max ({vel_unit_label})", f"{vel_max_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(f"CDELT3 ({cdelt3_unit_label})", f"{cdelt3_ms:.2f}", sign_note,
-                  W1, W2, W3, left_margin=left_margin))
-    print(_mk_row("Spec axis unit check", vel_unit_label, "<- displayed here should be km/s",
-                  W1, W2, W3, left_margin=left_margin))
-
-    print(_hline(W1, W2, W3, left_margin=left_margin))
+    #--------------------------
 
     # (3) Runtime (Ray)
     print(_mk_row("Runtime (Ray)", "Value", "", W1, W2, W3, left_margin=left_margin))
@@ -376,6 +449,7 @@ def _yaml_load(path: str) -> dict:
             return y.load(f) or {}
 
 def print_cube_summary_from_info(
+    _params,
     info: dict | None = None,
     *,
     cube_info: dict | None = None,
@@ -426,6 +500,7 @@ def print_cube_summary_from_info(
 
     # (4) Call print_cube_summary
     print_cube_summary(
+        _params,
         naxis1=g("naxis1", 0),
         naxis2=g("naxis2", 0),
         naxis3=g("naxis3", 0),

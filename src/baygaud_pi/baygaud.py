@@ -215,6 +215,7 @@ def main():
     print_banner()
 
     print_cube_summary_from_info(
+        _params,
         cube_info=cube_info,
         yaml_path=configfile,
         left_margin=LEFT_MARGIN,
@@ -222,6 +223,7 @@ def main():
         ray_info=runtime_info
     )
     print()
+    sys.exit()
 
     save_fmt = f"{_params['wdir']}/{_params['_segdir']}/G{max_ngauss:02d}.x{{curi}}.ys{_js}ye{_je}"
 
