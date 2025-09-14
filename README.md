@@ -39,7 +39,7 @@
 
 - **Python:** 3.13 recommended (3.10–3.12 also work)  
 - **OS:** Tested on Ubuntu 20.04.6 LTS (expected to work on most releases) and macOS 15.6.1 (Apple M2 Pro)  
-- **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `numpy`, `matplotlib`, etc.  
+- **Core packages:** `dynesty (2.1.5)`, `ray (2.x)`, `astropy`, `spectral-cube`, `scipy`, `numpy`, `matplotlib`, etc.  
 - **Tkinter note (or the viewer only):** `python3.x-tk` (see Tkinter installation note below)
   > `baygaud_viewer.py` requires **Tkinter**. The core pipeline (`baygaud.py`, `baygaud_classify.py`) does **not** need it.
   >
