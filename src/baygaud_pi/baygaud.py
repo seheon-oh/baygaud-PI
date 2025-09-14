@@ -223,7 +223,6 @@ def main():
         ray_info=runtime_info
     )
     print()
-    sys.exit()
 
     save_fmt = f"{_params['wdir']}/{_params['_segdir']}/G{max_ngauss:02d}.x{{curi}}.ys{_js}ye{_je}"
 
