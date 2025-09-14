@@ -326,7 +326,7 @@ def print_cube_summary(
     sign_note = "(+) spectral axis increasing" if cdelt3_ms >= 0 else "(-) spectral axis decreasing"
     print(_mk_row(f"Velocity min ({vel_unit_label})", f"{vel_min_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
     print(_mk_row(f"Velocity max ({vel_unit_label})", f"{vel_max_kms:.2f}", "", W1, W2, W3, left_margin=left_margin))
-    print(_mk_row(f"CDELT3 ({cdelt3_unit_label})", f"{abs(cdelt3_ms):.2f}", sign_note,
+    print(_mk_row(f"CDELT3 ({cdelt3_unit_label})", f"{cdelt3_ms:.2f}", sign_note,
                   W1, W2, W3, left_margin=left_margin))
     print(_mk_row("Spec axis unit check", vel_unit_label, "<- displayed here should be km/s",
                   W1, W2, W3, left_margin=left_margin))
@@ -446,3 +446,5 @@ def print_cube_summary_from_info(
         title=title,
         ray_info=ray_info,
     )
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
