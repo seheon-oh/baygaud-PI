@@ -99,14 +99,14 @@ nlive: 100                   # [RECOMMENDED]
 sample: 'rwalk'              # [RECOMMENDED]
 
 # Termination
-dlogz: 0.01                  # evidence tolerance                    [RECOMMENDED]
+dlogz: 0.2                  # evidence tolerance                    [RECOMMENDED]
 
 # Runtime limits
 maxiter: 999999              # [RECOMMENDED]
 maxcall: 999999              # [RECOMMENDED]
 
 # Efficiency & checks
-update_interval: 2.0         # updates every (2.0 * nlive)           [RECOMMENDED]
+update_interval: 0.8         # updates every (0.8 * nlive)           [RECOMMENDED]
 vol_dec: 0.2                 # [RECOMMENDED]
 vol_check: 2                 # [RECOMMENDED]
 facc: 0.5                    # [RECOMMENDED]
@@ -115,7 +115,7 @@ fmove: 0.9                   # [RECOMMENDED]
 # Moves
 walks: 25                    # [RECOMMENDED]
 rwalk: 100                   # [RECOMMENDED]
-max_move: 100                # [RECOMMENDED]
+max_move: 80                # [RECOMMENDED]
 
 # Bounds: 'multi' (multimodal) vs 'single' (unimodal)
 bound: 'multi'               # [RECOMMENDED]
@@ -196,7 +196,7 @@ _sort_gauss_wrt_int: 'Y'        # [RECOMMENDED]
 # Typically leave as is unless you need specific behavior.
 # -----------------------------------------------------------------------------
 matched_filter:
-  sigma_list_ch: [1.5, 2, 3, 4, 5]   # Gaussian kernel widths (channels)  [RECOMMENDED]
+  sigma_list_ch: [1.5, 2, 3, 4, 5]   # Gaussian kernel widths (channels)   [RECOMMENDED]
   k_sigma: 3.0                        # sigma multiplier for threshold     [RECOMMENDED]
   thres_sigma: 2.0                    # primary S/N threshold              [RECOMMENDED]
   amp_sigma_thres: 2.0                # amplitude S/N threshold            [RECOMMENDED]
@@ -219,11 +219,11 @@ robust_rms:
 
 sgfit_bounds:
   use_phys_for_x_bounds: true         # [RECOMMENDED]
-  model_sigma_bounds: [0.0, 0.7]      # [RECOMMENDED]
+  model_sigma_bounds: [0.0, 0.4]      # [RECOMMENDED]
   k_bg: 3.0                           # [RECOMMENDED]
   k_x: 5.0                            # [RECOMMENDED]
-  sigma_scale_bounds: [0.1, 3.0]      # [RECOMMENDED]
-  peak_scale_bounds: [0.3, 1.5]       # [RECOMMENDED]
+  sigma_scale_bounds: [0.1, 2.0]      # [RECOMMENDED]
+  peak_scale_bounds: [0.3, 1.1]       # [RECOMMENDED]
   min_x_span: 1.0e-5                  # [RECOMMENDED]
   min_sigma: 1.0e-4                   # [RECOMMENDED]
   clip_sigma_hi: 0.999                # [RECOMMENDED]
