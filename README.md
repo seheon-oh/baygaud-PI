@@ -92,7 +92,7 @@
   [seheon@Mac project] sudo apt install -y python3.13-tk
   ```
 
-  > If have just installed Python 3.13 on Ubuntu and want to set up baygaud-PI cleanly without conflicts from the system’s older Python (e.g., 3.8), please follow these steps to prepare a clean environment before installing baygaud-PI. With these steps, you ensure that your installation is fully isolated in Python 3.13 and will not conflict with the system’s default Python (3.8). Or you go jump to ((### 2) Clone baygaud-PI from github below)
+  > If have just installed Python 3.13 on Ubuntu and want to set up baygaud-PI cleanly without conflicts from the system’s older Python (e.g., 3.8), please follow these steps to prepare a clean environment before installing baygaud-PI. With these steps, you ensure that your installation is fully isolated in Python 3.13 and will not conflict with the system’s default Python (e.g., 3.8). Or you go jump to ((### 2) Clone baygaud-PI from github below)
 
   ```bash
   # (1) Create and activate a Python 3.13 virtual environment (e.g., .venv313)
