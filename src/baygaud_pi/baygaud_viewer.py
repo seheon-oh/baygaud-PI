@@ -385,7 +385,7 @@ def plot_profiles():
         spectral_axis = _params['spectral_axis']
         cube = _params['cube'][:, y, x]
 
-        ax2.step(spectral_axis, cube, linewidth=2.0)
+        ax2.step(spectral_axis, cube, linewidth=1.0)
         input_prof = np.full_like(cube, cube)
         total = np.zeros_like(spectral_axis)
 
@@ -393,12 +393,15 @@ def plot_profiles():
         ng_opt_fits = glob.glob(window_params['path_fig1'])[0]
         ng_opt = fits.getdata(ng_opt_fits)
 
+
         if not np.isnan(ng_opt[y, x]):
             for i in range(ng_opt[y, x].astype(int)):
                 vel = _params['vels'][i][y, x]
                 disp = _params['disps'][i][y, x]
                 amp = _params['amps'][i][y, x]
                 sn = _params['sn'][i][y, x]
+
+
 
                 if np.any(np.isnan([vel, disp, amp])):
                     continue
@@ -409,12 +412,15 @@ def plot_profiles():
 
                 label = f'G{i + 1:<2} (f: {amp*1000:>.1f} | x: {vel:>.1f} | s: {disp:>.1f} | S/N: {sn:>.1f})'
                 ax2.plot(spectral_axis, ploty, label=label, color=colors[i], ls='-', alpha=0.5, linewidth=1.0)
+                ax2.legend(fontsize=6, markerscale=0.8, handlelength=1.0,
+                            handletextpad=0.4, labelspacing=0.3, borderpad=0.3)
+                #ax2.plot(spectral_axis, ploty, color=colors[i], ls='-', alpha=0.5, linewidth=1.0)
                 ploty -= bg
 
-            ax2.legend(fontsize=10.0)
-            add_panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y][x]), fontsize=10)
+            ax2.legend(fontsize=6.0)
+            add_panel_label(ax2, '(x, y | N-Gauss)=(%d, %d | %d)' % (x, y, ng_opt[y][x]), fontsize=6)
 
-        add_panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.95, fontsize=10)
+        add_panel_label(window_plot['ax3'], 'Residuals', 0.05, 0.85, fontsize=6)
         total += bg
         res = input_prof - total
 
@@ -423,16 +429,26 @@ def plot_profiles():
         window_plot['ax3'].plot(_params['spectral_axis'], 1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
         window_plot['ax3'].plot(_params['spectral_axis'], -1*rms_axis, color='purple', ls='--', linewidth=1.0, alpha=0.7)
 
-        window_plot['ax2'].text(-0.12, -0, 'Flux density ({})'.format(window_params['unit_cube']), ha='center', va='center', transform=window_plot['ax2'].transAxes, rotation=90, fontsize=10)
-        window_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=10)
+        window_plot['ax2'].text(-0.12, 0.5, 'Flux density ({})'.format(window_params['unit_cube']), ha='center', va='center', transform=window_plot['ax2'].transAxes, rotation=90, fontsize=6)
+        window_plot['ax3'].set_xlabel(r'Spectral axis (km$\,$s$^{-1}$)', fontsize=6)
 
         window_plot['ax2'].margins(x=0.02, y=0.15)
         window_plot['ax3'].margins(x=0.02, y=0.05)
 
-        window_plot['ax2'].xaxis.set_tick_params(labelsize=10)
-        window_plot['ax2'].yaxis.set_tick_params(labelsize=10)
-        window_plot['ax3'].xaxis.set_tick_params(labelsize=10)
-        window_plot['ax3'].yaxis.set_tick_params(labelsize=10)
+        window_plot['ax2'].xaxis.set_tick_params(labelsize=6)
+        window_plot['ax2'].yaxis.set_tick_params(labelsize=6)
+        window_plot['ax3'].xaxis.set_tick_params(labelsize=6)
+        window_plot['ax3'].yaxis.set_tick_params(labelsize=6)
+
+
+        x2, y2, w2, h2 = ax2.get_position().bounds
+        x3, y3, w3, h3 = ax3.get_position().bounds
+
+        # 바닥(y3) 고정: 높이만 조정
+        ax3.set_position([x3, y3, w3, h2 * 0.5])
+        top3 = y3 + h3
+        new_h3 = h2 * 0.5
+        ax3.set_position([x3, top3 - new_h3, w3, new_h3])
 
         window_plot['canvas2'].draw()
     except IndexError:
