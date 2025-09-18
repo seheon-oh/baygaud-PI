@@ -193,7 +193,7 @@
 
 ```yaml
 # --- REQUIRED minimum you should customize ---
-wdir: '/ABSOLUTE/PATH/TO/YOUR/WORKDIR'
+wdir: '/PATH/TO/YOUR/WORKDIR'
 input_datacube: 'your_cube.fits'
 num_hanning_passes: 0
 
