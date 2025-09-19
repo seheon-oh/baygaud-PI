@@ -13,6 +13,7 @@
 
 import numpy as np
 
+from datetime import datetime, timezone
 #|-----------------------------------------|
 import astropy.units as u
 from astropy.io import fits
@@ -144,8 +145,175 @@ def read_datacube(_params):
 
 
 #  _____________________________________________________________________________  #
+# Get bygaud-PI version from _version.py in the same directory
+try:
+    from _version import __version__ as _BYGAUD_VERSION
+except Exception:
+    _BYGAUD_VERSION = "unknown"
+
+# Map integer codes to BUNIT strings
+_BUNIT_MAP = {
+    0: "Jy/beam",           # integrated intensity
+    1: "km/s",              # line-of-sight velocity 
+    2: "km/s",              # velocity dispersion (gaussian sigma)
+    3: "Jy/beam",           # background
+    4: "Jy/beam",           # rms
+    5: "Jy/beam",           # peakflux
+    6: "peakflux-s/n",      # peakflux S/N
+    7: "n-gauss",           # N-Gauss
+}
+
+def update_header_cube_to_2d(_hdulist_nparray,
+                             _hdu_cube,
+                             _params=None,
+                             bunit_code: int = None):
+    """
+    Copy spatial WCS keywords (only those that exist) from a 3D cube header
+    into a 2D FITS header. Also set ORIGIN, BUNIT, and add HISTORY lines.
+
+    What this function does:
+      - Copies spatial WCS keys for axes 1 and 2 if they exist in the cube.
+      - If WCSAXES exists in the cube, set it to 2 in the 2D header.
+      - Sets ORIGIN to 'bygaud-PI <version> (<UTC time>)'.
+      - Sets BUNIT from an integer code (0..7).
+      - Adds HISTORY lines:
+          * 'input.data.cube = <input_datacube>' (if present in parameters)
+          * A block of dynesty parameters
+          * A block of classification parameters
+          * A block of global kinematics parameters
+    """
+
+    # -------- helpers (short, safe, ASCII-only where needed) --------
+    def _get_header(hdu_like):
+        # Return a Header from an HDU or an HDUList
+        return (hdu_like.header if hasattr(hdu_like, "header") else hdu_like[0].header)
+
+    def _copy_if_present(dst, src, keys):
+        # Copy keys that exist in source into destination
+        for k in keys:
+            if k in src:
+                dst[k] = src[k]
+
+    def _copy_matrix(dst, src, base):
+        # Copy 2x2 PC/CD matrices for spatial axes (1,2) if present
+        for i in (1, 2):
+            for j in (1, 2):
+                key = f"{base}{i}_{j}"
+                if key in src:
+                    dst[key] = src[key]
+
+    def _add_history_line(hdr, text):
+        # Add a HISTORY line; enforce ASCII to avoid FITS errors
+        s = str(text)
+        try:
+            hdr.add_history(s)
+        except Exception:
+            hdr.add_history(s.encode("ascii", "ignore").decode("ascii"))
+
+    def _add_history_block(hdr, title, kv_pairs, line_width=70):
+        # Add a titled block of "k=v" pairs, wrapped to ~line_width
+        if not kv_pairs:
+            return
+        _add_history_line(hdr, f"{title}:")
+        line = ""
+        for idx, (k, v) in enumerate(kv_pairs):
+            frag = f"{k}={v}"
+            if idx == 0:
+                line = frag
+            elif len(line) + 2 + len(frag) <= line_width:
+                line += ", " + frag
+            else:
+                _add_history_line(hdr, "  " + line)
+                line = frag
+        if line:
+            _add_history_line(hdr, "  " + line)
+
+    # -------- get headers --------
+    dst_hdr = _hdulist_nparray[0].header
+    src_hdr = _get_header(_hdu_cube)
+
+    # -------- copy basic spatial WCS keys if present --------
+    scalar_keys = [
+        # axis 1
+        "CTYPE1", "CUNIT1", "CRVAL1", "CRPIX1", "CDELT1", "CROTA1",
+        # axis 2
+        "CTYPE2", "CUNIT2", "CRVAL2", "CRPIX2", "CDELT2", "CROTA2",
+        # frame/system
+        "RADESYS", "EQUINOX", "WCSNAME", "LONPOLE", "LATPOLE", "MJD-OBS", "DATE-OBS",
+        # beam (copy if the cube has these)
+        "BMAJ", "BMIN", "BPA",
+        # data unit (will be overridden by bunit_code below)
+        "BUNIT",
+    ]
+    _copy_if_present(dst_hdr, src_hdr, scalar_keys)
+
+    # Copy 2x2 PC/CD if present
+    _copy_matrix(dst_hdr, src_hdr, "PC")
+    _copy_matrix(dst_hdr, src_hdr, "CD")
+
+    # If cube has WCSAXES, set it to 2 for a 2D product
+    if "WCSAXES" in src_hdr:
+        try:
+            dst_hdr["WCSAXES"] = 2
+        except Exception:
+            pass  # be tolerant if header library is picky about types
+
+    # -------- ORIGIN (always set) --------
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+    dst_hdr["ORIGIN"] = f"bygaud-PI {_BYGAUD_VERSION} ({now_iso})"
+
+    # -------- BUNIT (must come from a code 0..7) --------
+    if bunit_code is None:
+        raise ValueError("You must pass bunit_code (0..7).")
+    if bunit_code not in _BUNIT_MAP:
+        raise ValueError(f"bunit_code must be in 0..7; got {bunit_code}")
+    dst_hdr["BUNIT"] = _BUNIT_MAP[bunit_code]
+
+    # -------- HISTORY from YAML parameters (dict or file) --------
+    params = _params
+    if isinstance(params, dict):
+        # Record input data cube name if present
+        in_cube = params.get("input_datacube")
+        if in_cube:
+            _add_history_line(dst_hdr, f"input.data.cube = {in_cube}")
+
+        # Keys to record in HISTORY as simple k=v pairs
+        dynesty_keys = [
+            "_dynesty_class_", "nlive", "sample", "dlogz", "maxiter", "maxcall",
+            "update_interval", "vol_dec", "vol_check", "facc", "fmove",
+            "walks", "rwalk", "max_move", "bound",
+        ]
+        classif_keys = [
+            "bayes_factor_limit", "max_ngauss", "mom0_nrms_limit",
+            "peak_sn_pass_for_ng_opt", "peak_sn_limit", "int_sn_limit",
+        ]
+        global_kin_keys = [
+            "g_vlos_lower", "g_vlos_upper", "g_sigma_lower", "g_sigma_upper",
+        ]
+
+        def _collect(keys):
+            out = []
+            for k in keys:
+                if k in params:
+                    v = params[k]
+                    if isinstance(v, (list, tuple, np.ndarray)):
+                        v = list(v)
+                    out.append((k, v))
+            return out
+
+        _add_history_block(dst_hdr, "DYNESTY PARAMS", _collect(dynesty_keys))
+        _add_history_block(dst_hdr, "CLASSIFICATION PARAMS", _collect(classif_keys))
+        _add_history_block(dst_hdr, "GLOBAL KINEMATICS", _collect(global_kin_keys))
+    else:
+        _add_history_line(dst_hdr, "YAML history not added (no params dict).")
+
+    return _hdulist_nparray
+
+
+
+
 # [_____________________________________________________________________________] #
-def update_header_cube_to_2d(_hdulist_nparray, _hdu_cube):
+def update_header_cube_to_2d_org(_hdulist_nparray, _hdu_cube):
     """
     Copy relevant WCS-ish keywords from a 3D cube header into a 2D FITS HDUList
     so that the 2D product inherits correct spatial metadata.
