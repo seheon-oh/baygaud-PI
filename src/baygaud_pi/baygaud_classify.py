@@ -275,7 +275,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.0.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -292,7 +293,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.0.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -307,7 +309,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.1.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -316,7 +319,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.1.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -327,7 +331,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.2.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -336,7 +341,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.2.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -346,7 +352,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
+   # update_header_cube_to_2d(_hdulist_nparray, _hdu)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.3.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -355,7 +362,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.3.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -366,7 +374,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.4.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -375,7 +384,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.4.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -386,7 +396,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.5.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -395,7 +406,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.5.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -405,7 +417,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.6.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -414,7 +427,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.6.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -424,7 +438,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.7.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
     _nparray_t = np.array([np.where( \
@@ -433,7 +448,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
     _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
     _hdulist_nparray = fits.HDUList([_hdu_nparray])
-    update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+    update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
     _hdulist_nparray.writeto('%s/%s/%s.G%d.7.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss), overwrite=True)
     _hdulist_nparray.close()
 
@@ -460,7 +476,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.0.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -477,7 +494,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.0.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -487,7 +505,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.1.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -498,7 +517,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.1.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -508,7 +528,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.2.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -518,7 +539,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.2.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -528,7 +550,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.3.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -538,7 +561,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.3.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -548,7 +572,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.4.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -558,7 +583,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.4.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -568,7 +594,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.5.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -578,7 +605,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.5.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -590,7 +618,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.6.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -600,7 +629,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.6.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -610,7 +640,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.7.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -620,7 +651,8 @@ def extract_maps_bulk(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, 
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/non_bulk/non_bulk.G%d_%d.7.e.fits' % (_output_dir, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1289,7 +1321,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1319,7 +1352,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1334,7 +1368,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1350,7 +1385,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1366,7 +1402,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1381,7 +1418,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1397,7 +1435,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1413,7 +1452,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1428,7 +1468,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1443,7 +1484,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1459,7 +1501,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1474,7 +1517,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1490,7 +1534,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1505,7 +1550,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1520,7 +1566,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1535,7 +1582,8 @@ def extract_maps_gparam_sorted(_fitsarray_gfit_results2, params, _output_dir, _k
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1788,7 +1836,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1818,7 +1867,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1833,7 +1883,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1849,7 +1900,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1865,7 +1917,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1880,7 +1933,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1896,7 +1950,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1912,7 +1967,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1927,7 +1983,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1942,7 +1999,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1958,7 +2016,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1973,7 +2032,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -1989,7 +2049,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2004,7 +2065,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2019,7 +2081,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2034,7 +2097,8 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2208,7 +2272,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2226,7 +2291,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=0)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.0.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2236,7 +2302,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2247,7 +2314,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=1)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.1.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2257,7 +2325,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2267,7 +2336,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=2)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.2.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2277,7 +2347,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2287,7 +2358,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=3)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.3.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2297,7 +2369,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2307,7 +2380,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=4)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.4.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2317,7 +2391,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2327,7 +2402,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=5)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.5.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2339,7 +2415,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2349,7 +2426,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=6)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.6.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2359,7 +2437,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -2369,7 +2448,8 @@ def extract_maps_ngfit(_fitsarray_gfit_results2, params, _output_dir, _kin_comp,
 
         _hdu_nparray = fits.PrimaryHDU(_nparray_t[0])
         _hdulist_nparray = fits.HDUList([_hdu_nparray])
-        update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        #update_header_cube_to_2d(_hdulist_nparray, _hdu)
+        update_header_cube_to_2d(_hdulist_nparray, _hdu, _params=params, bunit_code=7)
         _hdulist_nparray.writeto('%s/%s/%s.G%d_%d.7.e.fits' % (_output_dir, _kin_comp, _kin_comp, max_ngauss, i+1), overwrite=True)
         _hdulist_nparray.close()
 
@@ -7531,18 +7611,19 @@ def main():
 
 
 
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_amp[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos[j1, i1]))
-    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int[j1, i1]))
-    print("")
-    print("")
-
-    i1 = _params['_i0']
-    j1 = _params['_j0']
+# ---- CHECK PROFILES
+#    print(" ____________________________________________")
+#    print("[____________________________________________]")
+#    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng[j1, i1]))
+#    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_amp[j1, i1]))
+#    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp[j1, i1]))
+#    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos[j1, i1]))
+#    print("[--> (%d, %d) -- optimal ng: %d ...]" % (i1, j1, opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int[j1, i1]))
+#    print("")
+#    print("")
+#
+#    i1 = _params['_i0']
+#    j1 = _params['_j0']
 
 
 
