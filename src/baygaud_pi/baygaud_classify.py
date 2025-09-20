@@ -46,6 +46,8 @@ from astropy.io import fits
 from spectral_cube import SpectralCube
 from _handle_yaml import read_configfile
 
+from numba import njit, prange
+
 
 from _fits_io import update_header_cube_to_2d
 
@@ -7092,6 +7094,128 @@ def sort_gaussians_wrt_gparam_serialized(_fitsarray_gfit_results2, n_gauss, gaus
 
 
 
+
+
+# mode: 0=vlos, 1=vdisp, 2=peak_amp, 3=integrated_int(sqrt(2*pi)*sigma*amp)
+@njit(parallel=True, cache=True)
+def _sort_blocks_numba(blk_p, blk_e, mode):
+    """
+    Sort a single model block in-place style (returns new arrays).
+    blk_p, blk_e: shape (3*k, ny, nx) for k Gaussians (each Gaussian has 3 params)
+    mode: which key to sort on (descending)
+    """
+    ny = blk_p.shape[1]
+    nx = blk_p.shape[2]
+    k  = blk_p.shape[0] // 3
+
+    out_p = np.empty_like(blk_p)
+    out_e = np.empty_like(blk_e)
+
+    sqrt2pi = np.sqrt(2.0 * np.pi)
+
+    # Parallelize over rows; inner loop over columns
+    for y in prange(ny):
+        for x in range(nx):
+            # Build sort keys per Gaussian for this pixel
+            keys = np.empty(k, dtype=blk_p.dtype)
+            if mode == 3:
+                # integrated intensity = sqrt(2*pi) * vdisp * peak_amp
+                for g in range(k):
+                    vdisp = blk_p[3 * g + 1, y, x]
+                    amp   = blk_p[3 * g + 2, y, x]
+                    keys[g] = sqrt2pi * vdisp * amp
+            else:
+                for g in range(k):
+                    keys[g] = blk_p[3 * g + mode, y, x]
+
+            # Descending order
+            order = np.argsort(-keys)
+
+            # Reorder params and errors by the sorted indices
+            for r in range(k):
+                src = order[r]
+                dst_base = 3 * r
+                src_base = 3 * src
+
+                # params
+                out_p[dst_base + 0, y, x] = blk_p[src_base + 0, y, x]
+                out_p[dst_base + 1, y, x] = blk_p[src_base + 1, y, x]
+                out_p[dst_base + 2, y, x] = blk_p[src_base + 2, y, x]
+                # errors
+                out_e[dst_base + 0, y, x] = blk_e[src_base + 0, y, x]
+                out_e[dst_base + 1, y, x] = blk_e[src_base + 1, y, x]
+                out_e[dst_base + 2, y, x] = blk_e[src_base + 2, y, x]
+
+    return out_p, out_e
+
+
+def sort_gaussians_wrt_gparam_numba(_fitsarray_gfit_results2, n_gauss, gauss_param):
+    """
+    Numba-accelerated sorter with the same output meaning as the vectorized version.
+
+    Inputs
+    ------
+    _fitsarray_gfit_results2 : np.ndarray, shape (P, ny, nx)
+        Packed parameter cube across models (1..n_gauss). Layout must match the
+        original function:
+          - For model with k components (k = 1..n_gauss):
+              params block: [start+2 : start+2+3*k)    -> (vlos, vdisp, peak) per Gaussian
+              errs   block: [start+4+3*k : start+4+6*k)
+          - nparams_eachmodel = 2*(3*n_gauss + 2) + n_gauss + 7
+    n_gauss : int
+        Maximum number of Gaussians.
+    gauss_param : str
+        One of '_peak_amp', '_vdisp', '_vlos', '_integrated_int'.
+
+    Returns
+    -------
+    np.ndarray
+        Sorted copy of _fitsarray_gfit_results2.
+    """
+    if gauss_param == '_peak_amp':
+        mode = 2
+    elif gauss_param == '_vdisp':
+        mode = 1
+    elif gauss_param == '_vlos':
+        mode = 0
+    elif gauss_param == '_integrated_int':
+        mode = 3
+    else:
+        raise ValueError(f"Unknown gauss_param: {gauss_param}")
+
+    arr_in  = _fitsarray_gfit_results2
+    arr_out = np.copy(arr_in)
+
+    ny = arr_in.shape[1]
+    nx = arr_in.shape[2]
+
+    nparams_eachmodel = 2 * (3 * n_gauss + 2) + n_gauss + 7
+
+    for model_idx in range(n_gauss):
+        k = model_idx + 1
+        start = model_idx * nparams_eachmodel
+
+        # Slice contiguously for this model block
+        pblk = arr_in[start + 2 : start + 2 + 3 * k, :, :]
+        eblk = arr_in[start + 4 + 3 * k : start + 4 + 6 * k, :, :]
+
+        # Make sure blocks are contiguous for Numba speed
+        pblk_c = np.ascontiguousarray(pblk)
+        eblk_c = np.ascontiguousarray(eblk)
+
+        # Sort this model block
+        p_sorted, e_sorted = _sort_blocks_numba(pblk_c, eblk_c, mode)
+
+        # Write back into the output array
+        arr_out[start + 2 : start + 2 + 3 * k, :, :] = p_sorted
+        arr_out[start + 4 + 3 * k : start + 4 + 6 * k, :, :] = e_sorted
+
+    return arr_out
+
+
+
+
+
 def sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, n_gauss, gauss_param):
     if gauss_param == '_peak_amp':
         sort_wrt = 2
@@ -7167,6 +7291,401 @@ def sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, n_gauss, gaus
         _fitsarray_gfit_results2_sorted[cur_model_gfit_params_e_first_idx:cur_model_gfit_params_e_end_idx, :, :] = flattened_params_e.transpose(2, 0, 1)
 
     return _fitsarray_gfit_results2_sorted
+
+
+
+
+@njit(parallel=True, cache=True)
+def _fill_sn_slice_numba_kernel(arr, out_slice, max_ngauss, nparams_step, lower, upper):
+    """
+    Numba kernel that fills out_slice with the same logic as the original:
+    out_slice[i, j, y, x] = num/denom if (j>=i) and (denom>0) and (lower <= sigma < upper), else 0.
+    """
+    ny = arr.shape[1]
+    nx = arr.shape[2]
+    for i in prange(max_ngauss):
+        for j in range(max_ngauss):
+            # If j < i, fill zeros directly
+            if j < i:
+                for y in range(ny):
+                    for x in range(nx):
+                        out_slice[i, j, y, x] = 0.0
+                continue
+
+            idx_denom = nparams_step * (j + 1) - max_ngauss - 7 + j
+            idx_sigma = nparams_step * j + 3 + 3 * i
+            idx_num   = nparams_step * j + 4 + 3 * i
+
+            for y in range(ny):
+                for x in range(nx):
+                    den = arr[idx_denom, y, x]
+                    sig = arr[idx_sigma, y, x]
+                    if (den > 0.0) and (sig >= lower) and (sig < upper):
+                        out_slice[i, j, y, x] = arr[idx_num, y, x] / den
+                    else:
+                        out_slice[i, j, y, x] = 0.0
+
+def compute_sn_ng_opt_slice_numba(sn_ng_opt_slice,
+                                  _fitsarray_gfit_results2,
+                                  max_ngauss,
+                                  nparams_step,
+                                  _params,
+                                  verbose: bool = False,
+                                  i1: int | None = None,
+                                  j1: int | None = None):
+    """
+    Numba-accelerated version with a verbose toggle.
+    The heavy math runs in a JIT kernel; prints are done in Python when verbose=True.
+    """
+    arr = _fitsarray_gfit_results2
+    ny, nx = arr.shape[1], arr.shape[2]
+
+    # Resolve (j1, i1) for debug print
+    if j1 is None:
+        j1 = int(_params.get('_j0', 0))
+    if i1 is None:
+        i1 = int(_params.get('_i0', 0))
+    j1 = max(0, min(j1, ny - 1))
+    i1 = max(0, min(i1, nx - 1))
+
+    # Compute with Numba kernel
+    _fill_sn_slice_numba_kernel(
+        arr,
+        sn_ng_opt_slice,
+        max_ngauss,
+        nparams_step,
+        _params['g_sigma_lower'],
+        _params['g_sigma_upper'],
+    )
+
+    # Match the original print behavior if requested
+    if verbose:
+        for i in range(max_ngauss):
+            for j in range(max_ngauss):
+                if j >= i:
+                    print(i, j,
+                          arr[nparams_step*j + 2 + 3*i, j1, i1],
+                          arr[nparams_step*j + 4 + 3*i, j1, i1],
+                          arr[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+            print("")
+
+
+
+
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _fill_sn_slice_sorted_wrt_amp_kernel(arr, out_slice, max_ngauss, nparams_step, lower, upper):
+    """
+    Numba kernel for the same formula:
+        out[i, j, y, x] = num/denom if (j>=i) and (den>0) and (lower<=sigma<upper), else 0
+    arr: (P, ny, nx), out_slice: (max_ngauss, max_ngauss, ny, nx)
+    """
+    ny = arr.shape[1]
+    nx = arr.shape[2]
+    for i in prange(max_ngauss):
+        for j in range(max_ngauss):
+            if j < i:
+                for y in range(ny):
+                    for x in range(nx):
+                        out_slice[i, j, y, x] = 0.0
+                continue
+
+            idx_denom = nparams_step * (j + 1) - max_ngauss - 7 + j
+            idx_sigma = nparams_step * j + 3 + 3 * i
+            idx_num   = nparams_step * j + 4 + 3 * i
+
+            for y in range(ny):
+                for x in range(nx):
+                    den = arr[idx_denom, y, x]
+                    sig = arr[idx_sigma, y, x]
+                    if (den > 0.0) and (sig >= lower) and (sig < upper):
+                        out_slice[i, j, y, x] = arr[idx_num, y, x] / den
+                    else:
+                        out_slice[i, j, y, x] = 0.0
+
+def compute_sn_ng_opt_slice_sorted_wrt_amp_numba(
+    sn_ng_opt_slice_gparam_sorted_wrt_amp: np.ndarray,
+    _fitsarray_gfit_results2_sorted_wrt_amp: np.ndarray,
+    max_ngauss: int,
+    nparams_step: int,
+    _params: dict,
+    verbose: bool = False,
+    i1: int | None = None,   # x index to print
+    j1: int | None = None,   # y index to print
+):
+    """
+    Numba-accelerated version with a verbose toggle.
+    """
+    arr = _fitsarray_gfit_results2_sorted_wrt_amp
+    ny, nx = arr.shape[1], arr.shape[2]
+
+    # Resolve (j1, i1) for debug prints
+    if j1 is None:
+        j1 = int(_params.get('_j0', 0))
+    if i1 is None:
+        i1 = int(_params.get('_i0', 0))
+    j1 = max(0, min(j1, ny - 1))
+    i1 = max(0, min(i1, nx - 1))
+
+    _fill_sn_slice_sorted_wrt_amp_kernel(
+        arr,
+        sn_ng_opt_slice_gparam_sorted_wrt_amp,
+        max_ngauss,
+        nparams_step,
+        _params['g_sigma_lower'],
+        _params['g_sigma_upper'],
+    )
+
+    if verbose:
+        for i in range(max_ngauss):
+            for j in range(max_ngauss):
+                if j >= i:
+                    print(i, j,
+                          arr[nparams_step * j + 2 + 3 * i, j1, i1],
+                          arr[nparams_step * j + 4 + 3 * i, j1, i1],
+                          arr[nparams_step * (j + 1) - max_ngauss - 7 + j, j1, i1])
+            print("")
+
+
+
+
+
+import numpy as np
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _fill_sn_slice_sorted_wrt_vdisp_kernel(arr, out_slice, max_ngauss, nparams_step, lower, upper):
+    """
+    Numba kernel:
+      out[i, j, y, x] = num/den if (j>=i) and (den>0) and (lower<=sigma<upper), else 0
+    arr: (P, ny, nx), out_slice: (max_ngauss, max_ngauss, ny, nx)
+    """
+    ny = arr.shape[1]
+    nx = arr.shape[2]
+    for i in prange(max_ngauss):
+        for j in range(max_ngauss):
+            if j < i:
+                for y in range(ny):
+                    for x in range(nx):
+                        out_slice[i, j, y, x] = 0.0
+                continue
+
+            idx_denom = nparams_step * (j + 1) - max_ngauss - 7 + j
+            idx_sigma = nparams_step * j + 3 + 3 * i
+            idx_num   = nparams_step * j + 4 + 3 * i
+
+            for y in range(ny):
+                for x in range(nx):
+                    den = arr[idx_denom, y, x]
+                    sig = arr[idx_sigma, y, x]
+                    if (den > 0.0) and (sig >= lower) and (sig < upper):
+                        out_slice[i, j, y, x] = arr[idx_num, y, x] / den
+                    else:
+                        out_slice[i, j, y, x] = 0.0
+
+def compute_sn_ng_opt_slice_sorted_wrt_vdisp_numba(
+    sn_ng_opt_slice_gparam_sorted_wrt_vdisp: np.ndarray,
+    _fitsarray_gfit_results2_sorted_wrt_vdisp: np.ndarray,
+    max_ngauss: int,
+    nparams_step: int,
+    _params: dict,
+    verbose: bool = False,
+    i1: int | None = None,   # x index to print
+    j1: int | None = None,   # y index to print
+):
+    """
+    Numba-accelerated version (same logic). Prints like the original when verbose=True.
+    """
+    arr = _fitsarray_gfit_results2_sorted_wrt_vdisp
+    ny, nx = arr.shape[1], arr.shape[2]
+
+    # Resolve (j1, i1) for debug prints
+    if j1 is None:
+        j1 = int(_params.get('_j0', 0))
+    if i1 is None:
+        i1 = int(_params.get('_i0', 0))
+    j1 = max(0, min(j1, ny - 1))
+    i1 = max(0, min(i1, nx - 1))
+
+    _fill_sn_slice_sorted_wrt_vdisp_kernel(
+        arr,
+        sn_ng_opt_slice_gparam_sorted_wrt_vdisp,
+        max_ngauss,
+        nparams_step,
+        _params['g_sigma_lower'],
+        _params['g_sigma_upper'],
+    )
+
+    if verbose:
+        for i in range(max_ngauss):
+            for j in range(max_ngauss):
+                if j >= i:
+                    print(i, j,
+                          arr[nparams_step * j + 2 + 3 * i, j1, i1],
+                          arr[nparams_step * j + 4 + 3 * i, j1, i1],
+                          arr[nparams_step * (j + 1) - max_ngauss - 7 + j, j1, i1])
+            print("")
+
+
+
+
+
+import numpy as np
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _fill_sn_slice_sorted_wrt_vlos_kernel(arr, out_slice, max_ngauss, nparams_step, lower, upper):
+    """
+    Numba kernel:
+      out[i, j, y, x] = num/den if (j>=i) and (den>0) and (lower<=sigma<upper), else 0
+    arr: (P, ny, nx), out_slice: (max_ngauss, max_ngauss, ny, nx)
+    """
+    ny = arr.shape[1]
+    nx = arr.shape[2]
+    for i in prange(max_ngauss):
+        for j in range(max_ngauss):
+            if j < i:
+                for y in range(ny):
+                    for x in range(nx):
+                        out_slice[i, j, y, x] = 0.0
+                continue
+
+            idx_denom = nparams_step * (j + 1) - max_ngauss - 7 + j
+            idx_sigma = nparams_step * j + 3 + 3 * i
+            idx_num   = nparams_step * j + 4 + 3 * i
+
+            for y in range(ny):
+                for x in range(nx):
+                    den = arr[idx_denom, y, x]
+                    sig = arr[idx_sigma, y, x]
+                    if (den > 0.0) and (sig >= lower) and (sig < upper):
+                        out_slice[i, j, y, x] = arr[idx_num, y, x] / den
+                    else:
+                        out_slice[i, j, y, x] = 0.0
+
+def compute_sn_ng_opt_slice_sorted_wrt_vlos_numba(
+    sn_ng_opt_slice_gparam_sorted_wrt_vlos: np.ndarray,
+    _fitsarray_gfit_results2_sorted_wrt_vlos: np.ndarray,
+    max_ngauss: int,
+    nparams_step: int,
+    _params: dict,
+    verbose: bool = False,
+    i1: int | None = None,   # x index to print
+    j1: int | None = None,   # y index to print
+):
+    """
+    Numba-accelerated version (same logic). Prints like the original when verbose=True.
+    """
+    arr = _fitsarray_gfit_results2_sorted_wrt_vlos
+    ny, nx = arr.shape[1], arr.shape[2]
+
+    # Resolve (j1, i1) for debug prints
+    if j1 is None:
+        j1 = int(_params.get('_j0', 0))
+    if i1 is None:
+        i1 = int(_params.get('_i0', 0))
+    j1 = max(0, min(j1, ny - 1))
+    i1 = max(0, min(i1, nx - 1))
+
+    _fill_sn_slice_sorted_wrt_vlos_kernel(
+        arr,
+        sn_ng_opt_slice_gparam_sorted_wrt_vlos,
+        max_ngauss,
+        nparams_step,
+        _params['g_sigma_lower'],
+        _params['g_sigma_upper'],
+    )
+
+    if verbose:
+        for i in range(max_ngauss):
+            for j in range(max_ngauss):
+                if j >= i:
+                    print(i, j,
+                          arr[nparams_step * j + 2 + 3 * i, j1, i1],
+                          arr[nparams_step * j + 4 + 3 * i, j1, i1],
+                          arr[nparams_step * (j + 1) - max_ngauss - 7 + j, j1, i1])
+            print("")
+
+
+
+import numpy as np
+from numba import njit, prange
+
+@njit(parallel=True, cache=True)
+def _fill_sn_slice_sorted_wrt_integrated_int_kernel(arr, out_slice, max_ngauss, nparams_step, lower, upper):
+    """
+    Numba kernel:
+      out[i, j, y, x] = num/den if (j>=i) and (den>0) and (lower<=sigma<upper), else 0
+    arr: (P, ny, nx), out_slice: (max_ngauss, max_ngauss, ny, nx)
+    """
+    ny = arr.shape[1]
+    nx = arr.shape[2]
+    for i in prange(max_ngauss):
+        for j in range(max_ngauss):
+            if j < i:
+                for y in range(ny):
+                    for x in range(nx):
+                        out_slice[i, j, y, x] = 0.0
+                continue
+
+            idx_denom = nparams_step * (j + 1) - max_ngauss - 7 + j
+            idx_sigma = nparams_step * j + 3 + 3 * i
+            idx_num   = nparams_step * j + 4 + 3 * i
+
+            for y in range(ny):
+                for x in range(nx):
+                    den = arr[idx_denom, y, x]
+                    sig = arr[idx_sigma, y, x]
+                    if (den > 0.0) and (sig >= lower) and (sig < upper):
+                        out_slice[i, j, y, x] = arr[idx_num, y, x] / den
+                    else:
+                        out_slice[i, j, y, x] = 0.0
+
+def compute_sn_ng_opt_slice_sorted_wrt_integrated_int_numba(
+    sn_ng_opt_slice_gparam_sorted_wrt_integrated_int: np.ndarray,
+    _fitsarray_gfit_results2_sorted_wrt_integrated_int: np.ndarray,
+    max_ngauss: int,
+    nparams_step: int,
+    _params: dict,
+    verbose: bool = False,
+    i1: int | None = None,   # x index to print
+    j1: int | None = None,   # y index to print
+):
+    """
+    Numba-accelerated version (same logic). Prints like the original when verbose=True.
+    """
+    arr = _fitsarray_gfit_results2_sorted_wrt_integrated_int
+    ny, nx = arr.shape[1], arr.shape[2]
+
+    # Resolve (j1, i1) for debug prints
+    if j1 is None:
+        j1 = int(_params.get('_j0', 0))
+    if i1 is None:
+        i1 = int(_params.get('_i0', 0))
+    j1 = max(0, min(j1, ny - 1))
+    i1 = max(0, min(i1, nx - 1))
+
+    _fill_sn_slice_sorted_wrt_integrated_int_kernel(
+        arr,
+        sn_ng_opt_slice_gparam_sorted_wrt_integrated_int,
+        max_ngauss,
+        nparams_step,
+        _params['g_sigma_lower'],
+        _params['g_sigma_upper'],
+    )
+
+    if verbose:
+        for i in range(max_ngauss):
+            for j in range(max_ngauss):
+                if j >= i:
+                    print(i, j,
+                          arr[nparams_step * j + 2 + 3 * i, j1, i1],
+                          arr[nparams_step * j + 4 + 3 * i, j1, i1],
+                          arr[nparams_step * (j + 1) - max_ngauss - 7 + j, j1, i1])
+            print("")
+
+
 
 
 
@@ -7322,10 +7841,10 @@ def main():
     print("[--> sort _fitsarray_gfit_results2 w.r.t. 'Int', 'VDISP, 'VLOS' and 'Peak_amp' ...]")
     print("")
     print("")
-    _fitsarray_gfit_results2_sorted_wrt_amp = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_peak_amp')
-    _fitsarray_gfit_results2_sorted_wrt_vdisp = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_vdisp')
-    _fitsarray_gfit_results2_sorted_wrt_vlos = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_vlos')
-    _fitsarray_gfit_results2_sorted_wrt_integrated_int = sort_gaussians_wrt_gparam_vectorized(_fitsarray_gfit_results2, max_ngauss, '_integrated_int')
+    _fitsarray_gfit_results2_sorted_wrt_amp = sort_gaussians_wrt_gparam_numba(_fitsarray_gfit_results2, max_ngauss, '_peak_amp')
+    _fitsarray_gfit_results2_sorted_wrt_vdisp = sort_gaussians_wrt_gparam_numba(_fitsarray_gfit_results2, max_ngauss, '_vdisp')
+    _fitsarray_gfit_results2_sorted_wrt_vlos = sort_gaussians_wrt_gparam_numba(_fitsarray_gfit_results2, max_ngauss, '_vlos')
+    _fitsarray_gfit_results2_sorted_wrt_integrated_int = sort_gaussians_wrt_gparam_numba(_fitsarray_gfit_results2, max_ngauss, '_integrated_int')
 
 
 
@@ -7367,39 +7886,39 @@ def main():
     nparams_step = 2*(3*max_ngauss+2) + (max_ngauss + 7)
 
     sn_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    sn_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
+    #sn_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
     sn_pass_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    sn_pass_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    x_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
-    x_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
+    #sn_pass_ng_opt_t = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
+    #x_ng_opt_slice = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
+    #x_ng_opt = np.zeros((max_ngauss, _fitsarray_gfit_results2.shape[1], _fitsarray_gfit_results2.shape[2]), dtype=float)
 
     sn_ng_opt_slice_gparam_sorted_wrt_amp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
+    #sn_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
     sn_pass_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_amp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
+    #sn_pass_ng_opt_t_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
+    #x_ng_opt_slice_gparam_sorted_wrt_amp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
+    #x_ng_opt_gparam_sorted_wrt_amp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_amp.shape[1], _fitsarray_gfit_results2_sorted_wrt_amp.shape[2]), dtype=float)
 
     sn_ng_opt_slice_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
+    #sn_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
     sn_pass_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
+    #sn_pass_ng_opt_t_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
+    #x_ng_opt_slice_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
+    #x_ng_opt_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
 
     sn_ng_opt_slice_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
+    #sn_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
     sn_pass_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
+    #sn_pass_ng_opt_t_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
+    #x_ng_opt_slice_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
+    #x_ng_opt_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
 
     sn_ng_opt_slice_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    sn_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
+    #sn_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
     sn_pass_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    sn_pass_ng_opt_t_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    x_ng_opt_slice_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-    x_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
+    #sn_pass_ng_opt_t_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
+    #x_ng_opt_slice_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
+    #x_ng_opt_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
 
 
     i1 = _params['_i0']
@@ -7415,69 +7934,133 @@ def main():
     print("[--> extract sn_ng_opt_slice from _fitsarray_Gfit_results2 array[params, y, x] ...]")
     print("")
     print("")
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
-                                                    (_fitsarray_gfit_results2[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
-                                                    _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
 
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
+    # -----------------------------------------
+    #for i in range(0, max_ngauss):
+    #    for j in range(0, max_ngauss):
+    #        sn_ng_opt_slice[i, j, :, :] = np.array([np.where( \
+    #                                                (j >= i) & \
+    #                                                (_fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
+    #                                                (_fitsarray_gfit_results2[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
+    #                                                (_fitsarray_gfit_results2[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
+    #                                                _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    #
+    #        if j >= i:
+    #            print(i, j, _fitsarray_gfit_results2[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+    #    print("")
+    # -----------------------------------------
+    compute_sn_ng_opt_slice_numba(sn_ng_opt_slice, _fitsarray_gfit_results2,
+                              max_ngauss, nparams_step, _params,
+                              verbose=False)   # or True
 
 
-    for i in range(0, max_ngauss):
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_amp[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
 
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
+    # -----------------------------------------
+    #for i in range(0, max_ngauss):
+    #    for j in range(0, max_ngauss):
+    #        sn_ng_opt_slice_gparam_sorted_wrt_amp[i, j, :, :] = np.array([np.where( \
+    #                                                (j >= i) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
+    #                                                _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    #
+    #        if j >= i:
+    #            print(i, j, _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_amp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+    #    print("")
+    # -----------------------------------------
+    compute_sn_ng_opt_slice_sorted_wrt_amp_numba(
+        sn_ng_opt_slice_gparam_sorted_wrt_amp,
+        _fitsarray_gfit_results2_sorted_wrt_amp,
+        max_ngauss,
+        nparams_step,
+        _params,
+        False, # print check pixels (j1, i1)
+        i1,   # x index to print
+        j1   # y index to print
+    )
+        
 
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_vdisp[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
 
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
 
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_vlos[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    # -----------------------------------------
+    #for i in range(0, max_ngauss):
+    #    for j in range(0, max_ngauss):
+    #        sn_ng_opt_slice_gparam_sorted_wrt_vdisp[i, j, :, :] = np.array([np.where( \
+    #                                                (j >= i) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
+    #                                                _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    #
+    #        if j >= i:
+    #            print(i, j, _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vdisp[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+    #    print("")
+    # -----------------------------------------
+    compute_sn_ng_opt_slice_sorted_wrt_vdisp_numba(
+        sn_ng_opt_slice_gparam_sorted_wrt_vdisp,
+        _fitsarray_gfit_results2_sorted_wrt_vdisp,
+        max_ngauss,
+        nparams_step,
+        _params,
+        False, # print check pixels (j1, i1)
+        i1,   # x index to print
+        j1,   # y index to print
+    )
 
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
 
-        for j in range(0, max_ngauss):
-            sn_ng_opt_slice_gparam_sorted_wrt_integrated_int[i, j, :, :] = np.array([np.where( \
-                                                    (j >= i) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
-                                                    (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
-                                                    _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
 
-            if j >= i:
-                print(i, j, _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
-        print("")
 
+    # -----------------------------------------
+    #for i in range(0, max_ngauss):
+    #    for j in range(0, max_ngauss):
+    #        sn_ng_opt_slice_gparam_sorted_wrt_vlos[i, j, :, :] = np.array([np.where( \
+    #                                                (j >= i) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
+    #                                                _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    #
+    #        if j >= i:
+    #            print(i, j, _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_vlos[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+    #    print("")
+    # -----------------------------------------
+    compute_sn_ng_opt_slice_sorted_wrt_vlos_numba(
+        sn_ng_opt_slice_gparam_sorted_wrt_vlos,
+        _fitsarray_gfit_results2_sorted_wrt_vlos,
+        max_ngauss,
+        nparams_step,
+        _params,
+        False, # print check pixels (j1, i1)
+        i1,   # x index to print
+        j1,   # y index to print
+    )
+
+
+    # -----------------------------------------
+    #for i in range(0, max_ngauss):
+    #    for j in range(0, max_ngauss):
+    #        sn_ng_opt_slice_gparam_sorted_wrt_integrated_int[i, j, :, :] = np.array([np.where( \
+    #                                                (j >= i) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :] > 0) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] >= _params['g_sigma_lower']) & \
+    #                                                (_fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 3 + 3*i, :, :] < _params['g_sigma_upper']), \
+    #                                                _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, :, :] / _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, :, :], 0.0)])[0]
+    #
+    #        if j >= i:
+    #            print(i, j, _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 2 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*j + 4 + 3*i, j1, i1], _fitsarray_gfit_results2_sorted_wrt_integrated_int[nparams_step*(j+1)-max_ngauss-7+j, j1, i1])
+    #    print("")
+    # -----------------------------------------
+    compute_sn_ng_opt_slice_sorted_wrt_integrated_int_numba(
+        sn_ng_opt_slice_gparam_sorted_wrt_integrated_int,
+        _fitsarray_gfit_results2_sorted_wrt_integrated_int,
+        max_ngauss,
+        nparams_step,
+        _params,
+        False, # print check pixels (j1, i1)
+        i1,   # x index to print
+        j1,   # y index to print
+    )
 
     print(" ____________________________________________")
     print("[____________________________________________]")
