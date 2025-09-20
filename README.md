@@ -48,7 +48,7 @@
 
 ---
 
-## **Status:** 🟢 Installation
+## 🟢 Installation
 
 ### 1) Create a Python 3.13 venv in your prefered directory, then install: (recommended)
 
