@@ -306,15 +306,7 @@ If a run stops, you can **resume** by adjusting the ROI in your YAML to skip alr
 
 ## Classification (merge & classify)
 
-After segments are done, merge and classify components:
 
-```bash
-# Prints usage when run without args
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py
-
-# Recommended: specify YAML and output index (1, 2, …)
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py ../my_params.yaml 1
-```
 
 This creates a directory like `segmts_merged_n_classified.1/` with classified components (`bulk`, `warm`, `hot`, `non_bulk`, `sgfit`, `psgfit`, `hvc`, etc.) and writes combined results:
 
@@ -322,6 +314,113 @@ This creates a directory like `segmts_merged_n_classified.1/` with classified co
 - `baygaud_gfit_results.npy`
 
 ---
+
+
+
+## Classification (merge & classify)
+
+After segments are done, merge and classify components:
+
+```bash
+# Prints usage when run without args
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py
+
+# Recommended: specify YAML and output index (1, 2, …)
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_classify.py my_params.yaml 1
+```
+
+This creates a folder like `segmts_merged_n_classified.1/` under your `wdir`.
+It contains all merged + classified results and several helpful subfolders.
+
+### Output layout (example)
+
+```
+wdir/
+└─ segmts_merged_n_classified.1/
+   ├─ _baygaud_params.<target>.yaml
+   ├─ baygaud_gfit_results.fits
+   ├─ baygaud_gfit_results.npy
+   ├─ ngfit/
+   ├─ ngfit_wrt_peak_amp/
+   ├─ ngfit_wrt_vlos/
+   ├─ ngfit_wrt_vdisp/
+   ├─ ngfit_wrt_integrated_int/
+   ├─ sgfit/
+   ├─ psgfit/
+   ├─ cool/
+   ├─ warm/
+   ├─ hot/
+   └─ hvc/                # may appear, depending on your YAML settings
+```
+
+### What each folder/file means
+
+- **`ngfit/`**
+  All Gaussian components from the **profile decomposition** by `baygaud.py`.
+  Components are **not sorted** (original order).
+  Files follow this naming pattern:
+  ```
+  <prefix>.G<max-ngauss>_<n>.<idx>[.e].fits
+  ```
+
+  Where:
+  - `max-ngauss` = the **maximum number of Gaussians** set in the YAML (key: `max_ngauss`)
+  - `n` = the **component number** (1..N for that pixel)
+  - `idx` = a number from **0 to 7** (parameter index)
+  - The optional `.e` means the **error map** for that parameter
+
+  Parameter index mapping:
+  - `0` → **integrated intensity** `[Jy/beam]`
+  - `1` → **line-of-sight velocity (vlos)** `[km/s]`
+  - `2` → **velocity dispersion (vdisp)** `[km/s]`
+  - `3` → **background** `[Jy/beam]`
+  - `4` → **rms** `[Jy/beam]`
+  - `5` → **peak flux** `[Jy/beam]`
+  - `6` → **peak-flux S/N** `[value]`
+  - `7` → **N-Gauss** `[number]`
+
+  Examples:
+  - `sgfit.G5_3.5.fits` → parameter index 5 (**peak flux**) of **component 3** when `max_ngauss=5`
+  - `sgfit.G4_1.1.e.fits` → **error map** of parameter 1 (**vlos**) for **component 1**, `max_ngauss=4`
+- **`ngfit_wrt_peak_amp/`**
+  The same components as `ngfit/`, but **sorted by peak flux** at each pixel.
+  The 1st = strongest peak … up to **N-Gauss** (the number of components found).
+
+- **`ngfit_wrt_vlos/`**
+  Same as above, but **sorted by line-of-sight velocity**.
+
+- **`ngfit_wrt_vdisp/`**
+  Same as above, but **sorted by velocity dispersion**.
+
+- **`ngfit_wrt_integrated_int/`**
+  Same as above, but **sorted by integrated intensity**.
+
+- **`sgfit/`**
+  **Single-Gaussian fit** of every velocity profile in the data cube
+  (regardless of the optimal number of Gaussians from decomposition).
+
+- **`psgfit/`**
+  A **pruned single-Gaussian set**: shows results **only** for pixels where the
+  optimal **N-Gauss = 1** (from the decomposition).
+
+- **`cool/`, `warm/`, `hot/`, `hvc/`**
+  Components grouped by **physical class**, based on your YAML **classification parameters**.
+  Each folder holds the corresponding component maps (and their `.e.fits` error maps).
+
+- **`baygaud_gfit_results.fits`** and **`baygaud_gfit_results.npy`**
+  These are **combined summaries** of the `ngfit` results, saved in **FITS** and **NumPy** formats.
+
+- **`_baygaud_params.<target>.yaml`**
+  A copy of the YAML used to run the classification (for reproducibility).
+
+### Notes
+
+- The trailing number in `segmts_merged_n_classified.<index>/` is the **run index** you pass on the command line (e.g., `1`, `2`, …).
+- “N-Gauss” means the number of Gaussian components found at that pixel by the decomposition.
+- Error maps use the suffix `*.e.fits` and match the parameter maps one-to-one.
+
+
+
 
 ## Viewer
 
@@ -332,7 +431,7 @@ Inspect per-spectrum decompositions interactively:
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_viewer.py
 
 # With YAML (recommended) — use the same index as classification
-(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_viewer.py ../my_params.yaml 1
+(.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud_viewer.py my_params.yaml 1
 ```
 
 Tips: hover to locate spectra; mouse wheel to zoom; choose which 2D map to display (single-Gaussian VF, dispersion, integrated intensity, N-Gauss, peak S/N, etc.).
