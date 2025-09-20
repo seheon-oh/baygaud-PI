@@ -1659,6 +1659,18 @@ def extract_maps(_fitsarray_gfit_results2, params, _output_dir, _kin_comp, ng_op
         print("| vdisp-lower: %1.f [km/s]" % _g_sigma_lower)
         print("| vdisp-upper: %1.f [km/s]" % _g_sigma_upper)
         print("")
+    elif _kin_comp == 'hvc':
+        _g_vlos_lower = params['g_vlos_lower_hvc']
+        _g_vlos_upper = params['g_vlos_upper_hvc']
+        _g_sigma_lower = params['g_sigma_lower_hvc']
+        _g_sigma_upper = params['g_sigma_upper_hvc']
+        print("")
+        print("| ... extracting kinematically hvc components ... |")
+        print("| vlos-lower: %1.f [km/s]" % _g_vlos_lower)
+        print("| vlos-upper: %1.f [km/s]" % _g_vlos_upper)
+        print("| vdisp-lower: %1.f [km/s]" % _g_sigma_lower)
+        print("| vdisp-upper: %1.f [km/s]" % _g_sigma_upper)
+        print("")
     else:
         _g_vlos_lower = params['vel_min']
         _g_vlos_upper = params['vel_max']
@@ -7688,7 +7700,6 @@ def compute_sn_ng_opt_slice_sorted_wrt_integrated_int_numba(
 
 
 
-
 def main():
     np.seterr(divide='ignore', invalid='ignore')
 
@@ -7805,18 +7816,35 @@ def main():
     else:
         print("_baygaud.yaml file is not present...")
 
+
     make_dirs("%s/sgfit" % _dir_baygaud_combined)
     make_dirs("%s/psgfit" % _dir_baygaud_combined)
-    make_dirs("%s/cool" % _dir_baygaud_combined)
-    make_dirs("%s/warm" % _dir_baygaud_combined)
-    make_dirs("%s/hot" % _dir_baygaud_combined)
     make_dirs("%s/ngfit" % _dir_baygaud_combined)
 
-    make_dirs("%s/ngfit_wrt_integrated_int" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_vdisp" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_peak_amp" % _dir_baygaud_combined)
-    make_dirs("%s/ngfit_wrt_vlos" % _dir_baygaud_combined)
+    if _params['_cool_extraction'] == 'Y':
+        make_dirs("%s/cool" % _dir_baygaud_combined)
 
+    if _params['_warm_extraction'] == 'Y':
+        make_dirs("%s/warm" % _dir_baygaud_combined)
+
+    if _params['_hot_extraction'] == 'Y':
+        make_dirs("%s/hot" % _dir_baygaud_combined)
+
+    if _params['_hvc_extraction'] == 'Y':
+        make_dirs("%s/hvc" % _dir_baygaud_combined)
+
+
+    if _params['_sort_gauss_wrt_integrated_int'] == 'Y':
+        make_dirs("%s/ngfit_wrt_integrated_int" % _dir_baygaud_combined)
+
+    if _params['_sort_gauss_wrt_vdisp'] == 'Y':
+        make_dirs("%s/ngfit_wrt_vdisp" % _dir_baygaud_combined)
+
+    if _params['_sort_gauss_wrt_peak_amp'] == 'Y':
+        make_dirs("%s/ngfit_wrt_peak_amp" % _dir_baygaud_combined)
+
+    if _params['_sort_gauss_wrt_vlos'] == 'Y':
+        make_dirs("%s/ngfit_wrt_vlos" % _dir_baygaud_combined)
 
 
     print(" ____________________________________________")
@@ -7831,8 +7859,6 @@ def main():
     print("[--> declare _fitsarray_gfit_results2 : 3d numpy array ...]")
     print("")
     print("")
-
-
 
     _fitsarray_gfit_results2 = np.concatenate(_fitsarray_gfit_results1 , axis=0)
 
@@ -7870,9 +7896,6 @@ def main():
     g_num_sort_gparam_sorted_wrt_vdisp = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[1], _fitsarray_gfit_results2_sorted_wrt_vdisp.shape[2]), dtype=float)
     g_num_sort_gparam_sorted_wrt_vlos = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_vlos.shape[1], _fitsarray_gfit_results2_sorted_wrt_vlos.shape[2]), dtype=float)
     g_num_sort_gparam_sorted_wrt_integrated_int = np.zeros((max_ngauss, _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[1], _fitsarray_gfit_results2_sorted_wrt_integrated_int.shape[2]), dtype=float)
-
-
-
 
 
 
@@ -8224,28 +8247,38 @@ def main():
     print("")
     extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='psgfit', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> extract :: kinematically cool Gaussian component:: given the optimal n-gauss map ...]")
-    print("")
-    print("")
-    extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='cool', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
+    if _params['_cool_extraction'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: kinematically cool Gaussian component:: given the optimal n-gauss map ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='cool', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> extract :: kinematically warm Gaussian component:: given the optimal n-gauss map ...]")
-    print("")
-    print("")
-    extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='warm', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
+    if _params['_warm_extraction'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: kinematically warm Gaussian component:: given the optimal n-gauss map ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='warm', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
 
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> extract :: kinematically hot Gaussian component:: given the optimal n-gauss map ...]")
-    print("")
-    print("")
-    extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='hot', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
+    if _params['_hot_extraction'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: kinematically hot Gaussian component:: given the optimal n-gauss map ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='hot', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
+    if _params['_hvc_extraction'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: hvc Gaussian component:: given the optimal n-gauss map ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='hvc', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
     print(" ____________________________________________")
     print("[____________________________________________]")
@@ -8254,21 +8287,38 @@ def main():
     print("")
     extract_maps(_fitsarray_gfit_results2, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit', ng_opt=opt_ngmap_gmax_ng, _hdu=hdu)
 
-    print(" ____________________________________________")
-    print("[____________________________________________]")
-    print("[--> extract :: all the Gaussian components :: w.r.t. VDISP :: given max_ngauss ...]")
-    print("")
-    print("")
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_amp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_peak_amp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_amp, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_vdisp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vdisp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_vlos, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vlos', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos, _hdu=hdu)
-    extract_maps(_fitsarray_gfit_results2_sorted_wrt_integrated_int, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_integrated_int', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int, _hdu=hdu)
 
+    if _params['_sort_gauss_wrt_peak_amp'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: sort all the Gaussian components :: w.r.t. peak-flux :: given max_ngauss ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2_sorted_wrt_amp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_peak_amp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_amp, _hdu=hdu)
 
+    if _params['_sort_gauss_wrt_vdisp'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: sort all the Gaussian components :: w.r.t. vdisp :: given max_ngauss ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2_sorted_wrt_vdisp, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vdisp', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vdisp, _hdu=hdu)
 
+    if _params['_sort_gauss_wrt_vlos'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: sort all the Gaussian components :: w.r.t. vlos :: given max_ngauss ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2_sorted_wrt_vlos, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_vlos', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_vlos, _hdu=hdu)
 
-
-
+    if _params['_sort_gauss_wrt_integrated_int'] == 'Y':
+        print(" ____________________________________________")
+        print("[____________________________________________]")
+        print("[--> extract :: sort all the Gaussian components :: w.r.t. integrated int. :: given max_ngauss ...]")
+        print("")
+        print("")
+        extract_maps(_fitsarray_gfit_results2_sorted_wrt_integrated_int, params=_params, _output_dir=_dir_baygaud_combined, _kin_comp='ngfit_wrt_integrated_int', ng_opt=opt_ngmap_gmax_ng_gparam_sorted_wrt_integrated_int, _hdu=hdu)
 
 
 
@@ -8319,7 +8369,6 @@ def main():
     print("[--> extract :: hvc component:: given the optimal n-gauss map ...]")
     print("")
     print("")
-
 
     print(" ____________________________________________")
     print("[____________________________________________]")
