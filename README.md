@@ -372,7 +372,7 @@ wdir/
   - `sgfit.G4_1.1.e.fits` → **error map** of parameter 1 (**vlos**) for **component 1**, `max_ngauss=4`
 - **`ngfit_wrt_peak_amp/`**
   The same components as `ngfit/`, but **sorted by peak flux** at each pixel.
-  The 1st = strongest peak … up to **N-Gauss** (the number of components found).
+  The 1st = strongest peak … up to **N-Gauss** (the number of max_gauss).
 
 - **`ngfit_wrt_vlos/`**
   Same as above, but **sorted by line-of-sight velocity**.
