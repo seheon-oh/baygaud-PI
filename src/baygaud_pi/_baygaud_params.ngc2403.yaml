@@ -99,7 +99,7 @@ nlive: 100                   # [RECOMMENDED]
 sample: 'rwalk'              # [RECOMMENDED]
 
 # Termination
-dlogz: 0.2                  # evidence tolerance                    [RECOMMENDED]
+dlogz: 0.2                   # evidence tolerance                    [RECOMMENDED]
 
 # Runtime limits
 maxiter: 999999              # [RECOMMENDED]
@@ -115,7 +115,7 @@ fmove: 0.9                   # [RECOMMENDED]
 # Moves
 walks: 25                    # [RECOMMENDED]
 rwalk: 100                   # [RECOMMENDED]
-max_move: 80                # [RECOMMENDED]
+max_move: 80                 # [RECOMMENDED]
 
 # Bounds: 'multi' (multimodal) vs 'single' (unimodal)
 bound: 'multi'               # [RECOMMENDED]
@@ -128,10 +128,10 @@ bound: 'multi'               # [RECOMMENDED]
 # -----------------------------------------------------------------------------
 bayes_factor_limit: 100      # model comparison threshold                             [RECOMMENDED]
 max_ngauss: 3                # max # of Gaussians (NON-RECOVERABLE)                   *** REQUIRED ***
-mom0_nrms_limit: 1           # peak > mom0_nrms_limit * rms + bg (NON-RECOVERABLE)    *** REQUIRED ***
+mom0_nrms_limit: 1.5         # peak > mom0_nrms_limit * rms + bg (NON-RECOVERABLE)    *** REQUIRED ***
 peak_sn_pass_for_ng_opt: 3   # Gaussians passing S/N for ng opt (RECOVERABLE)         *** REQUIRED ***
-peak_sn_limit: 2             # decompose only if peak S/N above (NON-RECOVERABLE)     *** REQUIRED ***
-int_sn_limit: 1.0            # integrated S/N threshold (NON-RECOVERABLE)             *** REQUIRED ***
+peak_sn_limit: 1.5           # decompose only if peak S/N above (NON-RECOVERABLE)     *** REQUIRED ***
+int_sn_limit: 1.5            # integrated S/N threshold (NON-RECOVERABLE)             *** REQUIRED ***
 
 
 # ==============================================================================
@@ -154,29 +154,39 @@ _bulk_delv_limit_factor: 1.0                                                 # [
 # 1) Global kinematics
 g_vlos_lower: 0       # km/s   *** REQUIRED ***
 g_vlos_upper: 400     # km/s   *** REQUIRED ***
-g_sigma_lower: 1.9889541038076373 # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
+g_sigma_lower: 1.0    # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
 g_sigma_upper: 999    # km/s   *** REQUIRED ***
 
 # ==============================================================================
 # Adjust only for _baygaud_classify.py : defaults would be fine for baygaud.py run
 # -----------------------------------------------------------------------------
 # 2) Kinematically cool components
-g_vlos_lower_cool: 0    # km/s  *** REQUIRED ***
-g_vlos_upper_cool: 400  # km/s  *** REQUIRED ***
-g_sigma_lower_cool: 5   # km/s  *** REQUIRED ***
-g_sigma_upper_cool: 12  # km/s  *** REQUIRED ***
+_cool_extraction: 'N'   # [OPTIONAL] 'Y' or 'N'
+g_vlos_lower_cool: 0    # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_cool: 400  # km/s  *** REQUIRED *** if 'Y'
+g_sigma_lower_cool: 5   # km/s  *** REQUIRED *** if 'Y'
+g_sigma_upper_cool: 12  # km/s  *** REQUIRED *** if 'Y'
 
 # 3) Kinematically warm components
-g_vlos_lower_warm: 0    # km/s  *** REQUIRED ***
-g_vlos_upper_warm: 400  # km/s  *** REQUIRED ***
-g_sigma_lower_warm: 12  # km/s  *** REQUIRED ***
-g_sigma_upper_warm: 40  # km/s  *** REQUIRED ***
+_warm_extraction: 'N'   # [OPTIONAL] 'Y' or 'N'
+g_vlos_lower_warm: 0    # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_warm: 400  # km/s  *** REQUIRED *** if 'Y'
+g_sigma_lower_warm: 12  # km/s  *** REQUIRED *** if 'Y'
+g_sigma_upper_warm: 40  # km/s  *** REQUIRED *** if 'Y'
 
 # 4) Kinematically hot components
-g_vlos_lower_hot: 0     # km/s  *** REQUIRED ***
-g_vlos_upper_hot: 400   # km/s  *** REQUIRED ***
-g_sigma_lower_hot: 40   # km/s  *** REQUIRED ***
-g_sigma_upper_hot: 999  # km/s  *** REQUIRED ***
+_hot_extraction: 'N'    # [OPTIONAL] 'Y' or 'N'
+g_vlos_lower_hot: 0     # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_hot: 400   # km/s  *** REQUIRED *** if 'Y'
+g_sigma_lower_hot: 40   # km/s  *** REQUIRED *** if 'Y'
+g_sigma_upper_hot: 999  # km/s  *** REQUIRED *** if 'Y'
+
+# 5) high-velocity cloud components
+_hvc_extraction: 'N'    # [OPTIONAL] 'Y' or 'N'
+g_vlos_lower_hvc: 0     # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_hvc: 400   # km/s  *** REQUIRED *** if 'Y'
+g_sigma_lower_hvc: 0    # km/s  *** REQUIRED *** if 'Y'
+g_sigma_upper_hvc: 999  # km/s  *** REQUIRED *** if 'Y'
 # -----------------------------------------------------------------------------
 
 # 5) Single pixel to inspect (for quick checks)
@@ -184,10 +194,10 @@ _i0: 20               # x-pixel    [OPTIONAL]
 _j0: 20               # y-pixel    [OPTIONAL]
 
 # 6) Gaussian ordering rules (uncomment to enforce a default)
-_sort_gauss_wrt_int: 'Y'        # [RECOMMENDED]
-# _sort_gauss_wrt_vdisp: 'Y'      # [OPTIONAL]
-# _sort_gauss_wrt_peak_amp: 'Y'   # [OPTIONAL]
-# _sort_gauss_wrt_vlos: 'Y'       # [OPTIONAL]
+_sort_gauss_wrt_integrated_int: 'Y'        # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_vdisp: 'Y'      # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_peak_amp: 'Y'   # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_vlos: 'Y'       # [RECOMMENDED] 'Y' or 'N'
 
 
 # ==============================================================================
@@ -196,7 +206,7 @@ _sort_gauss_wrt_int: 'Y'        # [RECOMMENDED]
 # Typically leave as is unless you need specific behavior.
 # -----------------------------------------------------------------------------
 matched_filter:
-  sigma_list_ch: [1.5, 2, 3, 4, 5]   # Gaussian kernel widths (channels)   [RECOMMENDED]
+  sigma_list_ch: [1.5, 2, 3, 4, 5]    # Gaussian kernel widths (channels)   [RECOMMENDED]
   k_sigma: 3.0                        # sigma multiplier for threshold     [RECOMMENDED]
   thres_sigma: 2.0                    # primary S/N threshold              [RECOMMENDED]
   amp_sigma_thres: 2.0                # amplitude S/N threshold            [RECOMMENDED]
@@ -242,7 +252,7 @@ sgfit_bounds:
 # ==============================================================================
 # Defaults are okay; adjust for your memory/CPU characteristics if needed.
 # -----------------------------------------------------------------------------
-y_chunk_size: 10          # tile size along Y (typical 20–50)       [DEFAULT OK]
+y_chunk_size: 5           # tile size along Y (typical 20–50)       [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
 gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
@@ -259,7 +269,7 @@ gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK
 # On macOS you can check:
 #   sysctl -n hw.physicalcpu   --> physical cores
 #   sysctl -n hw.logicalcpu    --> logical cores (with HT)
-num_cpus_ray: 10                 # *** REQUIRED ***
+num_cpus_ray: 10                # *** REQUIRED ***
 numba_num_threads: 1            # [RECOMMENDED]
 num_cpus_nested_sampling: 1     # [RECOMMENDED]
 
