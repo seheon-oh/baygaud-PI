@@ -160,7 +160,7 @@
 
 ---
 
-## Quick Start (venv strongly recommended)
+## 🟢 Quick Start (venv strongly recommended)
 
 ### 1) Prepare your data & YAML
 
@@ -290,7 +290,7 @@ From the source tree:
 
 ---
 
-## Output layout & resume
+## 🟢 Output layout & resume
 
 Segment results are saved under `_segdir` (inside `wdir`):
 
@@ -305,7 +305,7 @@ If a run stops, you can **resume** by adjusting the ROI in your YAML to skip alr
 ---
 
 
-## Classification (merge & classify)
+## 🟢 Classification (merge & classify)
 
 After segments are done, merge and classify components:
 
@@ -408,7 +408,7 @@ wdir/
 
 
 
-## Viewer
+## 🟢 Viewer
 
 Inspect per-spectrum decompositions interactively:
 
@@ -424,7 +424,7 @@ Tips: hover to locate spectra; mouse wheel to zoom; choose which 2D map to displ
 
 ---
 
-## Troubleshooting (quick notes)
+## 🟢 Troubleshooting (quick notes)
 
 - **CPU oversubscription:** keep all threading knobs at `1` when using Ray (`OMP/MKL/OPENBLAS/numba` threads).  
 - **Python version:** if a dependency lags on 3.13, recreate the venv with 3.10–3.12.  
@@ -432,7 +432,7 @@ Tips: hover to locate spectra; mouse wheel to zoom; choose which 2D map to displ
 
 ---
 
-## Cite
+## 🟢 Cite
 
 If you use baygaud-PI, please cite the main algorithm and relevant applications:
 
@@ -446,7 +446,7 @@ If you use baygaud-PI, please cite the main algorithm and relevant applications:
 
 ---
 
-## Support & Issues
+## 🟢 Support & Issues
 
 
 Happy decomposing!!!
