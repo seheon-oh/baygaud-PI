@@ -304,18 +304,6 @@ If a run stops, you can **resume** by adjusting the ROI in your YAML to skip alr
 
 ---
 
-## Classification (merge & classify)
-
-
-
-This creates a directory like `segmts_merged_n_classified.1/` with classified components (`bulk`, `warm`, `hot`, `non_bulk`, `sgfit`, `psgfit`, `hvc`, etc.) and writes combined results:
-
-- `baygaud_gfit_results.fits`  
-- `baygaud_gfit_results.npy`
-
----
-
-
 
 ## Classification (merge & classify)
 
