@@ -404,8 +404,6 @@ wdir/
 ### Notes
 
 - The trailing number in `segmts_merged_n_classified.<index>/` is the **run index** you pass on the command line (e.g., `1`, `2`, …).
-- “N-Gauss” means the number of Gaussian components found at that pixel by the decomposition.
-- Error maps use the suffix `*.e.fits` and match the parameter maps one-to-one.
 
 
 
