@@ -232,6 +232,7 @@ num_cpus_ray: 8
 From the source tree:
 
 (.venv313) [seheon@Mac baygaud-PI] cd src/baygaud_pi
+
 (.venv313) [seheon@Mac baygaud-PI/src/baygaud_pi] python3 baygaud.py my_params.yaml
 
 ```
