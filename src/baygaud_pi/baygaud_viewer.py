@@ -213,7 +213,7 @@ def read_ngfit_data(cube_fits=None, path_classified=None):
     with fits.open(window_params['cube_fits'], 'update') as hdu:
         _ctype3 = hdu[0].header['CTYPE3']
 
-    if _ctype3 != 'VOPT*':  # not optical
+    if 'VOPT' not in _ctype3:  # not optical
         _params['spectral_axis'] = SpectralCube.read(window_params['cube_fits']).with_spectral_unit(u.km/u.s, velocity_convention='radio').spectral_axis.value
     else:
         _params['spectral_axis'] = SpectralCube.read(window_params['cube_fits']).with_spectral_unit(u.km/u.s, velocity_convention='optical').spectral_axis.value
