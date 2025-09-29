@@ -78,13 +78,13 @@ def read_datacube(_params):
     _params['cdelt3'] = _cdelt3
 
     # Set spectral-unit / velocity convention for the cube
-    if _ctype3 != 'VOPT*':  # not optical
+    if 'VOPT' in _ctype3:
         cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) \
-                           .with_spectral_unit(u.m/u.s, velocity_convention='radio')  # in m/s
+                           .with_spectral_unit(u.m/u.s, velocity_convention='optical')  # in m/s
         _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
     else:
         cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) \
-                           .with_spectral_unit(u.m/u.s, velocity_convention='optical')  # in m/s
+                           .with_spectral_unit(u.m/u.s, velocity_convention='radio')  # in m/s
         _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
 
     # Store min/max velocity in km/s for convenience
