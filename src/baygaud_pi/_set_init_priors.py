@@ -9,6 +9,7 @@
 #| Sejong University, Seoul, South Korea
 #|-----------------------------------------|
 
+import sys
 
 
 import os
@@ -294,6 +295,7 @@ else:
 
     _bank_convolve_and_standardize_par = _bank_convolve_and_standardize_seq  # alias
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 # ----------------- Utilities (Python level) ------------------
 def gaussian_kernel_bank(sigma_list_ch, k_sigma=4.0):
@@ -321,9 +323,1221 @@ def _make_sigma_list(N, sigma_list_ch, k_sigma, *, min_sigma=0.8, max_frac=0.48)
     sl = np.unique(np.round(sl, 6))
     return sl, cap
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+
+
+# ================== 1) Window-aware matched-filter seeding ==================
+def search_gaussian_seeds_matched_filter_norm2(
+    v, f, *, rms=None, bg=None,
+    sigma_list_ch=None, k_sigma=4.0,
+    thres_sigma=3.0, amp_sigma_thres=3.0,
+    sep_channels=5, max_components=None,
+    refine_center=True, detrend_local=False, detrend_halfwin=8,
+    numba_threads=1,
+    x_min_norm=None, x_max_norm=None,
+    max_ngauss=None
+):
+    """
+    Find initial seeds for multi-Gaussian fitting using a matched filter,
+    but restrict detection to the normalized-velocity window (x_min_norm, x_max_norm).
+
+    IMPORTANT: Returned components are in **normalized coordinates**:
+        components[:, 0] = center_norm in [0,1]
+        components[:, 1] = sigma_norm  (length on normalized axis)
+        components[:, 2] = |amplitude| (same units as input f - bg)
+    Seeds are sorted by descending |amplitude| and truncated to `max_ngauss` if provided.
+
+    If there are no candidates in the window, this returns ncomp=0 and the bounds
+    function should perform the requested fallback (use the window directly).
+    """
+    # -------------- threading for numba (if available) --------------
+    if NUMBA_OK and (numba_threads is not None):
+        try:
+            set_num_threads(int(numba_threads))
+        except Exception:
+            pass
+
+    v = np.asarray(v, dtype=np.float64)
+    f = np.asarray(f, dtype=np.float64)
+    N = f.size
+    if N == 0:
+        return dict(ncomp=0, components=np.zeros((0, 3)),
+                    bg=0.0, rms=1.0, indices=[], debug={"reason": "N=0"})
+
+    # Physical spacing (approx.)
+    dv = float(np.median(np.abs(np.diff(v)))) if N > 1 else 1.0
+
+    # ---------- robust background & rms (uses your existing helper) ----------
+    if (bg is None) or (rms is None):
+        bh, sh = _robust_bg_rms_emission_jit(f, clip_sigma=3.0, max_iter=8, min_bg_frac=0.25)
+        if bg is None:  bg  = float(bh)
+        if rms is None: rms = float(sh)
+    if not np.isfinite(bg):
+        bg = float(np.median(f))
+
+    y = f - bg
+    if (not np.isfinite(rms)) or (rms <= 0):
+        mad = np.median(np.abs(y - np.median(y)))
+        rms = float(1.4826 * mad) if mad > 0 else float(np.std(y) + 1e-12)
+
+    # Standardized residual (for test statistic); raw residual (for amplitude)
+    y_w = np.nan_to_num(y / rms, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # ---------------- kernel bank (your existing helpers) ----------------
+    sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
+    bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
+    if not bank:
+        return dict(ncomp=0, components=np.zeros((0, 3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason": "empty_bank_after_cap", "N": int(N), "cap": float(cap1)})
+
+    if NUMBA_OK:
+        g_list, gnorm_list = NumbaList(), NumbaList()
+    else:
+        g_list, gnorm_list = [], []
+    sum_g2_arr        = np.empty(len(bank), dtype=np.float64)
+    sum_g2_sqrt_arr   = np.empty(len(bank), dtype=np.float64)
+    halfwidth_arr     = np.empty(len(bank), dtype=np.int64)
+    sigma_ch_arr      = np.empty(len(bank), dtype=np.float64)
+    for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank):
+        g_list.append(g); gnorm_list.append(g_norm)
+        sum_g2_arr[k]      = sum_g2
+        sum_g2_sqrt_arr[k] = sum_g2_sqrt
+        halfwidth_arr[k]   = h
+        sigma_ch_arr[k]    = s_ch
+
+    # ---------------- normalized axis and window mask ----------------
+    v_min = float(min(v[0], v[-1]))
+    v_max = float(max(v[0], v[-1]))
+    span  = max(1e-30, (v_max - v_min))
+    v_norm = (v - v_min) / span  # strictly increasing 0..1
+
+    if x_min_norm is None: x_min_norm = 0.0
+    if x_max_norm is None: x_max_norm = 1.0
+    lo = float(min(x_min_norm, x_max_norm))
+    hi = float(max(x_min_norm, x_max_norm))
+    win_width = max(0.0, hi - lo)
+
+    valid_idx = (v_norm > lo) & (v_norm < hi)  # strict interior to match your log-like mask
+    #valid_idx = (v_norm > 0) & (v_norm < 1)  # strict interior to match your log-like mask
+    n_valid = int(np.count_nonzero(valid_idx))
+    if n_valid == 0:
+        return dict(ncomp=0, components=np.zeros((0, 3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason": "empty_window", "win_lo": lo, "win_hi": hi})
+
+    # ---------------- convolve & standardize (hot path) ----------------
+    if NUMBA_OK and int(numba_threads) == 1:
+        Rstd, Rraw = _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list)
+    else:
+        Rstd, Rraw = _bank_convolve_and_standardize_par(y, y_w, g_list, gnorm_list)
+
+    # Best kernel index for each channel
+    k_best = np.argmax(np.abs(Rstd), axis=0)
+    Rbest  = Rstd[k_best, np.arange(N)]
+
+    # First pass: threshold AND inside window
+    mask = (np.abs(Rbest) >= float(thres_sigma)) & valid_idx
+    cand_idx = np.flatnonzero(mask)
+
+    debug = {
+        "N": int(N), "bg": float(bg), "rms": float(rms),
+        "sigma_cap1": float(cap1), "n_sigmas1": int(len(sigmas)),
+        "Rbest_max_window": float(np.max(np.abs(Rbest[valid_idx]))),
+        "cand_n1": int(cand_idx.size),
+        "win_lo": float(lo), "win_hi": float(hi),
+        "returned": "normalized",
+    }
+
+    # If no candidates, expand sigmas (still windowed)
+    if cand_idx.size == 0:
+        sigmas2, cap2 = _make_sigma_list(N, np.r_[sigmas, 6, 8, 10, 12, 15, 18], k_sigma, max_frac=0.90)
+        bank2 = gaussian_kernel_bank(sigmas2, k_sigma=k_sigma)
+        if bank2:
+            if NUMBA_OK:
+                g_list2, gnorm_list2 = NumbaList(), NumbaList()
+            else:
+                g_list2, gnorm_list2 = [], []
+            sum_g2_arr2, sum_g2_sqrt_arr2 = np.empty(len(bank2)), np.empty(len(bank2))
+            halfwidth_arr2, sigma_ch_arr2  = np.empty(len(bank2), dtype=np.int64), np.empty(len(bank2))
+            for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank2):
+                g_list2.append(g); gnorm_list2.append(g_norm)
+                sum_g2_arr2[k]      = sum_g2
+                sum_g2_sqrt_arr2[k] = sum_g2_sqrt
+                halfwidth_arr2[k]   = h
+                sigma_ch_arr2[k]    = s_ch
+
+            if NUMBA_OK and int(numba_threads) == 1:
+                R2, RR2 = _bank_convolve_and_standardize_seq(y, y_w, g_list2, gnorm_list2)
+            else:
+                R2, RR2 = _bank_convolve_and_standardize_par(y, y_w, g_list2, gnorm_list2)
+
+            k_best2 = np.argmax(np.abs(R2), axis=0)
+            Rbest2  = R2[k_best2, np.arange(N)]
+            th2 = max(2.0, 0.6 * float(thres_sigma))
+            cand_idx2 = np.flatnonzero((np.abs(Rbest2) >= th2) & valid_idx)
+
+            debug.update({
+                "sigma_cap2": float(cap2),
+                "n_sigmas2": int(len(sigmas2)),
+                "Rbest2_max_window": float(np.max(np.abs(Rbest2[valid_idx]))),
+                "cand_n2": int(cand_idx2.size),
+            })
+
+            if cand_idx2.size > 0:
+                # Switch to expanded bank
+                sigmas            = sigmas2
+                Rstd, Rraw        = R2, RR2
+                k_best, Rbest     = k_best2, Rbest2
+                cand_idx          = cand_idx2
+                sum_g2_arr        = sum_g2_arr2
+                sum_g2_sqrt_arr   = sum_g2_sqrt_arr2
+                halfwidth_arr     = halfwidth_arr2
+                sigma_ch_arr      = sigma_ch_arr2
+
+    # Structural rescue (within window only)
+    if cand_idx.size == 0:
+        win_idx = np.flatnonzero(valid_idx)
+        i0 = int(win_idx[np.argmax(np.abs(Rbest[win_idx]))]) if win_idx.size > 0 else -1
+
+        if i0 >= 0 and np.isfinite(Rbest[i0]):
+            kb  = int(k_best[i0])
+            A_hat   = Rraw[kb, i0] / max(1e-12, float(sum_g2_arr[kb]))
+            sigma_A = float(rms) / float(sum_g2_sqrt_arr[kb])
+            debug.update({"rescue_i0": int(i0), "rescue_Rbest": float(Rbest[i0]),
+                          "rescue_A_hat": float(A_hat), "rescue_sigma_A": float(sigma_A)})
+            # Only accept if amplitude is strong enough
+            if abs(A_hat) >= max(2.5, 0.8 * float(amp_sigma_thres)) * sigma_A:
+                center_ch = float(i0)
+                if refine_center:
+                    dx, _ = _parabolic_subsample_jit(Rbest, i0)  # your helper
+                    center_ch += dx
+                # Convert to normalized center and sigma
+                center_v   = v[0] + np.sign(v[-1] - v[0]) * center_ch * dv
+                sigma_v    = float(sigma_ch_arr[kb]) * dv
+                center_n   = (center_v - v_min) / span
+                sigma_n    = abs(sigma_v) / span
+                comps = np.array([[float(center_n), float(sigma_n), float(abs(A_hat))]], dtype=float)
+                indices = [(int(np.rint(center_ch)), float(sigma_ch_arr[kb]))]
+                # Trim to max_ngauss if needed (here at most 1 anyway)
+                if (max_ngauss is not None) and (int(max_ngauss) < comps.shape[0]):
+                    comps   = comps[:int(max_ngauss), :]
+                    indices = indices[:int(max_ngauss)]
+                return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
+                            indices=indices, debug=debug)
+
+        # No usable candidate -> return empty; bounds function will do fallback
+        debug["reason"] = "no_candidates_in_window"
+        return dict(ncomp=0, components=np.zeros((0, 3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug=debug)
+
+    # ------------------- NMS + amplitude gate inside window -------------------
+    order = np.argsort(-np.abs(Rbest[cand_idx]))
+    cand_idx = cand_idx[order]
+    kept_idx, kept_sig, kept_A = [], [], []
+    taken = np.zeros(N, dtype=bool)
+
+    for idx in cand_idx:
+        lo_nms = max(0, idx - int(sep_channels))
+        hi_nms = min(N, idx + int(sep_channels) + 1)
+        if taken[lo_nms:hi_nms].any():
+            continue
+
+        kb  = int(k_best[idx])
+        sum_g2      = float(sum_g2_arr[kb])
+        sum_g2_sqrt = float(sum_g2_sqrt_arr[kb])
+        s_ch        = float(sigma_ch_arr[kb])
+
+        if detrend_local:
+            h = int(halfwidth_arr[kb])
+            w = int(max(h, detrend_halfwin))
+            lsl = slice(max(0, idx - w), min(N, idx + w + 1))
+            xv = np.arange(lsl.start, lsl.stop, dtype=float)
+            yy = y[lsl]
+            X = np.vstack([xv, np.ones_like(xv)]).T
+            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)
+            y_loc = y.copy()
+            y_loc[lsl] = yy - (X @ coef)
+            rr = _conv_same_reflect(y_loc, g_list[kb] if NUMBA_OK else bank[kb][0])  # your helper
+            A_hat = rr[idx] / max(1e-12, sum_g2)
+        else:
+            # raw correlation → amplitude estimate in the same units as y
+            A_hat = Rraw[kb, idx] / max(1e-12, sum_g2)
+
+        sigma_A = float(rms) / max(1e-12, sum_g2_sqrt)
+        if abs(A_hat) < float(amp_sigma_thres) * sigma_A:
+            continue
+
+        kept_idx.append(int(idx))
+        kept_sig.append(float(s_ch))
+        kept_A.append(float(A_hat))
+        taken[lo_nms:hi_nms] = True
+
+        if max_components is not None and len(kept_idx) >= int(max_components):
+            break
+
+    if not kept_idx:
+        return dict(ncomp=0, components=np.zeros((0, 3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason": "all_candidates_failed_amp_gate"})
+
+    centers_ch = np.asarray(kept_idx, dtype=np.float64)
+    kept_sig   = np.asarray(kept_sig, dtype=np.float64)
+    amps       = np.asarray(kept_A,   dtype=np.float64)
+
+    if refine_center:
+        for j, i0 in enumerate(centers_ch.astype(int)):
+            dx, _ = _parabolic_subsample_jit(Rbest, i0)
+            centers_ch[j] += dx
+
+    # Sort by descending |amp|
+    order2 = np.argsort(-np.abs(amps))
+    centers_ch   = centers_ch[order2]
+    kept_sig     = kept_sig[order2]
+    amps_sorted  = np.abs(amps[order2])
+
+    # Convert to normalized coordinates
+    sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+    centers_v = v[0] + sign * centers_ch * dv
+    sigmas_v  = kept_sig * abs(dv)
+    centers_n = (centers_v - v_min) / span
+    sigmas_n  = np.abs(sigmas_v) / span
+
+    comps = np.stack([centers_n, sigmas_n, amps_sorted], axis=1)
+    indices = list(zip(np.rint(centers_ch).astype(int).tolist(),
+                       kept_sig.astype(float).tolist()))
+
+    # Limit by max_ngauss (already |amp|-sorted)
+    if max_ngauss is not None:
+        k = int(max_ngauss)
+        if k < comps.shape[0]:
+            comps   = comps[:k, :]
+            indices = indices[:k]
+
+    return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
+                indices=indices, debug=debug)
+
+
+
+
+
+
+
+
+def search_gaussian_seeds_matched_filter_norm(
+    v, f, *, rms=None, bg=None,
+    sigma_list_ch=None, k_sigma=4.0,
+    thres_sigma=3.0, amp_sigma_thres=3.0,
+    sep_channels=5, max_components=None,
+    refine_center=True, detrend_local=False, detrend_halfwin=8,
+    numba_threads=1,
+    x_min_norm=None, x_max_norm=None,
+    max_ngauss=None
+):
+    """
+    Matched-filter seed finder.
+    - Convolution/standardization: (0,1) full interior 
+    - Seed search: [x_min_norm, x_max_norm] 
+    - If no seeds, return a single default one
+    """
+    # --- helpers --------------------------------------------------------------
+    def _make_synthetic_seed(v, y, v_min, span, lo, hi, dv):
+        """Build one fallback seed at window midpoint with half-width sigma."""
+        width = max(1e-6, hi - lo)
+        center_norm = 0.5 * (lo + hi)
+        sigma_norm  = 0.5 * width
+        x_vel   = v_min + center_norm * span
+        sigma_v = sigma_norm * span
+        # amplitude = max |residual| in window
+        v_norm = (v - v_min) / max(1e-30, span)
+        win_idx = (v_norm >= lo) & (v_norm <= hi)
+        amp = float(np.max(np.abs(y[win_idx]))) if np.any(win_idx) else 0.0
+        center_idx = int(np.argmin(np.abs(v - x_vel)))
+        sigma_ch   = float(abs(sigma_v) / max(1e-30, dv))
+        comps = np.array([[x_vel, sigma_v, abs(amp)]], dtype=float)
+        indices = [(center_idx, sigma_ch)]
+        return comps, indices, dict(
+            reason="synthetic_seed",
+            synthetic_center_norm=float(center_norm),
+            synthetic_sigma_norm=float(sigma_norm),
+            synthetic_amp=float(amp),
+        )
+
+    # --- thread setup ---------------------------------------------------------
+    if NUMBA_OK and (numba_threads is not None):
+        try:
+            set_num_threads(int(numba_threads))
+        except Exception:
+            pass
+
+    v = np.asarray(v, dtype=np.float64)
+    f = np.asarray(f, dtype=np.float64)
+    N = f.size
+
+    #plt.scatter(v, f)
+    #plt.plot(v, f)
+    #plt.show()
+
+    if N == 0:
+        return dict(ncomp=0, components=np.zeros((0,3)),
+                    bg=0.0, rms=1.0, indices=[], debug={"reason": "N=0"})
+
+    dv = float(np.median(np.abs(np.diff(v)))) if N > 1 else 1.0
+    if not np.isfinite(dv) or dv <= 0:
+        dv = 1.0
+
+    # --- robust bg/rms --------------------------------------------------------
+    if (bg is None) or (rms is None):
+        bh, sh = _robust_bg_rms_emission_jit(f, clip_sigma=3.0, max_iter=8, min_bg_frac=0.25)
+        if bg is None:  bg  = float(bh)
+        if rms is None: rms = float(sh)
+
+    if not np.isfinite(bg):
+        bg = float(np.median(f))
+    y = f - bg
+    if (not np.isfinite(rms)) or (rms <= 0):
+        mad = np.median(np.abs(y - np.median(y)))
+        rms = float(1.4826 * mad) if mad > 0 else float(np.std(y) + 1e-12)
+
+    y_w = np.nan_to_num(y / rms, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # --- normalized axis & window --------------------------------------------
+    v_min = min(v[0], v[-1])
+    v_max = max(v[0], v[-1])
+    span  = max(1e-30, (v_max - v_min))
+    v_norm = (v - v_min) / span
+
+    # interior for stable convolution
+    valid_idx = (v_norm > 0.0) & (v_norm < 1.0)
+
+    # selection window
+    lo = 0.0 if x_min_norm is None else float(x_min_norm)
+    hi = 1.0 if x_max_norm is None else float(x_max_norm)
+    if lo > hi:
+        lo, hi = hi, lo
+    lo = float(np.clip(lo, 0.0, 1.0))
+    hi = float(np.clip(hi, 0.0, 1.0))
+    win_idx = (v_norm >= lo) & (v_norm <= hi)
+    if not np.any(win_idx):
+        # 창이 비정상적으로 비어 있으면 interior로 대체하되,
+        # synthetic seed는 여전히 [lo,hi] 기준으로 생성
+        win_idx = valid_idx
+
+    # --- filter bank ----------------------------------------------------------
+    sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
+    bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
+    if not bank:
+        # 폴백: 필터 없이 synthetic seed
+        comps, indices, info = _make_synthetic_seed(v, y, v_min, span, lo, hi, dv)
+        debug = {"reason": "empty_bank_after_cap",
+                 "N": int(N), "cap": float(cap1), **info}
+        # max_ngauss==0이면 0개 반환 허용
+        if (max_ngauss is not None) and (int(max_ngauss) <= 0):
+            return dict(ncomp=0, components=np.zeros((0,3)),
+                        bg=float(bg), rms=float(rms), indices=[], debug=debug)
+        return dict(ncomp=1, components=comps, bg=float(bg), rms=float(rms),
+                    indices=indices, debug=debug)
+
+    if NUMBA_OK:
+        g_list, gnorm_list = NumbaList(), NumbaList()
+    else:
+        g_list, gnorm_list = [], []
+    sum_g2_arr      = np.empty(len(bank), dtype=np.float64)
+    sum_g2_sqrt_arr = np.empty(len(bank), dtype=np.float64)
+    halfwidth_arr   = np.empty(len(bank), dtype=np.int64)
+    sigma_ch_arr    = np.empty(len(bank), dtype=np.float64)
+    for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank):
+        g_list.append(g); gnorm_list.append(g_norm)
+        sum_g2_arr[k]      = sum_g2
+        sum_g2_sqrt_arr[k] = sum_g2_sqrt
+        halfwidth_arr[k]   = h
+        sigma_ch_arr[k]    = s_ch
+
+    # --- convolution over interior -------------------------------------------
+    if NUMBA_OK and int(numba_threads) == 1:
+        Rstd, Rraw = _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list)
+    else:
+        Rstd, Rraw = _bank_convolve_and_standardize_par(y, y_w, g_list, gnorm_list)
+
+    k_best = np.argmax(np.abs(Rstd), axis=0)
+    Rbest  = Rstd[k_best, np.arange(N)]
+
+    # --- candidates in window -------------------------------------------------
+    #mask = (np.abs(Rbest) >= float(thres_sigma)) & valid_idx & win_idx
+    mask = (np.abs(Rbest) >= float(thres_sigma)) & valid_idx
+    cand_idx = np.flatnonzero(mask)
+
+    debug = {
+        "N": int(N), "bg": float(bg), "rms": float(rms),
+        "sigma_cap1": float(cap1), "n_sigmas1": int(len(sigmas)),
+        "Rbest_max_interior": float(np.max(np.abs(Rbest[valid_idx]))) if valid_idx.any() else 0.0,
+        "cand_n1": int(cand_idx.size),
+        "win_lo": float(lo), "win_hi": float(hi),
+    }
+
+    # retry with expanded bank if none
+    if cand_idx.size == 0:
+        sigmas2, cap2 = _make_sigma_list(N, np.r_[sigmas, 6,8,10,12,15,18], k_sigma, max_frac=0.90)
+        bank2 = gaussian_kernel_bank(sigmas2, k_sigma=k_sigma)
+        if bank2:
+            if NUMBA_OK:
+                g_list2, gnorm_list2 = NumbaList(), NumbaList()
+            else:
+                g_list2, gnorm_list2 = [], []
+            sum_g2_arr2, sum_g2_sqrt_arr2 = np.empty(len(bank2)), np.empty(len(bank2))
+            halfwidth_arr2  = np.empty(len(bank2), dtype=np.int64)
+            sigma_ch_arr2   = np.empty(len(bank2), dtype=np.float64)
+            for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank2):
+                g_list2.append(g); gnorm_list2.append(g_norm)
+                sum_g2_arr2[k]      = sum_g2
+                sum_g2_sqrt_arr2[k] = sum_g2_sqrt
+                halfwidth_arr2[k]   = h
+                sigma_ch_arr2[k]    = s_ch
+            if NUMBA_OK and int(numba_threads) == 1:
+                R2, RR2 = _bank_convolve_and_standardize_seq(y, y_w, g_list2, gnorm_list2)
+            else:
+                R2, RR2 = _bank_convolve_and_standardize_par(y, y_w, g_list2, gnorm_list2)
+            k_best2 = np.argmax(np.abs(R2), axis=0)
+            Rbest2  = R2[k_best2, np.arange(N)]
+            th2 = max(2.0, 0.6*float(thres_sigma))
+            #cand_idx2 = np.flatnonzero((np.abs(Rbest2) >= th2) & valid_idx & win_idx)
+            cand_idx2 = np.flatnonzero((np.abs(Rbest2) >= th2) & valid_idx)
+            debug.update({
+                "sigma_cap2": float(cap2),
+                "n_sigmas2": int(len(sigmas2)),
+                "Rbest2_max_interior": float(np.max(np.abs(Rbest2[valid_idx]))) if valid_idx.any() else 0.0,
+                "cand_n2": int(cand_idx2.size),
+            })
+            if cand_idx2.size > 0:
+                sigmas            = sigmas2
+                Rstd, Rraw        = R2, RR2
+                k_best, Rbest     = k_best2, Rbest2
+                cand_idx          = cand_idx2
+                sum_g2_arr        = sum_g2_arr2
+                sum_g2_sqrt_arr   = sum_g2_sqrt_arr2
+                halfwidth_arr     = halfwidth_arr2
+                sigma_ch_arr      = sigma_ch_arr2
+
+    # still none in window -> synthetic
+    if cand_idx.size == 0:
+        comps, indices, info = _make_synthetic_seed(v, y, v_min, span, lo, hi, dv)
+        debug.update(info)
+        if (max_ngauss is not None) and (int(max_ngauss) <= 0):
+            return dict(ncomp=0, components=np.zeros((0,3)),
+                        bg=float(bg), rms=float(rms), indices=[], debug=debug)
+        return dict(ncomp=1, components=comps, bg=float(bg), rms=float(rms),
+                    indices=indices, debug=debug)
+
+    # --- NMS + amplitude gate -------------------------------------------------
+    order = np.argsort(-np.abs(Rbest[cand_idx]))
+    cand_idx = cand_idx[order]
+    kept_idx, kept_sig, kept_A = [], [], []
+    taken = np.zeros(N, dtype=bool)
+
+    for idx in cand_idx:
+        lo_nms = max(0, idx - int(sep_channels))
+        hi_nms = min(N, idx + int(sep_channels) + 1)
+        if taken[lo_nms:hi_nms].any():
+            continue
+        kb = int(k_best[idx])
+        sum_g2      = sum_g2_arr[kb]
+        sum_g2_sqrt = sum_g2_sqrt_arr[kb]
+        s_ch        = sigma_ch_arr[kb]
+        if detrend_local:
+            h = int(halfwidth_arr[kb])
+            w = int(max(h, detrend_halfwin))
+            lsl = slice(max(0, idx - w), min(N, idx + w + 1))
+            xv = np.arange(lsl.start, lsl.stop, dtype=float)
+            yy = y[lsl]
+            X = np.vstack([xv, np.ones_like(xv)]).T
+            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)
+            y_loc = y.copy()
+            y_loc[lsl] = yy - (X @ coef)
+            rr = _conv_same_reflect(y_loc, g_list[kb] if NUMBA_OK else bank[kb][0])
+            A_hat = rr[idx] / max(1e-12, sum_g2)
+        else:
+            A_hat = Rraw[kb, idx] / max(1e-12, sum_g2)
+        sigma_A = float(rms) / float(sum_g2_sqrt)
+        if abs(A_hat) < float(amp_sigma_thres) * sigma_A:
+            continue
+        kept_idx.append(int(idx))
+        kept_sig.append(float(s_ch))
+        kept_A.append(float(A_hat))
+        taken[lo_nms:hi_nms] = True
+        if max_components is not None and len(kept_idx) >= int(max_components):
+            break
+
+    # 모두 게이트에서 탈락 -> synthetic 폴백
+    if not kept_idx:
+        comps, indices, info = _make_synthetic_seed(v, y, v_min, span, lo, hi, dv)
+        debug.update({"reason": "all_candidates_failed_amp_gate", **info})
+        if (max_ngauss is not None) and (int(max_ngauss) <= 0):
+            return dict(ncomp=0, components=np.zeros((0,3)),
+                        bg=float(bg), rms=float(rms), indices=[], debug=debug)
+        return dict(ncomp=1, components=comps, bg=float(bg), rms=float(rms),
+                    indices=indices, debug=debug)
+
+    centers_ch = np.asarray(kept_idx, dtype=np.float64)
+    kept_sig   = np.asarray(kept_sig, dtype=np.float64)
+    amps       = np.asarray(kept_A,   dtype=np.float64)
+
+    if refine_center:
+        for j, i0 in enumerate(centers_ch.astype(int)):
+            dx, _ = _parabolic_subsample_jit(Rbest, i0)
+            centers_ch[j] += dx
+
+    order2 = np.argsort(-np.abs(amps))
+    centers_sorted   = centers_ch[order2]
+    sigmas_ch_sorted = kept_sig[order2]
+    amps_sorted      = amps[order2]
+
+    sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+    x_vel   = v[0] + centers_sorted * (sign * dv)
+    sigma_v = sigmas_ch_sorted * dv
+
+    comps = np.stack([x_vel, sigma_v, np.abs(amps_sorted)], axis=1)
+    indices = list(zip(np.rint(centers_sorted).astype(int).tolist(),
+                       sigmas_ch_sorted.astype(float).tolist()))
+    debug["kept"] = len(indices)
+
+    # restrict to top-|amp|
+    if max_ngauss is not None:
+        k = int(max_ngauss)
+        if k <= 0:
+            return dict(ncomp=0, components=np.zeros((0,3)),
+                        bg=float(bg), rms=float(rms), indices=[], debug={**debug, "reason":"max_ngauss<=0"})
+        if k < comps.shape[0]:
+            comps = comps[:k, :]
+            indices = indices[:k]
+            debug["kept_after_max_ngauss"] = k
+
+    return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
+                indices=indices, debug=debug)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# use the full spectral window like the log-like windowing : should be used with loglike_d
+def search_gaussian_seeds_matched_filter_norm0(
+    v, f, *, rms=None, bg=None,
+    sigma_list_ch=None, k_sigma=4.0,
+    thres_sigma=3.0, amp_sigma_thres=3.0,
+    sep_channels=5, max_components=None,
+    refine_center=True, detrend_local=False, detrend_halfwin=8,
+    numba_threads=1,
+    x_min_norm=None, x_max_norm=None,
+    max_ngauss=None
+):
+    """
+    Find initial seeds for multi-Gaussian fitting using a matched filter,
+    but restrict detection to the normalized velocity window (x_min_norm, x_max_norm).
+
+    Parameters
+    ----------
+    v : array-like
+        Physical velocity axis (monotonic).
+    f : array-like
+        Spectrum values (same length as v).
+    ...
+    x_min_norm, x_max_norm : float or None
+        Normalized bounds in [0, 1]. If None, defaults to full range (0, 1).
+
+    max_ngauss : int or None
+        If given, return at most this many Gaussian seeds with the largest amplitudes.
+
+    Returns
+    -------
+    dict
+        (ncomp, components, bg, rms, indices, debug).
+    """
+
+    # --- (original preamble unchanged) ----------------------------------------
+    if NUMBA_OK and (numba_threads is not None):
+        try:
+            set_num_threads(int(numba_threads))
+        except Exception:
+            pass
+
+    v = np.asarray(v, dtype=np.float64)
+    f = np.asarray(f, dtype=np.float64)
+    N = f.size
+    if N == 0:
+        return dict(ncomp=0, components=np.zeros((0,3)),
+                    bg=0.0, rms=1.0, indices=[], debug={"reason":"N=0"})
+
+    dv = float(np.median(np.abs(np.diff(v)))) if N > 1 else 1.0
+
+    # Robust background and rms (unchanged)
+    if (bg is None) or (rms is None):
+        bh, sh = _robust_bg_rms_emission_jit(f, clip_sigma=3.0, max_iter=8, min_bg_frac=0.25)
+        if bg is None:  bg  = float(bh)
+        if rms is None: rms = float(sh)
+
+    if not np.isfinite(bg):  bg = float(np.median(f))
+    y = f - bg
+    if (not np.isfinite(rms)) or (rms <= 0):
+        mad = np.median(np.abs(y - np.median(y)))
+        rms = float(1.4826 * mad) if mad > 0 else float(np.std(y) + 1e-12)
+    y_w = np.nan_to_num(y / rms, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # sigma list & kernel bank (unchanged)
+    sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
+    bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
+    if not bank:
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason":"empty_bank_after_cap","N":int(N),"cap":float(cap1)})
+
+    # Prepare lists/arrays (unchanged)
+    if NUMBA_OK:
+        g_list     = NumbaList()
+        gnorm_list = NumbaList()
+    else:
+        g_list, gnorm_list = [], []
+
+    sum_g2_arr        = np.empty(len(bank), dtype=np.float64)
+    sum_g2_sqrt_arr   = np.empty(len(bank), dtype=np.float64)
+    halfwidth_arr     = np.empty(len(bank), dtype=np.int64)
+    sigma_ch_arr      = np.empty(len(bank), dtype=np.float64)
+    for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank):
+        g_list.append(g)
+        gnorm_list.append(g_norm)
+        sum_g2_arr[k]      = sum_g2
+        sum_g2_sqrt_arr[k] = sum_g2_sqrt
+        halfwidth_arr[k]   = h
+        sigma_ch_arr[k]    = s_ch
+
+    # --- New: build the valid window mask on normalized velocity -------------
+    # Normalize v to [0,1] using its physical min/max (handles dv sign).
+    v_min = np.minimum(v[0], v[-1])
+    v_max = np.maximum(v[0], v[-1])
+    span  = max(1e-30, (v_max - v_min))
+    v_norm = (v - v_min) / span
+
+    # Defaults: full range
+    if x_min_norm is None: x_min_norm = 0.0
+    if x_max_norm is None: x_max_norm = 1.0
+    lo = x_min_norm if x_min_norm <= x_max_norm else x_max_norm
+    hi = x_max_norm if x_max_norm >= x_min_norm else x_min_norm
+
+    # Strict interior to mirror the log-like windowing
+    # Strict interior to mirror the log-like windowing : should be used with loglike_d_x_window
+    #valid_idx = (v_norm > lo) & (v_norm < hi)
+    valid_idx = (v_norm > 0) & (v_norm < 1)
+    n_valid = int(np.count_nonzero(valid_idx))
+    if n_valid == 0:
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason":"empty_window","lo":float(lo),"hi":float(hi)})
+
+    # --- Hot path: convolve bank and standardize -----------------
+    if NUMBA_OK and int(numba_threads) == 1:
+        Rstd, Rraw = _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list)
+    else:
+        Rstd, Rraw = _bank_convolve_and_standardize_par(y, y_w, g_list, gnorm_list)
+
+    # Choose best sigma per channel
+    k_best = np.argmax(np.abs(Rstd), axis=0)
+    Rbest  = Rstd[k_best, np.arange(N)]
+
+    # First-pass candidates: restrict to window
+    mask = (np.abs(Rbest) >= float(thres_sigma)) & valid_idx
+    cand_idx = np.flatnonzero(mask)
+
+    debug = {
+        "N": int(N), "bg": float(bg), "rms": float(rms),
+        "sigma_cap1": float(cap1), "n_sigmas1": int(len(sigmas)),
+        "Rbest_max_window": float(np.max(np.abs(Rbest[valid_idx]))),
+        "cand_n1": int(cand_idx.size),
+        "win_lo": float(lo), "win_hi": float(hi),
+    }
+
+    # If no candidates, expand sigma bank and retry (still within window)
+    if cand_idx.size == 0:
+        sigmas2, cap2 = _make_sigma_list(N, np.r_[sigmas, 6,8,10,12,15,18], k_sigma, max_frac=0.90)
+        bank2 = gaussian_kernel_bank(sigmas2, k_sigma=k_sigma)
+        if bank2:
+            if NUMBA_OK:
+                g_list2     = NumbaList()
+                gnorm_list2 = NumbaList()
+            else:
+                g_list2, gnorm_list2 = [], []
+            sum_g2_arr2        = np.empty(len(bank2), dtype=np.float64)
+            sum_g2_sqrt_arr2   = np.empty(len(bank2), dtype=np.float64)
+            halfwidth_arr2     = np.empty(len(bank2), dtype=np.int64)
+            sigma_ch_arr2      = np.empty(len(bank2), dtype=np.float64)
+            for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank2):
+                g_list2.append(g); gnorm_list2.append(g_norm)
+                sum_g2_arr2[k]      = sum_g2
+                sum_g2_sqrt_arr2[k] = sum_g2_sqrt
+                halfwidth_arr2[k]   = h
+                sigma_ch_arr2[k]    = s_ch
+
+            if NUMBA_OK and int(numba_threads) == 1:
+                R2, RR2 = _bank_convolve_and_standardize_seq(y, y_w, g_list2, gnorm_list2)
+            else:
+                R2, RR2 = _bank_convolve_and_standardize_par(y, y_w, g_list2, gnorm_list2)
+
+            k_best2 = np.argmax(np.abs(R2), axis=0)
+            Rbest2  = R2[k_best2, np.arange(N)]
+            th2 = max(2.0, 0.6*float(thres_sigma))
+            cand_idx2 = np.flatnonzero((np.abs(Rbest2) >= th2) & valid_idx)
+
+            debug.update({
+                "sigma_cap2": float(cap2),
+                "n_sigmas2": int(len(sigmas2)),
+                "Rbest2_max_window": float(np.max(np.abs(Rbest2[valid_idx]))),
+                "cand_n2": int(cand_idx2.size),
+            })
+
+            if cand_idx2.size > 0:
+                # Switch to the new bank
+                sigmas            = sigmas2
+                Rstd, Rraw        = R2, RR2
+                k_best, Rbest     = k_best2, Rbest2
+                cand_idx          = cand_idx2
+                sum_g2_arr        = sum_g2_arr2
+                sum_g2_sqrt_arr   = sum_g2_sqrt_arr2
+                halfwidth_arr     = halfwidth_arr2
+                sigma_ch_arr      = sigma_ch_arr2
+
+    # Structural rescue when still no candidates: choose within window only
+    if cand_idx.size == 0:
+        win_idx = np.flatnonzero(valid_idx)
+        if win_idx.size > 0:
+            i_rel = int(np.argmax(np.abs(Rbest[win_idx])))
+            i0 = int(win_idx[i_rel])
+        else:
+            i0 = -1
+
+        if i0 >= 0 and np.isfinite(Rbest[i0]):
+            kb  = int(k_best[i0])
+            A_hat   = Rraw[kb, i0] / max(1e-12, sum_g2_arr[kb])
+            sigma_A = float(rms) / float(sum_g2_sqrt_arr[kb])
+            debug.update({"rescue_i0": i0, "rescue_Rbest": float(Rbest[i0]),
+                          "rescue_A_hat": float(A_hat),
+                          "rescue_sigma_A": float(sigma_A)})
+            if abs(A_hat) >= max(2.5, 0.8*float(amp_sigma_thres)) * sigma_A:
+                sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+                center_ch = float(i0)
+                if refine_center:
+                    dx, _ = _parabolic_subsample_jit(Rbest, i0)
+                    center_ch += dx
+                x_vel   = v[0] + center_ch * (sign * dv)
+                sigma_v = float(sigma_ch_arr[kb]) * dv
+                comps = np.array([[abs(float(A_hat)), float(x_vel), float(sigma_v)]], dtype=float)
+                indices = [(int(np.rint(center_ch)), float(sigma_ch_arr[kb]))]
+                return dict(ncomp=1, components=comps, bg=float(bg), rms=float(rms),
+                            indices=indices, debug=debug)
+
+        debug["reason"] = "no_candidates_after_rescue"
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug=debug)
+
+    # Normal path: NMS + amplitude gate (unchanged except cand_idx already windowed)
+    order = np.argsort(-np.abs(Rbest[cand_idx]))
+    cand_idx = cand_idx[order]
+    kept_idx, kept_sig, kept_A = [], [], []
+    taken = np.zeros(N, dtype=bool)
+
+    for idx in cand_idx:
+        lo_nms = max(0, idx - int(sep_channels))
+        hi_nms = min(N, idx + int(sep_channels) + 1)
+        if taken[lo_nms:hi_nms].any():
+            continue
+
+        kb  = int(k_best[idx])
+        sum_g2       = sum_g2_arr[kb]
+        sum_g2_sqrt  = sum_g2_sqrt_arr[kb]
+        s_ch         = sigma_ch_arr[kb]
+
+        if detrend_local:
+            h = int(halfwidth_arr[kb])
+            w = int(max(h, detrend_halfwin))
+            lsl = slice(max(0, idx - w), min(N, idx + w + 1))
+            xv = np.arange(lsl.start, lsl.stop, dtype=float)
+            yy = y[lsl]
+            X = np.vstack([xv, np.ones_like(xv)]).T
+            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)
+            y_loc = y.copy()
+            y_loc[lsl] = yy - (X @ coef)
+            rr = _conv_same_reflect(y_loc, g_list[kb] if NUMBA_OK else bank[kb][0])
+            A_hat = rr[idx] / max(1e-12, sum_g2)
+        else:
+            A_hat = Rraw[kb, idx] / max(1e-12, sum_g2)
+
+        sigma_A = float(rms) / float(sum_g2_sqrt)
+        if abs(A_hat) < float(amp_sigma_thres) * sigma_A:
+            continue
+
+        kept_idx.append(int(idx))
+        kept_sig.append(float(s_ch))
+        kept_A.append(float(A_hat))
+        taken[lo_nms:hi_nms] = True
+
+        if max_components is not None and len(kept_idx) >= int(max_components):
+            break
+
+    if not kept_idx:
+        debug["reason"] = "all_candidates_failed_amp_gate"
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug=debug)
+
+    centers_ch = np.asarray(kept_idx, dtype=np.float64)
+    kept_sig   = np.asarray(kept_sig, dtype=np.float64)
+    amps       = np.asarray(kept_A,   dtype=np.float64)
+
+    if refine_center:
+        for j, i0 in enumerate(centers_ch.astype(int)):
+            dx, _ = _parabolic_subsample_jit(Rbest, i0)
+            centers_ch[j] += dx
+
+    order2 = np.argsort(-np.abs(amps))
+    centers_sorted   = centers_ch[order2]
+    sigmas_ch_sorted = kept_sig[order2]
+    amps_sorted      = amps[order2]
+
+    sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+    x_vel   = v[0] + centers_sorted * (sign * dv)
+    sigma_v = sigmas_ch_sorted * dv
+
+    # comps = [center(vel), sigma(vel), |amplitude|]  (amp 내림차순)
+    comps = np.stack([x_vel, sigma_v, np.abs(amps_sorted)], axis=1)
+    indices = list(zip(np.rint(centers_sorted).astype(int).tolist(),
+                       sigmas_ch_sorted.astype(float).tolist()))
+    debug["kept"] = len(indices)
+
+    # ---: limit by max_ngauss (top-|amp| already) ---
+    if max_ngauss is not None:
+        k = int(max_ngauss)
+        if k < comps.shape[0]:
+            comps = comps[:k, :]
+            indices = indices[:k]
+            debug["kept_after_max_ngauss"] = k
+
+    return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
+                indices=indices, debug=debug)
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+
+
+
+
+
+# Strict interior to mirror the log-like windowing : should be used with loglike_d_x_window
+def search_gaussian_seeds_matched_filter_norm_x_window(
+    v, f, *, rms=None, bg=None,
+    sigma_list_ch=None, k_sigma=4.0,
+    thres_sigma=3.0, amp_sigma_thres=3.0,
+    sep_channels=5, max_components=None,
+    refine_center=True, detrend_local=False, detrend_halfwin=8,
+    numba_threads=1,
+    x_min_norm=None, x_max_norm=None,
+    max_ngauss=None
+):
+    """
+    Find initial seeds for multi-Gaussian fitting using a matched filter,
+    but restrict detection to the normalized velocity window (x_min_norm, x_max_norm).
+
+    Parameters
+    ----------
+    v : array-like
+        Physical velocity axis (monotonic).
+    f : array-like
+        Spectrum values (same length as v).
+    ...
+    x_min_norm, x_max_norm : float or None
+        Normalized bounds in [0, 1]. If None, defaults to full range (0, 1).
+
+    max_ngauss : int or None
+        If given, return at most this many Gaussian seeds with the largest amplitudes.
+
+    Returns
+    -------
+    dict
+        (ncomp, components, bg, rms, indices, debug).
+    """
+
+    # --- (original preamble unchanged) ----------------------------------------
+    if NUMBA_OK and (numba_threads is not None):
+        try:
+            set_num_threads(int(numba_threads))
+        except Exception:
+            pass
+
+    v = np.asarray(v, dtype=np.float64)
+    f = np.asarray(f, dtype=np.float64)
+    N = f.size
+    if N == 0:
+        return dict(ncomp=0, components=np.zeros((0,3)),
+                    bg=0.0, rms=1.0, indices=[], debug={"reason":"N=0"})
+
+    dv = float(np.median(np.abs(np.diff(v)))) if N > 1 else 1.0
+
+    # Robust background and rms (unchanged)
+    if (bg is None) or (rms is None):
+        bh, sh = _robust_bg_rms_emission_jit(f, clip_sigma=3.0, max_iter=8, min_bg_frac=0.25)
+        if bg is None:  bg  = float(bh)
+        if rms is None: rms = float(sh)
+
+    if not np.isfinite(bg):  bg = float(np.median(f))
+    y = f - bg
+    if (not np.isfinite(rms)) or (rms <= 0):
+        mad = np.median(np.abs(y - np.median(y)))
+        rms = float(1.4826 * mad) if mad > 0 else float(np.std(y) + 1e-12)
+    y_w = np.nan_to_num(y / rms, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # sigma list & kernel bank (unchanged)
+    sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
+    bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
+    if not bank:
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason":"empty_bank_after_cap","N":int(N),"cap":float(cap1)})
+
+    # Prepare lists/arrays (unchanged)
+    if NUMBA_OK:
+        g_list     = NumbaList()
+        gnorm_list = NumbaList()
+    else:
+        g_list, gnorm_list = [], []
+
+    sum_g2_arr        = np.empty(len(bank), dtype=np.float64)
+    sum_g2_sqrt_arr   = np.empty(len(bank), dtype=np.float64)
+    halfwidth_arr     = np.empty(len(bank), dtype=np.int64)
+    sigma_ch_arr      = np.empty(len(bank), dtype=np.float64)
+    for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank):
+        g_list.append(g)
+        gnorm_list.append(g_norm)
+        sum_g2_arr[k]      = sum_g2
+        sum_g2_sqrt_arr[k] = sum_g2_sqrt
+        halfwidth_arr[k]   = h
+        sigma_ch_arr[k]    = s_ch
+
+    # --- New: build the valid window mask on normalized velocity -------------
+    # Normalize v to [0,1] using its physical min/max (handles dv sign).
+    v_min = np.minimum(v[0], v[-1])
+    v_max = np.maximum(v[0], v[-1])
+    span  = max(1e-30, (v_max - v_min))
+    v_norm = (v - v_min) / span
+
+    # Defaults: full range
+    if x_min_norm is None: x_min_norm = 0.0
+    if x_max_norm is None: x_max_norm = 1.0
+    lo = x_min_norm if x_min_norm <= x_max_norm else x_max_norm
+    hi = x_max_norm if x_max_norm >= x_min_norm else x_min_norm
+
+    # Strict interior to mirror the log-like windowing
+    # Strict interior to mirror the log-like windowing : should be used with loglike_d_x_window
+    valid_idx = (v_norm > lo) & (v_norm < hi)
+    n_valid = int(np.count_nonzero(valid_idx))
+    if n_valid == 0:
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug={"reason":"empty_window","lo":float(lo),"hi":float(hi)})
+
+    # --- Hot path: convolve bank and standardize (unchanged) -----------------
+    if NUMBA_OK and int(numba_threads) == 1:
+        Rstd, Rraw = _bank_convolve_and_standardize_seq(y, y_w, g_list, gnorm_list)
+    else:
+        Rstd, Rraw = _bank_convolve_and_standardize_par(y, y_w, g_list, gnorm_list)
+
+    # Choose best sigma per channel
+    k_best = np.argmax(np.abs(Rstd), axis=0)
+    Rbest  = Rstd[k_best, np.arange(N)]
+
+    # First-pass candidates: restrict to window
+    mask = (np.abs(Rbest) >= float(thres_sigma)) & valid_idx
+    cand_idx = np.flatnonzero(mask)
+
+    debug = {
+        "N": int(N), "bg": float(bg), "rms": float(rms),
+        "sigma_cap1": float(cap1), "n_sigmas1": int(len(sigmas)),
+        "Rbest_max_window": float(np.max(np.abs(Rbest[valid_idx]))),
+        "cand_n1": int(cand_idx.size),
+        "win_lo": float(lo), "win_hi": float(hi),
+    }
+
+    # If no candidates, expand sigma bank and retry (still within window)
+    if cand_idx.size == 0:
+        sigmas2, cap2 = _make_sigma_list(N, np.r_[sigmas, 6,8,10,12,15,18], k_sigma, max_frac=0.90)
+        bank2 = gaussian_kernel_bank(sigmas2, k_sigma=k_sigma)
+        if bank2:
+            if NUMBA_OK:
+                g_list2     = NumbaList()
+                gnorm_list2 = NumbaList()
+            else:
+                g_list2, gnorm_list2 = [], []
+            sum_g2_arr2        = np.empty(len(bank2), dtype=np.float64)
+            sum_g2_sqrt_arr2   = np.empty(len(bank2), dtype=np.float64)
+            halfwidth_arr2     = np.empty(len(bank2), dtype=np.int64)
+            sigma_ch_arr2      = np.empty(len(bank2), dtype=np.float64)
+            for k, (g, sum_g2, g_norm, sum_g2_sqrt, h, s_ch) in enumerate(bank2):
+                g_list2.append(g); gnorm_list2.append(g_norm)
+                sum_g2_arr2[k]      = sum_g2
+                sum_g2_sqrt_arr2[k] = sum_g2_sqrt
+                halfwidth_arr2[k]   = h
+                sigma_ch_arr2[k]    = s_ch
+
+            if NUMBA_OK and int(numba_threads) == 1:
+                R2, RR2 = _bank_convolve_and_standardize_seq(y, y_w, g_list2, gnorm_list2)
+            else:
+                R2, RR2 = _bank_convolve_and_standardize_par(y, y_w, g_list2, gnorm_list2)
+
+            k_best2 = np.argmax(np.abs(R2), axis=0)
+            Rbest2  = R2[k_best2, np.arange(N)]
+            th2 = max(2.0, 0.6*float(thres_sigma))
+            cand_idx2 = np.flatnonzero((np.abs(Rbest2) >= th2) & valid_idx)
+
+            debug.update({
+                "sigma_cap2": float(cap2),
+                "n_sigmas2": int(len(sigmas2)),
+                "Rbest2_max_window": float(np.max(np.abs(Rbest2[valid_idx]))),
+                "cand_n2": int(cand_idx2.size),
+            })
+
+            if cand_idx2.size > 0:
+                # Switch to the new bank
+                sigmas            = sigmas2
+                Rstd, Rraw        = R2, RR2
+                k_best, Rbest     = k_best2, Rbest2
+                cand_idx          = cand_idx2
+                sum_g2_arr        = sum_g2_arr2
+                sum_g2_sqrt_arr   = sum_g2_sqrt_arr2
+                halfwidth_arr     = halfwidth_arr2
+                sigma_ch_arr      = sigma_ch_arr2
+
+    # Structural rescue when still no candidates: choose within window only
+    if cand_idx.size == 0:
+        win_idx = np.flatnonzero(valid_idx)
+        if win_idx.size > 0:
+            i_rel = int(np.argmax(np.abs(Rbest[win_idx])))
+            i0 = int(win_idx[i_rel])
+        else:
+            i0 = -1
+
+        if i0 >= 0 and np.isfinite(Rbest[i0]):
+            kb  = int(k_best[i0])
+            A_hat   = Rraw[kb, i0] / max(1e-12, sum_g2_arr[kb])
+            sigma_A = float(rms) / float(sum_g2_sqrt_arr[kb])
+            debug.update({"rescue_i0": i0, "rescue_Rbest": float(Rbest[i0]),
+                          "rescue_A_hat": float(A_hat),
+                          "rescue_sigma_A": float(sigma_A)})
+            if abs(A_hat) >= max(2.5, 0.8*float(amp_sigma_thres)) * sigma_A:
+                sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+                center_ch = float(i0)
+                if refine_center:
+                    dx, _ = _parabolic_subsample_jit(Rbest, i0)
+                    center_ch += dx
+                x_vel   = v[0] + center_ch * (sign * dv)
+                sigma_v = float(sigma_ch_arr[kb]) * dv
+                comps = np.array([[abs(float(A_hat)), float(x_vel), float(sigma_v)]], dtype=float)
+                indices = [(int(np.rint(center_ch)), float(sigma_ch_arr[kb]))]
+                return dict(ncomp=1, components=comps, bg=float(bg), rms=float(rms),
+                            indices=indices, debug=debug)
+
+        debug["reason"] = "no_candidates_after_rescue"
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug=debug)
+
+    # Normal path: NMS + amplitude gate (unchanged except cand_idx already windowed)
+    order = np.argsort(-np.abs(Rbest[cand_idx]))
+    cand_idx = cand_idx[order]
+    kept_idx, kept_sig, kept_A = [], [], []
+    taken = np.zeros(N, dtype=bool)
+
+    for idx in cand_idx:
+        lo_nms = max(0, idx - int(sep_channels))
+        hi_nms = min(N, idx + int(sep_channels) + 1)
+        if taken[lo_nms:hi_nms].any():
+            continue
+
+        kb  = int(k_best[idx])
+        sum_g2       = sum_g2_arr[kb]
+        sum_g2_sqrt  = sum_g2_sqrt_arr[kb]
+        s_ch         = sigma_ch_arr[kb]
+
+        if detrend_local:
+            h = int(halfwidth_arr[kb])
+            w = int(max(h, detrend_halfwin))
+            lsl = slice(max(0, idx - w), min(N, idx + w + 1))
+            xv = np.arange(lsl.start, lsl.stop, dtype=float)
+            yy = y[lsl]
+            X = np.vstack([xv, np.ones_like(xv)]).T
+            coef, *_ = np.linalg.lstsq(X, yy, rcond=None)
+            y_loc = y.copy()
+            y_loc[lsl] = yy - (X @ coef)
+            rr = _conv_same_reflect(y_loc, g_list[kb] if NUMBA_OK else bank[kb][0])
+            A_hat = rr[idx] / max(1e-12, sum_g2)
+        else:
+            A_hat = Rraw[kb, idx] / max(1e-12, sum_g2)
+
+        sigma_A = float(rms) / float(sum_g2_sqrt)
+        if abs(A_hat) < float(amp_sigma_thres) * sigma_A:
+            continue
+
+        kept_idx.append(int(idx))
+        kept_sig.append(float(s_ch))
+        kept_A.append(float(A_hat))
+        taken[lo_nms:hi_nms] = True
+
+        if max_components is not None and len(kept_idx) >= int(max_components):
+            break
+
+    if not kept_idx:
+        debug["reason"] = "all_candidates_failed_amp_gate"
+        return dict(ncomp=0, components=np.zeros((0,3)), bg=float(bg), rms=float(rms),
+                    indices=[], debug=debug)
+
+    centers_ch = np.asarray(kept_idx, dtype=np.float64)
+    kept_sig   = np.asarray(kept_sig, dtype=np.float64)
+    amps       = np.asarray(kept_A,   dtype=np.float64)
+
+    if refine_center:
+        for j, i0 in enumerate(centers_ch.astype(int)):
+            dx, _ = _parabolic_subsample_jit(Rbest, i0)
+            centers_ch[j] += dx
+
+    order2 = np.argsort(-np.abs(amps))
+    centers_sorted   = centers_ch[order2]
+    sigmas_ch_sorted = kept_sig[order2]
+    amps_sorted      = amps[order2]
+
+    sign = np.sign(v[-1] - v[0]) if v.size > 1 else 1.0
+    x_vel   = v[0] + centers_sorted * (sign * dv)
+    sigma_v = sigmas_ch_sorted * dv
+
+    # comps = [center(vel), sigma(vel), |amplitude|]  (amp 내림차순)
+    comps = np.stack([x_vel, sigma_v, np.abs(amps_sorted)], axis=1)
+    indices = list(zip(np.rint(centers_sorted).astype(int).tolist(),
+                       sigmas_ch_sorted.astype(float).tolist()))
+    debug["kept"] = len(indices)
+
+    # ---: limit by max_ngauss (top-|amp| already) ---
+    if max_ngauss is not None:
+        k = int(max_ngauss)
+        if k < comps.shape[0]:
+            comps = comps[:k, :]
+            indices = indices[:k]
+            debug["kept_after_max_ngauss"] = k
+
+    return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
+                indices=indices, debug=debug)
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
 
 # --------------- Main function (overhead-minimized) ----------
-def search_gaussian_seeds_matched_filter_norm(
+def search_gaussian_seeds_matched_filter_norm_non_mask(
     v, f, *, rms=None, bg=None,
     sigma_list_ch=None, k_sigma=4.0,
     thres_sigma=3.0, amp_sigma_thres=3.0,
@@ -559,17 +1773,422 @@ def search_gaussian_seeds_matched_filter_norm(
 
     return dict(ncomp=comps.shape[0], components=comps, bg=float(bg), rms=float(rms),
                 indices=indices, debug=debug)
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+
+def _clamp_01(x: float) -> float:
+    return float(np.clip(x, 0.0, 1.0))
+
+
+def _clamp_window(x_lo: float, x_hi: float, w_lo: float | None, w_hi: float | None,
+                  min_span: float = 2e-2):
+    """
+    Clamp [x_lo, x_hi] to a given window [w_lo, w_hi] in [0,1].
+    If clamping degenerates the interval, re-center with a small minimal span.
+    """
+    if (w_lo is None) or (w_hi is None):
+        lo = _clamp_01(x_lo)
+        hi = _clamp_01(x_hi)
+        if hi < lo:
+            lo, hi = hi, lo
+        if (hi - lo) < min_span:
+            mid = 0.5 * (lo + hi)
+            lo = max(0.0, mid - 0.5 * min_span)
+            hi = min(1.0, mid + 0.5 * min_span)
+        return lo, hi
+
+    lo_w = _clamp_01(min(w_lo, w_hi))
+    hi_w = _clamp_01(max(w_lo, w_hi))
+    lo = max(_clamp_01(x_lo), lo_w)
+    hi = min(_clamp_01(x_hi), hi_w)
+
+    if hi < lo:
+        #mid = 0.5 * (lo_w + hi_w)
+        #lo = max(0.0, mid - 0.5 * min_span)
+        #hi = min(1.0, mid + 0.5 * min_span)
+
+        lo = w_lo
+        hi = w_hi
+
+    if (hi - lo) < min_span:
+        #mid = 0.5 * (lo + hi)
+        #lo = max(0.0, mid - 0.5 * min_span)
+        #hi = min(1.0, mid + 0.5 * min_span)
+
+        lo = w_lo
+        hi = w_hi
+
+    return lo, hi
 
 
 
 
 
-
-
-
-
-
+# ======= 2) Bounds from seeds, clamped to window with requested fallback =======
 def set_sgfit_bounds_from_matched_filter_seeds_norm(
+    _gaussian_seeds,
+    *,
+    # (1) model residual sigma bounds
+    model_sigma_bounds=(0.0, 0.7),
+    # (2) background upper bound = bg + k_bg * rms  (clipped to 1.0 for safety)
+    k_bg=3.0,
+    # (3) center bounds = [min(center) - k_x * sigma, max(center) + k_x * sigma]
+    k_x=5.0,
+    # (4) sigma bounds = [k_sig_lo * s_min, k_sig_hi * s_max]
+    sigma_scale_bounds=(0.1, 3.0),
+    # (5) peak bounds = [k_p_lo * A_min, k_p_hi * A_max]
+    peak_scale_bounds=(0.3, 2.0),
+    # Stabilization (minimum width)
+    min_x_span=1e-5,
+    min_sigma=1e-4,
+    # Clipping upper bound (normalized axis is 0..1)
+    clip_sigma_hi=0.999,
+    # Physical axis options for computing x-bounds and sigma scaling
+    use_phys_for_x_bounds=True,  # If True, compute x-bounds in physical axis and map back to normalized
+    v_min=None, v_max=None,      # Physical velocity range
+    cdelt3=None,                 # FITS CDELT3 (sign respected)
+    v0_anchor=None, v1_anchor=None,  # If set, override cdelt3 when mapping
+    # New: normalized window to clamp final x-bounds and cap sigma_hi
+    x_min_norm=None, x_max_norm=None
+):
+    """
+    Build scalar bounds (single set) for a subsequent multi-Gaussian fit.
+
+    INPUT:
+      _gaussian_seeds: dict from search_gaussian_seeds_matched_filter_norm
+          components[:,0]=center_norm, [:,1]=sigma_norm, [:,2]=|amp|
+          'bg' and 'rms' are passed through.
+
+    OUTPUT (length 10 list):
+      [model_sigma_lo, bg_lo, x_lo, s_lo, p_lo,
+       model_sigma_hi, bg_hi, x_hi, s_hi, p_hi]
+
+    Fallback (no seeds inside window):
+      x_lo = x_min_norm (or 0), x_hi = x_max_norm (or 1)
+      s_lo = min_sigma
+      s_hi = min(clip_sigma_hi, max(min_sigma*1.05, window_width))
+      p_lo = 0.0, p_hi = 1.0
+    """
+    msig_lo_seed, msig_hi_seed = map(float, model_sigma_bounds)
+
+    # Pull bg/rms from seeds (raw units). We clip bg_hi to 1.0 only for safety if your pipeline expects 0..1.
+    bg  = float(_gaussian_seeds.get('bg', 0.0))
+    rms = float(_gaussian_seeds.get('rms', 0.1))
+    if not np.isfinite(rms) or (rms <= 0):
+        rms = 0.1
+
+    comps = _gaussian_seeds.get('components', None)
+    ncomp = int(_gaussian_seeds.get('ncomp', 0))
+
+    # Background bounds
+    bg_lo = 0.0
+    bg_hi = max(bg_lo + 1e-6, min(1.0, bg + k_bg * rms))
+
+    # Window setup
+    w_lo = 0.0 if (x_min_norm is None) else float(x_min_norm)
+    w_hi = 1.0 if (x_max_norm is None) else float(x_max_norm)
+    if w_hi < w_lo:
+        w_lo, w_hi = w_hi, w_lo
+    window_width = max(0.0, w_hi - w_lo)
+
+    # Defaults in case we have no seeds
+    x_lo = 0.0
+    x_hi = 1.0
+    s_lo = max(min_sigma, 1e-3)
+    s_hi = 0.3
+    p_lo = 0.0
+    p_hi = 1.0
+
+    if ncomp > 0 and comps is not None and getattr(comps, "size", 0):
+        comps = np.asarray(comps, dtype=float)
+        # comps: [center_norm, sigma_norm, |amp|]
+        centers_n = comps[:, 0]
+        sigs_n    = comps[:, 1]
+        amps      = comps[:, 2]
+
+        # ----- x bounds (either via physical axis, or on normalized) -----
+        if use_phys_for_x_bounds:
+            if (v_min is None) or (v_max is None):
+                raise ValueError("use_phys_for_x_bounds=True requires v_min and v_max.")
+            v0, v1 = _resolve_anchors(float(v_min), float(v_max), cdelt3, v0_anchor, v1_anchor)
+            v_scale = (v1 - v0)   # keep sign
+            if abs(v_scale) < 1e-20:
+                v_scale = 1e-12
+
+            centers_p = v0 + v_scale * centers_n
+            sigs_p    = abs(v_scale) * sigs_n
+
+            # min/max in physical values
+            idx_min = int(np.argmin(centers_p))
+            idx_max = int(np.argmax(centers_p))
+            xl_p, xl_sig_p = centers_p[idx_min], sigs_p[idx_min]
+            xh_p, xh_sig_p = centers_p[idx_max], sigs_p[idx_max]
+
+            x_lo_p = xl_p - float(k_x) * xl_sig_p
+            x_hi_p = xh_p + float(k_x) * xh_sig_p
+
+            # Map physical → normalized (respect sign)
+            x_lo = (x_lo_p - v0) / v_scale
+            x_hi = (x_hi_p - v0) / v_scale
+            x_lo = float(np.clip(x_lo, 0.0, 1.0))
+            x_hi = float(np.clip(x_hi, 0.0, 1.0))
+            if x_lo > x_hi:
+                x_lo, x_hi = x_hi, x_lo
+        else:
+            # Work directly on normalized axis
+            idx_min = int(np.argmin(centers_n))
+            idx_max = int(np.argmax(centers_n))
+            xl_n, xl_sig_n = centers_n[idx_min], sigs_n[idx_min]
+            xh_n, xh_sig_n = centers_n[idx_max], sigs_n[idx_max]
+            x_lo = float(np.clip(xl_n - float(k_x) * xl_sig_n, 0.0, 1.0))
+            x_hi = float(np.clip(xh_n + float(k_x) * xh_sig_n, 0.0, 1.0))
+            if (x_hi - x_lo) < min_x_span:
+                mid = 0.5 * (x_lo + x_hi)
+                x_lo = max(0.0, mid - 0.02)
+                x_hi = min(1.0, mid + 0.02)
+
+        # Clamp x-bounds to the requested window
+        x_lo, x_hi = _clamp_window(x_lo, x_hi, w_lo, w_hi, min_span=max(min_x_span, 2e-2))
+
+        # ----- sigma bounds -----
+        k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
+        if use_phys_for_x_bounds:
+            s_min_p = float(np.min(abs(v1 - v0) * sigs_n))
+            s_max_p = float(np.max(abs(v1 - v0) * sigs_n))
+            # Convert back to normalized
+            v_scale_abs = abs(v1 - v0) if abs(v1 - v0) > 0 else 1.0
+            s_lo = max(min_sigma, (k_sig_lo * s_min_p) / v_scale_abs)
+            s_hi = max(s_lo * 1.05, (k_sig_hi * s_max_p) / v_scale_abs)
+        else:
+            s_min_n = float(np.min(sigs_n))
+            s_max_n = float(np.max(sigs_n))
+            s_lo = max(min_sigma, k_sig_lo * s_min_n)
+            s_hi = max(s_lo * 1.05, k_sig_hi * s_max_n)
+
+        # Cap sigma upper bound
+        s_hi = float(min(clip_sigma_hi, s_hi))
+        if window_width > 0:
+            # Respect user's request: do not exceed the window width
+            s_hi = float(min(s_hi, window_width))
+
+        # ----- peak bounds (amplitude) -----
+        a_min = float(np.min(amps))
+        a_max = float(np.max(amps))
+        k_p_lo, k_p_hi = map(float, peak_scale_bounds)
+        p_lo = float(np.clip(k_p_lo * a_min, 0.0, 1.0))
+        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 1.0))
+        if (p_hi - p_lo) < min_x_span:
+            mid = 0.5 * (p_lo + p_hi)
+            p_lo = max(0.0, mid - 0.05)
+            p_hi = min(1.0, mid + 0.05)
+
+        # Model residual sigma bounds
+        msig_lo = float(msig_lo_seed)
+        msig_hi = float(msig_hi_seed)
+
+    else:
+        # ------------------ Fallback: no seeds in the window ------------------
+        # x in the window, sigma max = window width, amplitude [0,1]
+        x_lo = 0.0 if (x_min_norm is None) else float(x_min_norm)
+        x_hi = 1.0 if (x_max_norm is None) else float(x_max_norm)
+        if x_hi < x_lo:
+            x_lo, x_hi = x_hi, x_lo
+        x_lo, x_hi = _clamp_window(x_lo, x_hi, x_lo, x_hi, min_span=max(min_x_span, 2e-2))
+
+        window_width = max(0.0, x_hi - x_lo)
+        s_lo = max(min_sigma, 1e-3)
+        # Respect request: sigma upper bound = window width (capped)
+        s_hi = float(min(clip_sigma_hi, max(s_lo * 1.05, window_width)))
+
+        p_lo = 0.0
+        p_hi = 1.0
+
+        msig_lo = float(msig_lo_seed)
+        msig_hi = float(msig_hi_seed)
+
+    return [msig_lo, bg_lo, x_lo, s_lo, p_lo,
+            msig_hi, bg_hi, x_hi, s_hi, p_hi]
+
+
+
+
+
+
+def set_sgfit_bounds_from_matched_filter_seeds_norm1(
+    _gaussian_seeds,
+    *,
+    # (1) model residual sigma bounds
+    model_sigma_bounds=(0.0, 0.7),
+    # (2) background upper bound = bg + k_bg * rms
+    k_bg=3.0,
+    # (3) center bounds = [x - k_x * s, x + k_x * s]
+    k_x=5.0,
+    # (4) sigma bounds = [k_sig_lo * s, k_sig_hi * s]
+    sigma_scale_bounds=(0.1, 3.0),
+    # (5) peak bounds = [k_p_lo * A, k_p_hi * A]
+    peak_scale_bounds=(0.3, 2.0),
+    # Stabilization (minimum width)
+    min_x_span=1e-5,
+    min_sigma=1e-4,
+    # Clipping upper bound (normalized axis is 0..1)
+    clip_sigma_hi=0.999,
+    # ---- Consider physical axis options ----
+    use_phys_for_x_bounds=True,  # If True, compute x-bounds in physical axis and map back to normalized
+    v_min=None, v_max=None,      # Physical velocity range
+    cdelt3=None,                 # FITS CDELT3 (sign respected)
+    v0_anchor=None, v1_anchor=None,  # If set, override cdelt3 when mapping
+    # ---- NEW: restrict final x bounds to a normalized window ----
+    x_min_norm=None, x_max_norm=None
+):
+    """
+    _gaussian_seeds: output dict from search_gaussian_seeds_matched_filter_norm
+         components[:,0]=center (normalized), [:,1]=sigma (normalized), [:,2]=amp (normalized)
+
+    Return (list, length 10):
+      [model_sigma_lo, bg_lo, x_lo, s_lo, p_lo,
+       model_sigma_hi, bg_hi, x_hi, s_hi, p_hi]
+    """
+    msig_lo, msig_hi = map(float, model_sigma_bounds)
+
+    bg  = float(_gaussian_seeds.get('bg', 0.0))
+    rms = float(_gaussian_seeds.get('rms', 0.1))
+    if rms < 0.1:
+        rms = 0.1
+
+    ncomp = int(_gaussian_seeds.get('ncomp', 0))
+    comps = _gaussian_seeds.get('components', None)
+
+    if ncomp > 0 and getattr(comps, "size", 0):
+        comps = np.asarray(comps, dtype=float)
+        xs_n   = comps[:, 0]  # normalized centers
+        sigs_n = comps[:, 1]  # normalized sigmas (length)
+        amps   = comps[:, 2]  # normalized peaks
+
+        # (2) background bounds
+        bg_lo = 0.0
+        bg_hi = max(bg_lo + 1e-6, min(1.0, bg + k_bg * rms))
+
+        # ----- compute x bounds -----
+        if use_phys_for_x_bounds:
+            if (v_min is None) or (v_max is None):
+                raise ValueError("When use_phys_for_x_bounds=True, you must provide v_min and v_max.")
+            v0, v1 = _resolve_anchors(v_min, v_max, cdelt3, v0_anchor, v1_anchor)
+            v_scale = (v1 - v0)
+            if abs(v_scale) < 1e-20:
+                v_scale = 1e-12
+
+            xs_p   = v0 + v_scale * xs_n     # physical centers
+            sigs_p = abs(v_scale) * sigs_n   # physical sigmas
+
+            idx_min = int(np.argmin(xs_p))
+            idx_max = int(np.argmax(xs_p))
+            xl_p, xl_sig_p = xs_p[idx_min], sigs_p[idx_min]
+            xh_p, xh_sig_p = xs_p[idx_max], sigs_p[idx_max]
+
+            x_lo = (xl_p - k_x * xl_sig_p - v0) / v_scale
+            x_hi = (xh_p + k_x * xh_sig_p - v0) / v_scale
+
+            x_lo = float(np.clip(x_lo, 0.0, 1.0))
+            x_hi = float(np.clip(x_hi, 0.0, 1.0))
+            if x_lo > x_hi:
+                x_lo, x_hi = x_hi, x_lo
+            if (x_hi - x_lo) < min_x_span:
+                mid = 0.5 * (x_lo + x_hi)
+                x_lo = max(0.0, mid - 0.02)
+                x_hi = min(1.0, mid + 0.02)
+        else:
+            idx_min = int(np.argmin(xs_n))
+            idx_max = int(np.argmax(xs_n))
+            xl_n, xl_sig_n = xs_n[idx_min], sigs_n[idx_min]
+            xh_n, xh_sig_n = xs_n[idx_max], sigs_n[idx_max]
+            x_lo = float(np.clip(xl_n - k_x * xl_sig_n, 0.0, 1.0))
+            x_hi = float(np.clip(xh_n + k_x * xh_sig_n, 0.0, 1.0))
+            if (x_hi - x_lo) < min_x_span:
+                mid = 0.5 * (x_lo + x_hi)
+                x_lo = max(0.0, mid - 0.02)
+                x_hi = min(1.0, mid + 0.02)
+
+        # -----: clamp x bounds to the provided normalized window -----
+        if (x_min_norm is not None) or (x_max_norm is not None):
+            win_lo = 0.0 if x_min_norm is None else float(x_min_norm)
+            win_hi = 1.0 if x_max_norm is None else float(x_max_norm)
+            if win_lo > win_hi:
+                win_lo, win_hi = win_hi, win_lo
+            # ensure window within [0,1]
+            win_lo = float(np.clip(win_lo, 0.0, 1.0))
+            win_hi = float(np.clip(win_hi, 0.0, 1.0))
+
+            x_lo = max(x_lo, win_lo)
+            x_hi = min(x_hi, win_hi)
+
+            # keep at least min_x_span, staying inside the window
+            if (x_hi - x_lo) < min_x_span:
+                mid  = 0.5 * (x_lo + x_hi)
+                half = 0.5 * min_x_span
+                x_lo = max(win_lo, mid - half)
+                x_hi = min(win_hi, mid + half)
+                # if still too narrow due to tiny window, pin to window edges
+                if (x_hi - x_lo) < min_x_span:
+                    x_lo = win_lo
+                    x_hi = min(win_hi, win_lo + min_x_span)
+
+        # ----- sigma bounds -----
+        k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
+        if use_phys_for_x_bounds:
+            s_min_p = float(np.min(sigs_p))
+            s_max_p = float(np.max(sigs_p))
+            s_lo = max(min_sigma, (k_sig_lo * s_min_p) / abs(v_scale))
+            s_hi = max(s_lo * 1.05, (k_sig_hi * s_max_p) / abs(v_scale))
+        else:
+            s_min_n = float(np.min(sigs_n))
+            s_max_n = float(np.max(sigs_n))
+            s_lo = max(min_sigma, k_sig_lo * s_min_n)
+            s_hi = max(s_lo * 1.05, k_sig_hi * s_max_n)
+        s_hi = min(clip_sigma_hi, s_hi)
+
+        # ----- peak bounds -----
+        a_min = float(np.min(amps))
+        a_max = float(np.max(amps))
+        k_p_lo, k_p_hi = map(float, peak_scale_bounds)
+        p_lo = float(np.clip(k_p_lo * a_min, 0.0, 1.0))
+        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 3.0))
+        if (p_hi - p_lo) < min_x_span:
+            mid = 0.5 * (p_lo + p_hi)
+            p_lo = max(0.0, mid - 0.05)
+            p_hi = min(1.0, mid + 0.05)
+
+    else:
+        # No seeds: broad defaults
+        bg_lo = 0.0
+        bg_hi = min(1.0, bg + k_bg * rms if np.isfinite(rms) else 0.5)
+        # Default window
+        x_lo_default, x_hi_default = 0.0, 1.0
+        if (x_min_norm is not None) or (x_max_norm is not None):
+            win_lo = 0.0 if x_min_norm is None else float(x_min_norm)
+            win_hi = 1.0 if x_max_norm is None else float(x_max_norm)
+            if win_lo > win_hi:
+                win_lo, win_hi = win_hi, win_lo
+            x_lo_default = float(np.clip(win_lo, 0.0, 1.0))
+            x_hi_default = float(np.clip(win_hi, 0.0, 1.0))
+            if (x_hi_default - x_lo_default) < min_x_span:
+                x_hi_default = min(1.0, x_lo_default + min_x_span)
+        x_lo, x_hi = x_lo_default, x_hi_default
+        s_lo, s_hi = max(min_sigma, 1e-3), 0.3
+        p_lo, p_hi = 0.0, 1.0
+
+    return [msig_lo, bg_lo, x_lo, s_lo, p_lo,
+            msig_hi, bg_hi, x_hi, s_hi, p_hi]
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+
+
+
+
+
+def set_sgfit_bounds_from_matched_filter_seeds_norm_non_mask(
     _gaussian_seeds,
     *,
     # (1) model residual sigma bounds
@@ -711,6 +2330,7 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     return [msig_lo, bg_lo, x_lo, s_lo, p_lo,
             msig_hi, bg_hi, x_hi, s_hi, p_hi]
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
@@ -730,6 +2350,7 @@ def _resolve_anchors(v_min, v_max, cdelt3=None, v0_anchor=None, v1_anchor=None):
         return float(v_min), float(v_max)
     return (float(v_min), float(v_max)) if (cdelt3 >= 0) else (float(v_max), float(v_min))
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
@@ -768,6 +2389,7 @@ def gaussian_seeds_norm_to_phys(_gaussian_seeds, f_min, f_max, v_min, v_max, *,
     gaussian_seeds_phys['anchors'] = (v0, v1)
     return gaussian_seeds_phys
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 def print_priors_both(
@@ -799,6 +2421,7 @@ def print_priors_both(
         u = unit_vel if names[k] in ("gauss_x", "gauss_sigma") else unit_flux
         print(f"  {names[k]:>13}: [{lo_n:8.5f}, {hi_n:8.5f}]  |  [{lo_p:10.5g}, {hi_p:10.5g}] {u}")
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
@@ -840,6 +2463,7 @@ def priors_norm_to_phys(priors, f_min, f_max, v_min, v_max, *,
     return [msig_lo_p, bg_lo_p, x_lo_p, s_lo_p, p_lo_p,
             msig_hi_p, bg_hi_p, x_hi_p, s_hi_p, p_hi_p]
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
@@ -874,10 +2498,11 @@ def print_gaussian_seeds_matched_filter(_gaussian_seeds, f_min, f_max, v_min, v_
             fwhm_p = 2.355 * s_p
             print(f"           FWHM: {fwhm_n:8.5f} (norm) | {fwhm_p:10.6g} {unit_vel}")
 
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
-def set_init_priors_multiple_gaussians(
+def set_init_priors_multiple_gaussians_non_mask(
     M,
     seed_bounds,
     *,
@@ -979,7 +2604,143 @@ def set_init_priors_multiple_gaussians(
 
 
     return np.asarray(lo_parts + hi_parts, dtype=np.float32)  # convert to np.array
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
+
+
+def set_init_priors_multiple_gaussians(
+    M,
+    seed_bounds,
+    *,
+    seed_out=None,      # search_gaussian_seeds_matched_filter_norm out(dict); use bg/rms (normalized)
+    prev_fit=None,      # output of prev_fit_from_results_slice(...)
+    # Tighter bounds around previous components if available
+    k_x=3.0, # x - k_x*sigma ~ x + k_x*sigma
+    sigma_scale_bounds=(0.5, 2.0),
+    peak_scale_bounds=(0.5, 1.5),
+    # bg width: bg +/- k_bg * rms(seed)
+    k_bg=3.0,
+    k_msig=3.0,
+    # Stabilization / clipping
+    min_x_span=1e-5,
+    min_sigma=1e-4,
+    clip_sigma_hi=0.999,
+    peak_upper_cap=1.0,
+    # ---- NEW: clamp x bounds to normalized window ----
+    x_min_norm=None,
+    x_max_norm=None,
+):
+    """
+    Build an initial priors vector for fitting M Gaussian components.
+
+    The resulting x-bounds for all components are clamped to the normalized window
+    [x_min_norm, x_max_norm] (if provided).
+
+    Return: gfit_priors_init (length = 4 + 6*M)
+      [msig_lo, bg_lo, g1_x_lo, g1_s_lo, g1_p_lo, ..., gM_x_lo, gM_s_lo, gM_p_lo,
+       msig_hi, bg_hi, g1_x_hi, g1_s_hi, g1_p_hi, ..., gM_x_hi, gM_s_hi, gM_p_hi]
+    """
+    def _clamp_window(x_lo, x_hi, w_lo, w_hi, min_span):
+        # If no window is specified, return as-is
+        if w_lo is None and w_hi is None:
+            return float(x_lo), float(x_hi)
+        wl = 0.0 if w_lo is None else float(w_lo)
+        wh = 1.0 if w_hi is None else float(w_hi)
+        if wl > wh:
+            wl, wh = wh, wl
+        # keep inside [0,1]
+        wl = float(np.clip(wl, 0.0, 1.0))
+        wh = float(np.clip(wh, 0.0, 1.0))
+        # clamp to window
+        lo = max(float(x_lo), wl)
+        hi = min(float(x_hi), wh)
+        # ensure minimum span inside the window
+        if (hi - lo) < float(min_span):
+            mid = 0.5 * (lo + hi)
+            half = 0.5 * float(min_span)
+            lo = max(wl, mid - half)
+            hi = min(wh, mid + half)
+            # if window itself is too small, pin to edges
+            if (hi - lo) < float(min_span):
+                lo = wl
+                hi = min(wh, wl + float(min_span))
+        return float(lo), float(hi)
+
+    M = int(M)
+    msig_lo_seed, bg_lo_seed, x_lo_seed, s_lo_seed, p_lo_seed, \
+    msig_hi_seed, bg_hi_seed, x_hi_seed, s_hi_seed, p_hi_seed = map(float, seed_bounds)
+
+    # Pre-clamp seed x-bounds to the window
+    x_lo_seed, x_hi_seed = _clamp_window(x_lo_seed, x_hi_seed, x_min_norm, x_max_norm, min_x_span)
+
+    # bg/model-sigma bounds
+    if prev_fit is not None and ("bg" in prev_fit) and (seed_out is not None):
+        bg_center = float(prev_fit["bg"])
+        rms_seed  = float(prev_fit.get("model_sigma", 0.1))
+
+        msig_lo = 0.0
+        msig_hi = k_msig * rms_seed
+
+        bg_lo = max(0.0, bg_center - k_bg * rms_seed)
+        bg_hi = min(1.0, bg_center + k_bg * rms_seed)
+    else:
+        msig_lo = float(msig_lo_seed)
+        msig_hi = float(msig_hi_seed)
+        bg_lo   = float(bg_lo_seed)
+        bg_hi   = float(bg_hi_seed)
+
+    # previous components
+    n_prev = 0
+    prev_components = None
+    if prev_fit is not None and ("components" in prev_fit) and (prev_fit["components"] is not None):
+        prev_components = np.asarray(prev_fit["components"], dtype=float)
+        if prev_components.ndim == 2 and prev_components.shape[1] >= 3:
+            n_prev = min(M, prev_components.shape[0])
+
+    k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
+    k_p_lo,  k_p_hi    = map(float, peak_scale_bounds)
+
+    # accumulate bounds
+    lo_parts = [msig_lo, bg_lo]
+    hi_parts = [msig_hi, bg_hi]
+
+    # 1) Tight bounds around previous components
+    for m in range(n_prev):
+        x_c, s, amp = map(float, prev_components[m, :3])
+
+        # x bounds from previous fit
+        x_lo = float(np.clip(x_c - k_x * s, 0.0, 1.0))
+        x_hi = float(np.clip(x_c + k_x * s, 0.0, 1.0))
+        if (x_hi - x_lo) < min_x_span:
+            mid = 0.5 * (x_lo + x_hi)
+            x_lo = max(0.0, mid - 0.02)
+            x_hi = min(1.0, mid + 0.02)
+
+        # --- NEW: clamp to window ---
+        x_lo, x_hi = _clamp_window(x_lo, x_hi, x_min_norm, x_max_norm, min_x_span)
+
+        # sigma bounds
+        s_lo = max(min_sigma, k_sig_lo * s)
+        s_hi = min(clip_sigma_hi, max(s_lo * 1.05, k_sig_hi * s))
+
+        # peak bounds
+        p_lo = float(np.clip(k_p_lo * amp, 0.0, peak_upper_cap))
+        p_hi = float(np.clip(k_p_hi * amp, 0.0, peak_upper_cap))
+        if (p_hi - p_lo) < min_x_span:
+            mid = 0.5 * (p_lo + p_hi)
+            p_lo = max(0.0, mid - 0.05)
+            p_hi = min(peak_upper_cap, mid + 0.05)
+
+        lo_parts += [x_lo, s_lo, p_lo]
+        hi_parts += [x_hi, s_hi, p_hi]
+
+    # 2) For remaining components: replicate (clamped) seed-based bounds
+    for m in range(n_prev, M):
+        lo_parts += [x_lo_seed, s_lo_seed, p_lo_seed]
+        hi_parts += [x_hi_seed, s_hi_seed, p_hi_seed]
+
+    return np.asarray(lo_parts + hi_parts, dtype=np.float32)
+#-- END OF SUB-ROUTINE____________________________________________________________#
 
 
 
