@@ -139,7 +139,7 @@ bound: 'multi'               # [RECOMMENDED]
 # Review for your target; defaults are a reasonable starting point.
 # -----------------------------------------------------------------------------
 bayes_factor_limit: 100      # model comparison threshold                             [RECOMMENDED]
-max_ngauss: 3                # max # of Gaussians (NON-RECOVERABLE)                   *** REQUIRED ***
+max_ngauss: 1                # max # of Gaussians (NON-RECOVERABLE)                   *** REQUIRED ***
 mom0_nrms_limit: 1.5         # peak > mom0_nrms_limit * rms + bg (NON-RECOVERABLE)    *** REQUIRED ***
 peak_sn_pass_for_ng_opt: 3   # Gaussians passing S/N for ng opt (RECOVERABLE)         *** REQUIRED ***
 peak_sn_limit: 1.5           # decompose only if peak S/N above (NON-RECOVERABLE)     *** REQUIRED ***
