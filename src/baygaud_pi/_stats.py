@@ -857,14 +857,19 @@ def convert_units_norm_to_phys(
     # UNIT CONVERSION
     #________________________________________________________________________________________|
     # velocity, velocity-dispersion --> km/s
-    if cdelt3 > 0:  # velocity axis increasing
-        gfit_results[j, k, velocity_indices] = (
-            gfit_results[j, k, velocity_indices] * (vel_max - vel_min) + vel_min  # velocity
-        )
-    else:  # velocity axis decreasing
-        gfit_results[j, k, velocity_indices] = (
-            gfit_results[j, k, velocity_indices] * (vel_min - vel_max) + vel_max  # velocity
-        )
+    #if cdelt3 > 0:  # velocity axis increasing
+    #    gfit_results[j, k, velocity_indices] = (
+    #        gfit_results[j, k, velocity_indices] * (vel_max - vel_min) + vel_min  # velocity
+    #    )
+    #else:  # velocity axis decreasing
+    #    gfit_results[j, k, velocity_indices] = (
+    #        gfit_results[j, k, velocity_indices] * (vel_min - vel_max) + vel_max  # velocity
+    #    )
+
+    # - x_norm flipped --> sign of cdelt3 doesn't matter now ...
+    gfit_results[j, k, velocity_indices] = (
+        gfit_results[j, k, velocity_indices] * (vel_max - vel_min) + vel_min  # velocity
+    )
 
     gfit_results[j, k, velocity_dispersion_indices] *= (vel_max - vel_min)  # velocity-dispersion
 
