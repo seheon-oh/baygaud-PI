@@ -164,6 +164,18 @@ def main():
     # load the input datacube
     _inputDataCube, _x, cube_info = read_datacube(_params)
 
+
+    #------------------------------
+    # update g_vlos_lower / upper in YAML
+    _g_vlos_lower = float(cube_info['vel_min_kms'])
+    _g_vlos_upper = float(cube_info['vel_max_kms'])
+    _params['g_vlos_lower'] = _g_vlos_lower
+    _params['g_vlos_upper'] = _g_vlos_upper
+
+    update_yaml_param(configfile, "g_vlos_lower", _g_vlos_lower)
+    update_yaml_param(configfile, "g_vlos_upper", _g_vlos_upper)
+
+
     #------------------------------
     # compute the minimum Gaussian sigma:
     # cdelt3 (boxcar) + hanning info + x1.3 factor for a conservative lower limit
@@ -177,8 +189,6 @@ def main():
 
     # load 2D mask if provided
     if _params['_cube_mask_2d'] == 'Y':
-        #_cube_mask_2d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_2d_fits'])
-
         mask_valid, mask_vmin_norm, mask_vmax_norm = _prepare_mask_2d(
             Path(_params['wdir']) / _params['_cube_mask_2d_fits'],
             save_to_fits=True,
@@ -187,16 +197,9 @@ def main():
             mef=False,
             overwrite=True
         )
-    else:
-        mask_valid = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
-        mask_vmin_norm = np.full((_params['naxis2'], _params['naxis1']), 0.0, dtype=np.float32)
-        mask_vmax_norm = np.full((_params['naxis2'], _params['naxis1']), 1.0, dtype=np.float32)
-
 
     # load sofia-2 3D mask if provided
     if _params['_cube_mask_3d'] == 'Y':
-        #_cube_mask_3d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_3d_fits'])
-
         mask_valid, mask_vmin_norm, mask_vmax_norm = _prepare_mask_3d(
             Path(_params['wdir']) / _params['_cube_mask_3d_fits'],
             save_to_fits=True,
@@ -206,7 +209,7 @@ def main():
             overwrite=True
         )
 
-    else:
+    if _params['_cube_mask_2d'] == 'N' and _params['_cube_mask_3d'] == 'N': # non-mask
         mask_valid = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
         mask_vmin_norm = np.full((_params['naxis2'], _params['naxis1']), 0.0, dtype=np.float32)
         mask_vmax_norm = np.full((_params['naxis2'], _params['naxis1']), 1.0, dtype=np.float32)
