@@ -24,6 +24,10 @@ from spectral_cube import SpectralCube
 import math
 from typing import Literal, Dict
 
+from pathlib import Path
+
+
+
 
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
@@ -78,20 +82,30 @@ def read_datacube(_params):
     _params['cdelt3'] = _cdelt3
 
     # Set spectral-unit / velocity convention for the cube
-    if _ctype3 != 'VOPT*':  # not optical
+    #if _ctype3 != 'VOPT*':  # not optical
+    if 'VOPT' not in _ctype3:  # not optical
         cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) \
                            .with_spectral_unit(u.m/u.s, velocity_convention='radio')  # in m/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if _cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
     else:
         cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']) \
                            .with_spectral_unit(u.m/u.s, velocity_convention='optical')  # in m/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if _cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
 
     # Store min/max velocity in km/s for convenience
     _vel_min = cube.spectral_axis.min().value / 1000.  # km/s
     _vel_max = cube.spectral_axis.max().value / 1000.  # km/s
     _params['vel_min'] = _vel_min
     _params['vel_max'] = _vel_max
+
 
 #    # Legacy printouts (kept here, commented out)
 #    print(" ____________________________________________")
@@ -411,12 +425,23 @@ def moment_analysis(_params):
     #-------------------------------------
     # 0) Load the input cube with a velocity convention (radio/optical) in km/s
     # cubedata = fitsio.read(_params['wdir'] + _params['input_datacube'], dtype=np.float32)
-    if _ctype3 != 'VOPT*':  # not optical
+    #if _ctype3 != 'VOPT*':  # not optical
+    if 'VOPT' not in _ctype3:  # not optical
         _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='radio')  # in km/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
+
+
     else:
         _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')  # in km/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
     
     # For varying beam size over channels (e.g., combined VLA + single-dish cubes):
     # set a threshold so SpectralCube switches to per-channel beams handling.
@@ -557,12 +582,22 @@ def moment_analysis_alternate(_params):
     _flux_threshold = _params['mom0_nrms_limit']*_params['_rms_med'] + _median_bg
 
     # Load cube with a velocity convention in km/s (radio or optical)
-    if _ctype3 != 'VOPT*':  # not optical
+    #if _ctype3 != 'VOPT*':  # not optical
+    if 'VOPT' not in _ctype3:  # not optical
         _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='radio')  # in km/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
+
     else:
         _input_cube = SpectralCube.read(_params['wdir'] + '/' + _params['input_datacube']).with_spectral_unit(u.km/u.s, velocity_convention='optical')  # in km/s
-        _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+
+        if cdelt3 > 0: # positive channel width : increasing x
+            _x = np.linspace(0, 1, _naxis3, dtype=np.float32)
+        else: # negative : decreasing x
+            _x = np.linspace(1, 0, _naxis3, dtype=np.float32)
 
     # ------------------------------------------------------------------
     # Examples on how to compute a conservative minimum sigma of a
@@ -692,3 +727,734 @@ def min_sigma_from_cdelt3(
 
 #-- END OF SUB-ROUTINE____________________________________________________________#
 
+
+
+def _save_mask_outputs_to_fits1(
+    valid2d,
+    vmin2d=None,
+    vmax2d=None,
+    *,
+    save_dir=None,
+    prefix="mask",
+    mef=False,
+    overwrite=True,
+    ref_header=None,
+    vphys_min=None,
+    vphys_max=None,
+    vphys_unit="m/s"
+):
+    """
+    Write mask products to FITS.
+
+    Notes
+    -----
+    - If vmin2d/vmax2d are provided, they are assumed to be in *physical units*
+      (e.g., m/s or km/s). This function does not normalize them.
+    - HISTORY and header keywords (VMINPHYS/VMAXPHYS/VUNIT) are added
+      for traceability of the physical velocity system.
+
+    Parameters
+    ----------
+    valid2d : np.ndarray (uint8), shape (ny, nx)
+        0: masked, 1: valid.
+    vmin2d, vmax2d : np.ndarray or None
+        2D arrays in physical velocity units to be written (float32 recommended).
+        If None, they won't be written.
+    save_dir, prefix, mef, overwrite, ref_header :
+        Standard I/O options.
+    vphys_min, vphys_max : float | None
+        Global min/max velocity of the spectral axis for documentation purposes.
+    vphys_unit : str
+        Unit string for velocities (e.g. 'm/s', 'km/s').
+    """
+
+
+    save_dir = Path(save_dir) if save_dir is not None else Path(".")
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    hdr = fits.Header()
+    if ref_header is not None:
+        hdr = ref_header.copy()
+
+    if (vphys_min is not None) and (vphys_max is not None):
+        hdr.add_history("Velocity values are PHYSICAL (not normalized).")
+        hdr["VMINPHYS"] = (float(vphys_min), f"Global min velocity [{vphys_unit}]")
+        hdr["VMAXPHYS"] = (float(vphys_max), f"Global max velocity [{vphys_unit}]")
+        hdr["VUNIT"] = (vphys_unit, "Velocity unit")
+
+    written = {}
+
+    if mef:
+        hdus = [fits.PrimaryHDU()]
+        h_valid = fits.ImageHDU(valid2d.astype(np.uint8), header=hdr, name="VALID")
+        hdus.append(h_valid)
+
+        if vmin2d is not None:
+            h_vmin = fits.ImageHDU(vmin2d.astype(np.float32), header=hdr, name="VMIN")
+            hdus.append(h_vmin)
+        if vmax2d is not None:
+            h_vmax = fits.ImageHDU(vmax2d.astype(np.float32), header=hdr, name="VMAX")
+            hdus.append(h_vmax)
+
+        out_path = save_dir / f"{prefix}.mef.fits"
+        fits.HDUList(hdus).writeto(out_path, overwrite=overwrite)
+        written["mef"] = out_path
+    else:
+        valid_path = save_dir / f"{prefix}.valid.fits"
+        fits.writeto(valid_path, valid2d.astype(np.uint8), header=hdr, overwrite=overwrite)
+        written["valid"] = valid_path
+
+        if vmin2d is not None:
+            vmin_path = save_dir / f"{prefix}.vmin.fits"
+            fits.writeto(vmin_path, vmin2d.astype(np.float32), header=hdr, overwrite=overwrite)
+            written["vmin"] = vmin_path
+        if vmax2d is not None:
+            vmax_path = save_dir / f"{prefix}.vmax.fits"
+            fits.writeto(vmax_path, vmax2d.astype(np.float32), header=hdr, overwrite=overwrite)
+            written["vmax"] = vmax_path
+
+    return written
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+def _prepare_mask_2d1(
+    mask2d_fits_path,
+    target_shape=None,
+    return_vrange=False,
+    *,
+    save_to_fits=False,
+    save_dir=None,
+    prefix=None,
+    overwrite=True,
+    ref_header=None,
+    mef=False,
+    # NEW: if you want to save physical vmin/vmax for a 2D mask,
+    # provide the global spectral range of the *data cube* here.
+    vphys_min=None,
+    vphys_max=None,
+    vphys_unit="m/s",
+):
+    """
+    Read a 2D mask (FITS) and return a (ny, nx) validity map.
+
+    Returns
+    -------
+    valid2d : uint8 (ny, nx)
+    vmin2d_norm, vmax2d_norm : float32, optional (only if return_vrange=True)
+    """
+    mask2d_fits_path = Path(mask2d_fits_path)
+    data = fits.getdata(mask2d_fits_path)
+
+    if data.ndim != 2:
+        raise ValueError(f"Expected a 2D mask; got ndim={data.ndim} for {mask2d_fits_path}")
+
+    ny, nx = data.shape
+    if target_shape is not None:
+        ty, tx = target_shape
+        if (ny, nx) != (ty, tx):
+            raise ValueError(f"Shape mismatch: mask({ny},{nx}) != target({ty},{tx})")
+
+    valid = (data > 0).astype(np.uint8)
+
+    # If not provided, reuse input header for spatial metadata
+    if ref_header is None:
+        try:
+            _, ref_header = fits.getdata(mask2d_fits_path, header=True)
+        except Exception:
+            ref_header = fits.Header()
+
+    # Optional: normalized outputs for compatibility
+    if not return_vrange:
+        # Save if requested (VALID only, unless vphys_* provided)
+        if save_to_fits:
+            vmin_phys = vmax_phys = None
+            if (vphys_min is not None) and (vphys_max is not None):
+                vmin_phys = np.where(valid > 0, float(vphys_min), -1.0).astype(np.float32)
+                vmax_phys = np.where(valid > 0, float(vphys_max), -1.0).astype(np.float32)
+            _save_mask_outputs_to_fits(
+                valid,
+                vmin2d=vmin_phys,
+                vmax2d=vmax_phys,
+                save_dir=(save_dir or mask2d_fits_path.parent),
+                prefix=(prefix or mask2d_fits_path.stem),
+                mef=mef,
+                overwrite=overwrite,
+                ref_header=ref_header,
+                vphys_min=vphys_min,
+                vphys_max=vphys_max,
+                vphys_unit=vphys_unit,
+            )
+        return valid
+
+    # Normalized placeholders for callers that expect (valid, vmin, vmax)
+    vmin_norm = np.where(valid > 0, 0.0, -1.0).astype(np.float32)
+    vmax_norm = np.where(valid > 0, 1.0, -1.0).astype(np.float32)
+
+    if save_to_fits:
+        vmin_phys = vmax_phys = None
+        if (vphys_min is not None) and (vphys_max is not None):
+            vmin_phys = np.where(valid > 0, float(vphys_min), -1.0).astype(np.float32)
+            vmax_phys = np.where(valid > 0, float(vphys_max), -1.0).astype(np.float32)
+
+        _save_mask_outputs_to_fits(
+            valid,
+            vmin2d=vmin_phys,   # PHYSICAL values in file
+            vmax2d=vmax_phys,   # PHYSICAL values in file
+            save_dir=(save_dir or mask2d_fits_path.parent),
+            prefix=(prefix or mask2d_fits_path.stem),
+            mef=mef,
+            overwrite=overwrite,
+            ref_header=ref_header,
+            vphys_min=vphys_min,
+            vphys_max=vphys_max,
+            vphys_unit=vphys_unit,
+        )
+
+    return valid, vmin_norm, vmax_norm
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+def _prepare_mask_3d_org(
+    mask3d_fits_path,
+    *,
+    save_to_fits=False,
+    save_dir=None,
+    prefix=None,
+    overwrite=True,
+    ref_header=None,
+    mef=False
+):
+    """
+    Read a 3D mask (FITS) and produce:
+      1) 2D validity map
+      2) 2D min velocity (normalized to 0..1 for return)
+      3) 2D max velocity (normalized to 0..1 for return)
+
+    : SOFIA-2 mask cube can be used.
+
+    Returns
+    -------
+    valid2d : uint8 (ny, nx)
+    vmin_norm2d : float32 (ny, nx)  in [0,1] or -1 if invalid
+    vmax_norm2d : float32 (ny, nx)  in [0,1] or -1 if invalid
+    """
+    mask3d_fits_path = Path(mask3d_fits_path)
+    data, hdr = fits.getdata(mask3d_fits_path, header=True)
+
+    if data.ndim != 3:
+        raise ValueError(f"Expected a 3D mask; got ndim={data.ndim} for {mask3d_fits_path}")
+
+    # Data axes: (nz, ny, nx)
+    nz, ny, nx = data.shape
+
+    # Spectral WCS
+    try:
+        crval3 = float(hdr.get("CRVAL3"))
+        cdelt3 = float(hdr.get("CDELT3"))
+        crpix3 = float(hdr.get("CRPIX3"))
+    except (TypeError, ValueError):
+        raise ValueError("3D mask header must include CRVAL3, CDELT3, and CRPIX3.")
+
+    # Build spectral axis in physical units (e.g., m/s). FITS indices are 1-based.
+    k = np.arange(nz, dtype=np.float64)
+    v_axis = crval3 + (k + 1.0 - crpix3) * cdelt3  # (nz,)
+    v_unit = hdr.get("CUNIT3", "m/s")
+
+    v_min = np.nanmin(v_axis)
+    v_max = np.nanmax(v_axis)
+    if not np.isfinite(v_min) or not np.isfinite(v_max) or (v_max == v_min):
+        raise ValueError("Invalid spectral axis (check CRVAL3/CDELT3/CRPIX3).")
+
+    # Normalized axis for return arrays
+    v_axis_norm = (v_axis - v_min) / (v_max - v_min)  # 0..1
+
+    # Boolean mask
+    mask_bool = data > 0
+
+    # Valid pixels
+    valid2d = mask_bool.any(axis=0).astype(np.uint8)  # (ny, nx)
+
+    # First/last channel indices with True
+    first_idx = np.argmax(mask_bool, axis=0)              # (ny, nx)
+    last_idx_rev = np.argmax(mask_bool[::-1, :, :], axis=0)
+    last_idx = (nz - 1) - last_idx_rev
+
+    # Normalized vmin/vmax for returns
+    vmin_norm2d = v_axis_norm[first_idx].astype(np.float32)
+    vmax_norm2d = v_axis_norm[last_idx].astype(np.float32)
+
+    # Physical vmin/vmax for FITS output
+    vmin_phys2d = v_axis[first_idx].astype(np.float32)
+    vmax_phys2d = v_axis[last_idx].astype(np.float32)
+
+    # Invalidate where no channels are True
+    invalid = (valid2d == 0)
+    vmin_norm2d[invalid] = -1.0
+    vmax_norm2d[invalid] = -1.0
+    vmin_phys2d[invalid] = -1.0
+    vmax_phys2d[invalid] = -1.0
+
+    # Prepare 2D header if not supplied
+    if ref_header is None:
+        ref_header = hdr.copy()
+
+    if save_to_fits:
+        _save_mask_outputs_to_fits(
+            valid2d,
+            vmin2d=vmin_phys2d,   # PHYSICAL velocities
+            vmax2d=vmax_phys2d,   # PHYSICAL velocities
+            save_dir=(save_dir or mask3d_fits_path.parent),
+            prefix=(prefix or mask3d_fits_path.stem),
+            mef=mef,
+            overwrite=overwrite,
+            ref_header=ref_header,
+            vphys_min=v_min,
+            vphys_max=v_max,
+            vphys_unit=v_unit,
+        )
+
+    return valid2d, vmin_norm2d, vmax_norm2d
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+def _velocity_axis_from_header1(hdr):
+    """
+    Build physical velocity/frequency axis from FITS header, respecting sign of CDELTn.
+    Returns:
+        vaxis : 1D np.ndarray (length = N along the velocity-like axis, in header's CUNITn)
+        axnum : int (1-based FITS axis number that is spectral)
+        vunit : str (unit string from CUNITn, e.g. 'm/s' or 'Hz')
+    """
+    import re
+    spectral_keys = ('VELO', 'VRAD', 'VOPT', 'FREQ', 'LOGLAM', 'WAVE')
+
+    for k in (1, 2, 3, 4, 5):
+        ctype = (hdr.get(f'CTYPE{k}', '') or '').upper()
+        if any(key in ctype for key in spectral_keys):
+            crval = float(hdr.get(f'CRVAL{k}'))
+            crpix = float(hdr.get(f'CRPIX{k}'))
+            cdelt = float(hdr.get(f'CDELT{k}'))
+            naxis = int(hdr.get(f'NAXIS{k}'))
+            # FITS is 1-based in header, numpy is 0-based in memory
+            pix = np.arange(naxis, dtype=float) + 1.0  # 1..N
+            vaxis = crval + (pix - crpix) * cdelt      # sign of cdelt handled here
+            vunit = (hdr.get(f'CUNIT{k}', '') or '').strip()
+            return vaxis, k, vunit
+
+    # Fallback (legacy): assume axis 3 is spectral
+    crval = float(hdr.get('CRVAL3'))
+    crpix = float(hdr.get('CRPIX3'))
+    cdelt = float(hdr.get('CDELT3'))
+    naxis = int(hdr.get('NAXIS3'))
+    pix = np.arange(naxis, dtype=float) + 1.0
+    vaxis = crval + (pix - crpix) * cdelt
+    vunit = (hdr.get('CUNIT3', '') or '').strip()
+    return vaxis, 3, vunit
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+def _prepare_mask_3d1(mask3d_fits_path, save_fits=False, out_prefix=None, mef=True):
+    """
+    Returns
+        valid2d      : (ny, nx)  uint8  (0/1)
+        vmin_norm2d  : (ny, nx)  float32 in [0,1] or -1 if invalid
+        vmax_norm2d  : (ny, nx)  float32 in [0,1] or -1 if invalid
+    Saves (if save_fits):
+        VALID, VMIN (phys), VMAX (phys) — vmin/vmax are saved in physical units (e.g., m/s)
+    """
+
+    data, hdr = fits.getdata(mask3d_fits_path, header=True)
+    if data.ndim != 3:
+        raise ValueError("3D mask must be a cube (ndim=3).")
+
+    vaxis, axnum, vunit = _velocity_axis_from_header(hdr)  # ← 부호 반영된 물리 속도축
+    nz_spec = len(vaxis)
+
+    # 어떤 축이 스펙트럴인지 데이터 모양과 맞춰 추론
+    # (hdr의 NAXISk와 data.shape 중 같은 길이를 가진 축을 스펙트럴 축으로 간주)
+    # 기본값: 마지막 축이 스펙트럴이라고 가정
+    spec_axis = np.argmax([s == nz_spec for s in data.shape])
+    # (nz, ny, nx) 형태로 정렬
+    cube = np.moveaxis(data, spec_axis, 0).astype(np.float32)
+    nz, ny, nx = cube.shape
+
+    valid2d = np.zeros((ny, nx), dtype=np.uint8)
+    vmin_phys2d = np.full((ny, nx), -1.0, dtype=np.float32)
+    vmax_phys2d = np.full((ny, nx), -1.0, dtype=np.float32)
+
+    # 전체 속도축의 물리적 min/max (정규화에 사용; CDELT 부호 자동 반영)
+    v_global_min = float(np.nanmin(vaxis))
+    v_global_max = float(np.nanmax(vaxis))
+    v_span = v_global_max - v_global_min if v_global_max > v_global_min else np.nan
+
+    for j in range(ny):
+        col = cube[:, j, :]  # shape: (nz, nx)
+        # >0인 채널 마스크
+        m = col > 0
+        any_valid = m.any(axis=0)  # (nx,)
+        valid2d[j, any_valid] = 1
+
+        # 물리 속도값에서의 최소/최대
+        if any_valid.any():
+            # 각 픽셀별 유효 채널의 물리 속도 배열
+            for i in np.where(any_valid)[0]:
+                v_sel = vaxis[m[:, i]]
+                if v_sel.size:
+                    vmin_phys2d[j, i] = float(np.nanmin(v_sel))
+                    vmax_phys2d[j, i] = float(np.nanmax(v_sel))
+
+    # 정규화된 0..1 범위 (필요할 때 내부용으로 사용)
+    vmin_norm2d = np.full((ny, nx), -1.0, dtype=np.float32)
+    vmax_norm2d = np.full((ny, nx), -1.0, dtype=np.float32)
+    if np.isfinite(v_span) and v_span > 0:
+        mask_ok = valid2d > 0
+        vmin_norm2d[mask_ok] = (vmin_phys2d[mask_ok] - v_global_min) / v_span
+        vmax_norm2d[mask_ok] = (vmax_phys2d[mask_ok] - v_global_min) / v_span
+
+    # ── Optional: 저장 (vmin/vmax는 "물리 속도값"으로 저장) ─────────────────
+    if save_fits:
+        ref_header = hdr.copy()
+        # 단일-HDU 여러 파일(mef=False) 또는 MEF 한 파일(mef=True)
+        if mef:
+            hdul = fits.HDUList([
+                fits.PrimaryHDU(header=ref_header),
+                fits.ImageHDU(data=valid2d,      name='VALID', header=ref_header),
+                fits.ImageHDU(data=vmin_phys2d,  name='VMIN',  header=ref_header),
+                fits.ImageHDU(data=vmax_phys2d,  name='VMAX',  header=ref_header),
+            ])
+            # 유닛 정보 기록
+            hdul['VMIN'].header['BUNIT'] = (vunit or '', 'physical velocity unit')
+            hdul['VMAX'].header['BUNIT'] = (vunit or '', 'physical velocity unit')
+            out_name = (out_prefix or mask3d_fits_path.replace('.fits','')) + '_mask3d_products.fits'
+            hdul.writeto(out_name, overwrite=True)
+        else:
+            base = (out_prefix or mask3d_fits_path.replace('.fits',''))
+            fits.writeto(f'{base}_mask3d_valid.fits', valid2d, header=ref_header, overwrite=True)
+            h = ref_header.copy(); h['BUNIT'] = (vunit or '', 'physical velocity unit')
+            fits.writeto(f'{base}_mask3d_vmin_phys.fits', vmin_phys2d, header=h, overwrite=True)
+            fits.writeto(f'{base}_mask3d_vmax_phys.fits', vmax_phys2d, header=h, overwrite=True)
+
+    # 이전 코드와의 호환성: (valid2d, vmin_norm2d, vmax_norm2d) 반환
+    return valid2d, vmin_norm2d, vmax_norm2d
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import numpy as np
+from pathlib import Path
+from astropy.io import fits
+
+# ---------- 1) Build physical velocity axis (sign-safe) ----------
+def _velocity_axis_from_header(hdr):
+    """
+    Create a physical spectral axis from a FITS header, respecting the sign of CDELTn.
+
+    Returns
+    -------
+    vaxis : np.ndarray
+        1D array of physical spectral coordinate (e.g., velocity in m/s, frequency in Hz).
+    axnum : int
+        1-based FITS axis index that is spectral.
+    vunit : str
+        Unit string from CUNITn (e.g., 'm/s', 'Hz').
+    """
+    spectral_keys = ('VELO', 'VRAD', 'VOPT', 'FREQ', 'LOGLAM', 'WAVE')
+
+    for k in (1, 2, 3, 4, 5):
+        ctype = (hdr.get(f'CTYPE{k}', '') or '').upper()
+        if any(key in ctype for key in spectral_keys):
+            crval = float(hdr.get(f'CRVAL{k}'))
+            crpix = float(hdr.get(f'CRPIX{k}'))
+            cdelt = float(hdr.get(f'CDELT{k}'))
+            naxis = int(hdr.get(f'NAXIS{k}'))
+            pix = np.arange(naxis, dtype=float) + 1.0  # FITS is 1-based
+            vaxis = crval + (pix - crpix) * cdelt      # sign handled naturally
+            vunit = (hdr.get(f'CUNIT{k}', '') or '').strip()
+            return vaxis, k, vunit
+
+    # Fallback to axis 3 if no spectral CTYPE was found
+    crval = float(hdr.get('CRVAL3'))
+    crpix = float(hdr.get('CRPIX3'))
+    cdelt = float(hdr.get('CDELT3'))
+    naxis = int(hdr.get('NAXIS3'))
+    pix = np.arange(naxis, dtype=float) + 1.0
+    vaxis = crval + (pix - crpix) * cdelt
+    vunit = (hdr.get('CUNIT3', '') or '').strip()
+
+    print("----")
+    print(vaxis)
+    print("----")
+    return vaxis, 3, vunit
+
+
+# ---------- 2) Save helpers ----------
+def _save_mask_outputs_to_fits(
+    valid2d,
+    vmin2d=None,
+    vmax2d=None,
+    *,
+    save_dir,
+    prefix,
+    mef=True,
+    overwrite=True,
+    ref_header=None,
+    vphys_min=None,
+    vphys_max=None,
+    vphys_unit=''
+):
+    """
+    Save mask products to FITS.
+    - If mef=True: one MEF file with HDUs: PRIMARY, VALID, (optional) VMIN, VMAX
+    - If mef=False: write separate files for each product.
+
+    Parameters
+    ----------
+    valid2d : np.ndarray (ny, nx), uint8 or bool
+    vmin2d, vmax2d : np.ndarray (ny, nx) or None
+        Physical velocity min/max per pixel (same unit as vphys_unit). If None, the HDU is skipped.
+    save_dir : str or Path
+    prefix : str
+        Output filename prefix (without extension).
+    mef : bool
+    overwrite : bool
+    ref_header : fits.Header or None
+        Header to attach to the images (if None, a minimal header is used).
+    vphys_min, vphys_max : float or None
+        Global min/max of physical spectral axis; stored in headers when provided.
+    vphys_unit : str
+        Unit string for vmin/vmax arrays (e.g., 'm/s').
+    """
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    base = save_dir / prefix
+
+    # Normalize dtypes
+    valid_img = valid2d.astype(np.uint8)
+
+    if mef:
+        phdr = (ref_header.copy() if ref_header is not None else fits.Header())
+        hdul = fits.HDUList([fits.PrimaryHDU(header=phdr)])
+
+        h_valid = (ref_header.copy() if ref_header is not None else fits.Header())
+        hdul.append(fits.ImageHDU(data=valid_img, name='VALID', header=h_valid))
+
+        if vmin2d is not None:
+            h_vmin = (ref_header.copy() if ref_header is not None else fits.Header())
+            if vphys_unit:
+                h_vmin['BUNIT'] = (vphys_unit, 'physical velocity unit')
+            if vphys_min is not None:
+                h_vmin['VGLBMIN'] = (float(vphys_min), 'global min of physical spectral axis')
+            if vphys_max is not None:
+                h_vmin['VGLBMAX'] = (float(vphys_max), 'global max of physical spectral axis')
+            hdul.append(fits.ImageHDU(data=np.asarray(vmin2d, dtype=np.float32), name='VMIN', header=h_vmin))
+
+        if vmax2d is not None:
+            h_vmax = (ref_header.copy() if ref_header is not None else fits.Header())
+            if vphys_unit:
+                h_vmax['BUNIT'] = (vphys_unit, 'physical velocity unit')
+            if vphys_min is not None:
+                h_vmax['VGLBMIN'] = (float(vphys_min), 'global min of physical spectral axis')
+            if vphys_max is not None:
+                h_vmax['VGLBMAX'] = (float(vphys_max), 'global max of physical spectral axis')
+            hdul.append(fits.ImageHDU(data=np.asarray(vmax2d, dtype=np.float32), name='VMAX', header=h_vmax))
+
+        out_path = base.with_suffix('.fits')
+        hdul.writeto(out_path, overwrite=overwrite)
+
+    else:
+        # VALID
+        h_valid = (ref_header.copy() if ref_header is not None else fits.Header())
+        fits.writeto(base.with_name(base.name + '_valid.fits'), valid_img, header=h_valid, overwrite=overwrite)
+
+        # VMIN
+        if vmin2d is not None:
+            h_vmin = (ref_header.copy() if ref_header is not None else fits.Header())
+            if vphys_unit:
+                h_vmin['BUNIT'] = (vphys_unit, 'physical velocity unit')
+            if vphys_min is not None:
+                h_vmin['VGLBMIN'] = (float(vphys_min), 'global min of physical spectral axis')
+            if vphys_max is not None:
+                h_vmin['VGLBMAX'] = (float(vphys_max), 'global max of physical spectral axis')
+            fits.writeto(base.with_name(base.name + '_vmin_phys.fits'),
+                         np.asarray(vmin2d, dtype=np.float32), header=h_vmin, overwrite=overwrite)
+
+        # VMAX
+        if vmax2d is not None:
+            h_vmax = (ref_header.copy() if ref_header is not None else fits.Header())
+            if vphys_unit:
+                h_vmax['BUNIT'] = (vphys_unit, 'physical velocity unit')
+            if vphys_min is not None:
+                h_vmax['VGLBMIN'] = (float(vphys_min), 'global min of physical spectral axis')
+            if vphys_max is not None:
+                h_vmax['VGLBMAX'] = (float(vphys_max), 'global max of physical spectral axis')
+            fits.writeto(base.with_name(base.name + '_vmax_phys.fits'),
+                         np.asarray(vmax2d, dtype=np.float32), header=h_vmax, overwrite=overwrite)
+
+
+# ---------- 3) 2D mask ----------
+def _prepare_mask_2d(
+    mask2d_fits_path,
+    *,
+    save_to_fits=False,
+    save_dir=None,
+    prefix=None,
+    mef=True,
+    overwrite=True,
+    ref_header=None,
+):
+    """
+    Prepare 2D mask:
+      - valid2d[j, i] = 1 if mask(j,i) > 0 else 0
+      - vmin_norm2d, vmax_norm2d are returned as 0 and 1 everywhere
+
+    Returns
+    -------
+    valid2d : (ny, nx) uint8
+    vmin_norm2d : (ny, nx) float32 filled with 0 
+    vmax_norm2d : (ny, nx) float32 filled with 1
+    """
+    mask2d_fits_path = Path(mask2d_fits_path)
+
+    data, hdr = fits.getdata(mask2d_fits_path, header=True)
+    if data.ndim != 2:
+        raise ValueError("2D mask must be a 2D image.")
+
+    ny, nx = data.shape
+    valid2d = (np.asarray(data, dtype=float) > 0).astype(np.uint8)
+    vmin_norm2d = np.full((ny, nx), 0, dtype=np.float32)
+    vmax_norm2d = np.full((ny, nx), 1.0, dtype=np.float32)
+
+    if save_to_fits:
+        _save_mask_outputs_to_fits(
+            valid2d,
+            vmin2d=None,
+            vmax2d=None,
+            save_dir=(save_dir or mask2d_fits_path.parent),
+            prefix=(prefix or (mask2d_fits_path.stem + '_mask2d')),
+            mef=mef,
+            overwrite=overwrite,
+            ref_header=(ref_header or hdr),
+            vphys_min=None,
+            vphys_max=None,
+            vphys_unit='',
+        )
+
+    return valid2d, vmin_norm2d, vmax_norm2d
+
+
+# ---------- 4) 3D mask ----------
+def _prepare_mask_3d(
+    mask3d_fits_path,
+    *,
+    save_to_fits=False,
+    save_dir=None,
+    prefix=None,
+    mef=True,
+    overwrite=True,
+    ref_header=None,
+):
+    """
+    Prepare 3D mask cube:
+      - If all spectral channels at (j,i) are <= 0 => valid2d[j,i] = 0
+      - Else valid2d[j,i] = 1 and:
+          vmin_phys2d[j,i] = min physical velocity where mask > 0
+          vmax_phys2d[j,i] = max physical velocity where mask > 0
+      - Also returns normalized [0..1] versions (relative to the global v-axis min/max).
+        Invalid pixels are set to -1.
+
+    Parameters
+    ----------
+    mask3d_fits_path : str or Path
+    save_to_fits, save_dir, prefix, mef, overwrite, ref_header : see _save_mask_outputs_to_fits
+
+    Returns
+    -------
+    valid2d : (ny, nx) uint8 (0/1)
+    vmin_norm2d : (ny, nx) float32 in [0,1] (or -1 if invalid)
+    vmax_norm2d : (ny, nx) float32 in [0,1] (or -1 if invalid)
+    """
+    mask3d_fits_path = Path(mask3d_fits_path)
+
+    data, hdr = fits.getdata(mask3d_fits_path, header=True)
+    if data.ndim != 3:
+        raise ValueError("3D mask must be a cube (ndim=3).")
+
+    # Build physical spectral axis (sign of CDELT handled)
+    vaxis, spectral_axnum, v_unit = _velocity_axis_from_header(hdr)
+    nz_spec = len(vaxis)
+
+    # Find which array axis is spectral by matching length (fallback: last axis)
+    axis_matches = [dim == nz_spec for dim in data.shape]
+    if any(axis_matches):
+        spec_axis = int(np.argmax(axis_matches))
+    else:
+        spec_axis = data.ndim - 1  # fallback
+
+    # Reorder to (nz, ny, nx)
+    cube = np.moveaxis(data, spec_axis, 0).astype(np.float32)
+    nz, ny, nx = cube.shape
+
+    # Initialize outputs
+    valid2d = np.zeros((ny, nx), dtype=np.uint8)
+    vmin_phys2d = np.full((ny, nx), 0, dtype=np.float32)
+    vmax_phys2d = np.full((ny, nx), 1.0, dtype=np.float32)
+
+    # Global min/max of physical spectral axis (for normalization)
+    v_min = float(np.nanmin(vaxis))
+    v_max = float(np.nanmax(vaxis))
+    v_span = v_max - v_min
+
+    # Per-pixel scan
+    # m[:, i] is True for channels > 0 at pixel (j, i)
+    for j in range(ny):
+        col = cube[:, j, :]        # shape: (nz, nx)
+        m = col > 0
+        any_valid = m.any(axis=0)  # (nx,)
+        valid2d[j, any_valid] = 1
+
+        idxs = np.where(any_valid)[0]
+        for i in idxs:
+            v_sel = vaxis[m[:, i]]
+            if v_sel.size > 0:
+                vmin_phys2d[j, i] = float(np.nanmin(v_sel))
+                vmax_phys2d[j, i] = float(np.nanmax(v_sel))
+
+    # Normalized 0..1 (invalid -> -1)
+    vmin_norm2d = np.full((ny, nx), -1, dtype=np.float32)
+    vmax_norm2d = np.full((ny, nx), -1, dtype=np.float32)
+    if np.isfinite(v_span) and v_span > 0:
+        ok = valid2d > 0
+        vmin_norm2d[ok] = (vmin_phys2d[ok] - v_min) / v_span
+        vmax_norm2d[ok] = (vmax_phys2d[ok] - v_min) / v_span
+
+    # Optional: save products (vmin/vmax saved in PHYSICAL units)
+    if save_to_fits:
+        _save_mask_outputs_to_fits(
+            valid2d,
+            vmin2d=vmin_phys2d,   # PHYSICAL velocities
+            vmax2d=vmax_phys2d,   # PHYSICAL velocities
+            save_dir=(save_dir or mask3d_fits_path.parent),
+            prefix=(prefix or (mask3d_fits_path.stem + '_mask3d')),
+            mef=mef,
+            overwrite=overwrite,
+            ref_header=(ref_header or hdr),
+            vphys_min=v_min,
+            vphys_max=v_max,
+            vphys_unit=v_unit,
+        )
+
+    return valid2d, vmin_norm2d, vmax_norm2d
