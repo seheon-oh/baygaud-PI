@@ -470,8 +470,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         peak_upper_cap=1.0,
                         x_min_norm=_mask_vmin_norm[j+_js, i],
                         x_max_norm=_mask_vmax_norm[j+_js, i]
-                        #x_min_norm=0,
-                        #x_max_norm=1
+                        #x_min_norm=0.0,
+                        #x_max_norm=1.0
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
 
