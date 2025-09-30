@@ -124,7 +124,9 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
         _peak_sn_map_id, _sn_int_map_id,
         _params_id,
         _is, _ie, i, _js, _je,
-        _cube_mask_2d_id):
+        _mask_valid_id,
+        _mask_vmin_norm_id,
+        _mask_vmax_norm_id):
 
         # Pin all thread counts inside this worker process (Numba included).
         # Doing it once per process is sufficient; re-calling is harmless.
@@ -136,7 +138,9 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
         _peak_sn_map   = _mat(_peak_sn_map_id)
         _sn_int_map    = _mat(_sn_int_map_id)
         _params        = _mat(_params_id)
-        _cube_mask_2d  = _mat(_cube_mask_2d_id) 
+        _mask_valid  = _mat(_mask_valid_id) 
+        _mask_vmin_norm  = _mat(_mask_vmin_norm_id) 
+        _mask_vmax_norm  = _mat(_mask_vmax_norm_id) 
         
         _max_ngauss = _params['max_ngauss']
         v_min_phys = _params['vel_min']   # defined by the calling code
@@ -185,8 +189,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             denom  = (_f_max - _f_min) if (_f_max > _f_min) else 1.0
             _f_norm = (_flux_phys - _f_min) / denom  # normalization to [0, 1]
 
-
             # --- (1) Find matched-filter seeds using YAML parameters ---
+            # _gaussian_seeds : Those found here are used as seeds for guessing multi-gaussian param inits below in the loop
             _gaussian_seeds = search_gaussian_seeds_matched_filter_norm(
                 _x_norm, _f_norm,                       # _x_norm already normalized to [0, 1]
                 rms=None, bg=None,
@@ -200,7 +204,17 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 detrend_local = bool(mf.get("detrend_local", False)),
                 detrend_halfwin = int(mf.get("detrend_halfwin", 8)),
                 numba_threads = int(mf.get("numba_threads", 1)),
+                x_min_norm= _mask_vmin_norm[j+_js, i],
+                x_max_norm= _mask_vmax_norm[j+_js, i],
+                #x_min_norm= 0,
+                #x_max_norm= 1,
+                max_ngauss= None # find seeds up to _max_ngauss gaussians
             )
+
+            #print("----------")
+            #print(i, j+_js, _gaussian_seeds)
+            #print("----------")
+
 
             # --- (2) Robust background/RMS using YAML parameters ---
             bg_norm, rms_norm = robust_bg_rms_from_seed_dict_norm(
@@ -232,7 +246,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             # gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2, bg2, x2, std2, p2]
             _seed_priors_using_matched_filter = set_sgfit_bounds_from_matched_filter_seeds_norm(
                 _gaussian_seeds,
-                use_phys_for_x_bounds = bool(sb.get("use_phys_for_x_bounds", True)),
+                use_phys_for_x_bounds = bool(sb.get("use_phys_for_x_bounds", False)),
                 v_min = v_min_phys, v_max = v_max_phys,
                 cdelt3 = _cdelt3,
                 model_sigma_bounds = tuple(sb.get("model_sigma_bounds", (0.0, 0.7))),
@@ -243,24 +257,14 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 min_x_span   = float(sb.get("min_x_span", 1e-5)),
                 min_sigma    = float(sb.get("min_sigma", 1e-4)),
                 clip_sigma_hi= float(sb.get("clip_sigma_hi", 0.999)),
+                x_min_norm= _mask_vmin_norm[j+_js, i],
+                x_max_norm= _mask_vmax_norm[j+_js, i]
+                #x_min_norm= 0,
+                #x_max_norm= 1
             )
 
 
-
-#            _seed_priors_using_matched_filter = set_sgfit_bounds_from_matched_filter_seeds_norm(
-#                    _gaussian_seeds,
-#                    use_phys_for_x_bounds=True,
-#                    v_min=v_min_phys, v_max=v_max_phys,
-#                    cdelt3=_cdelt3,   # if negative, it will automatically anchor with reversed sign
-#                    # Adjust factors if necessary
-#                    model_sigma_bounds=(0.0, 0.9),
-#                    k_bg=3.0, k_x=5.0,
-#                    sigma_scale_bounds=(0.1, 3.0),
-#                    peak_scale_bounds=(0.3, 1.5)
-#                    )
-            
-
-            gfit_priors_init = _seed_priors_using_matched_filter
+            gfit_priors_init = _seed_priors_using_matched_filter # single gaussian inits --> update multi-gaussians below
 
             # __________________________________________________________________ #
             # CHECK POINT
@@ -285,36 +289,17 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             # Before attempting the first single-Gaussian fit,
             # check peak S/N and basic validity.
 
-            if _cube_mask_2d[j+_js, i] <= 0:  # if masked, skip. NOTE: mask value must be zero or negative.
+            # APPLY MASK + THRESHOLDS
+            if _mask_valid[j+_js, i] <= 0 \
+                or _peakflux_sn < _params['peak_sn_limit'] \
+                or _sn_int_map[j+_js, i] < _params['int_sn_limit'] \
+                or np.isnan(_f_max) or np.isnan(_f_min) \
+                or np.isinf(_f_min) or np.isinf(_f_min):
+                
+                # if masked, skip. NOTE: mask value must be zero or negative.
                 # print("mask filtered: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
                 #     % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
 
-                # Save current profile location
-                l_range = np.arange(_max_ngauss)
-
-                gfit_results[j, l_range, 2*(3*_max_ngauss+2) + l_range] = rms_phys
-
-                constant_indices = np.array([2*(3*_max_ngauss+2) + _max_ngauss + offset for offset in range(7)])
-
-                gfit_results[j, l_range[:, np.newaxis], constant_indices] = np.array([
-                    -1E11,       # for sgfit: log-Z
-                    _is,         # start index
-                    _ie,         # end index
-                    _js,         # start index in j
-                    _je,         # end index in j
-                    i,           # current i index
-                    j + _js      # adjusted j index
-                ])[np.newaxis, :]
-                continue
-
-            # elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peak_sn_map[j+_js, i] < _params['peak_sn_limit'] \  # ... previous version ...
-            elif _sn_int_map[j+_js, i] < _params['int_sn_limit'] or _peakflux_sn < _params['peak_sn_limit'] \
-                or np.isnan(_f_max) or np.isnan(_f_min) \
-                or np.isinf(_f_min) or np.isinf(_f_min):
-
-                # print("low S/N: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
-                #     % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
-                
                 # Save current profile location
                 l_range = np.arange(_max_ngauss)
 
@@ -363,7 +348,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         fmove=_params['fmove'],
                         max_move=_params['max_move'],
                         logl_args=[_f_norm, _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
-                        # logl_args=[(_inputDataCube[:,j+_js,i]-_f_min)/(_f_max-_f_min), _x_norm, ngauss], ptform_args=[ngauss, gfit_priors_init])
+                        # --- : restrict_x_window version : loglike_d_x_window ----
+                        #logl_args=[_f_norm, _x_norm, ngauss, _mask_vmin_norm[j+_js, i], _mask_vmax_norm[j+_js, i]], ptform_args=[ngauss, gfit_priors_init])
                     sampler.run_nested(dlogz=_params['dlogz'], maxiter=_params['maxiter'], maxcall=_params['maxcall'], print_progress=False)
 
                 elif _params['_dynesty_class_'] == 'dynamic':
@@ -470,20 +456,25 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         n_prev=ngauss
                     )
 
-                    # 3) Build multi-Gaussian priors for this stage (e.g., M=3)
+                    # 3) Build multi-Gaussian priors for this stage (e.g., M=2, 3, 4, ...)
                     gfit_priors_init = set_init_priors_multiple_gaussians(
                         M=ngauss+1,  # for the next Gaussian model
                         seed_bounds=_seed_priors_using_matched_filter,
                         seed_out=_gaussian_seeds,     # used to compose bg±k_bg*rms
                         prev_fit=prev_fit,            # pass previous result if present
-                        k_x=3.0,
-                        sigma_scale_bounds=(0.5, 2.0),
-                        peak_scale_bounds=(0.5, 1.5),
-                        k_bg=3.0,
-                        k_msig=3.0,
-                        peak_upper_cap=1.0
+                        k_x=3.0, # for x_norm range but restricted within the window [x_min_norm ~ x_max_norm]
+                        sigma_scale_bounds=(0.5, 2.0), # for sigma range
+                        peak_scale_bounds=(0.5, 1.5), # for peak_flux range
+                        k_bg=3.0, # for bg range
+                        k_msig=3.0, # for model sigma range
+                        peak_upper_cap=1.0,
+                        x_min_norm=_mask_vmin_norm[j+_js, i],
+                        x_max_norm=_mask_vmax_norm[j+_js, i]
+                        #x_min_norm=0,
+                        #x_max_norm=1
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
+
                 # |_______________________________________________________________________________________|
                 # |---------------------------------------------------------------------------------------|
 
@@ -1129,7 +1120,7 @@ def uniform_prior(*args):
 # [_____________________________________________________________________________] #
 # numba version
 @njit(cache=True, fastmath=True)
-def _loglike_core_numba(params, spect, x, ngauss):
+def _loglike_core_numba_non_mask(params, spect, x, ngauss):
     """
     Log-likelihood core (Numba-accelerated).
 
@@ -1171,6 +1162,97 @@ def _loglike_core_numba(params, spect, x, ngauss):
 
 
 
+@njit(cache=True, fastmath=True)
+def _loglike_core_numba_x_window(params, spect, x, ngauss, x_min_norm, x_max_norm):
+    """
+    Log-likelihood core (Numba-accelerated).
+
+    params = [sigma, bg, g1_x, g1_std, g1_p, g2_x, g2_std, g2_p, ...]  (normalized scale)
+    spect  = observed spectrum (normalized data)
+    x      = channel axis (normalized)
+    ngauss = number of Gaussian components
+    x_min_norm, x_max_norm = normalized bounds; only channels with x_min_norm < x < x_max_norm are used.
+
+    Returns logL including the normalization constant, computed only on the selected window.
+    """
+
+    n = x.size
+    sigma = params[0]
+    if sigma <= 0.0:
+        sigma = 1e-12
+    bg = params[1]
+
+    # Build model over all x (kept consistent with original structure)
+    model = np.empty_like(x, dtype=np.float64)
+    model[:] = bg
+
+    for m in range(ngauss):
+        mu  = params[2 + 3*m]
+        sig = params[3 + 3*m]
+        if sig <= 1e-12:
+            sig = 1e-12
+        amp = params[4 + 3*m]
+        invs = 1.0 / sig
+        dx = (x - mu) * invs
+        model += amp * np.exp(-0.5 * dx * dx)
+
+    # Use only channels within (lo, hi)
+    lo = x_min_norm if x_min_norm <= x_max_norm else x_max_norm
+    hi = x_max_norm if x_max_norm >= x_min_norm else x_min_norm
+
+    sse = 0.0
+    n_eff = 0
+    for i in range(n):
+        xi = x[i]
+        if (xi > lo) and (xi < hi):
+            r = model[i] - spect[i]
+            sse += r * r
+            n_eff += 1
+
+    # No valid points in window -> heavy penalty
+    if n_eff == 0:
+        return -1.0e300
+
+    log_n_sigma = -0.5 * n_eff * np.log(2.0 * np.pi) - n_eff * np.log(sigma)
+    inv_sigma2  = 1.0 / (sigma * sigma)
+
+    return log_n_sigma - 0.5 * sse * inv_sigma2
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
+
+
+
+
+#  _____________________________________________________________________________  #
+# [_____________________________________________________________________________] #
+# python wrapper --> _loglike_core_numba
+def loglike_d_x_window(*args):
+    """
+     args[0] : params : dynesty default
+     args[1] : _spect : input velocity profile array [N channels] --> normalized (F - f_min)/(f_max - f_min)
+     args[2] : _x
+     args[3] : ngauss
+     args[4] : _mask_vmin_norm : mask_vmin
+     args[5] : _mask_vmax_norm : mask_vmax
+
+     Mapping:
+       bg, x0, std0, p0, .... = params[1], params[2], params[3], params[4]
+       sigma = params[0]  # log-likelihood noise scale
+
+     Note: 'print(args[1])' was used for debugging.
+    """
+
+    params = np.ascontiguousarray(args[0], dtype=np.float64)
+    spect  = np.ascontiguousarray(args[1], dtype=np.float64)
+    x      = np.ascontiguousarray(args[2], dtype=np.float64)
+    ngauss = int(args[3])
+    _x_vmin_norm = float(args[4])
+    _x_vmax_norm = float(args[5])
+
+    return float(_loglike_core_numba_x_window(params, spect, x, ngauss, _x_vmin_norm, _x_vmax_norm))
+
+#-- END OF SUB-ROUTINE____________________________________________________________#
+
 #  _____________________________________________________________________________  #
 # [_____________________________________________________________________________] #
 # python wrapper --> _loglike_core_numba
@@ -1193,6 +1275,6 @@ def loglike_d(*args):
     x      = np.ascontiguousarray(args[2], dtype=np.float64)
     ngauss = int(args[3])
 
-    return float(_loglike_core_numba(params, spect, x, ngauss))
+    return float(_loglike_core_numba_non_mask(params, spect, x, ngauss))
 
 #-- END OF SUB-ROUTINE____________________________________________________________#
