@@ -18,7 +18,7 @@
 # [ ] ROI indices                  --> naxis1_s0 / naxis1_e0 / naxis2_s0 / naxis2_e0         *** REQUIRED ***
 # [ ] Classification thresholds    --> max_ngauss / mom0_nrms_limit / peak_sn_pass_for_ng_opt /
 #                                      peak_sn_limit / int_sn_limit                          *** REQUIRED ***
-# [ ] Physical bounds (global & components) --> vlos_* / vdisp_* (global/cool/warm/hot)      *** REQUIRED ***
+# [ ] Physical bounds (components) --> vlos_* / vdisp_* (cool/warm/hot)                      *** REQUIRED ***
 # [ ] Parallelization              --> num_cpus_ray (total CPU cores for Ray)                *** REQUIRED ***
 
 # ==============================================================================
@@ -27,8 +27,12 @@
 # What to set before running:
 #   - wdir                --> working directory for the input cube          *** REQUIRED ***
 #   - input_datacube      --> FITS filename under wdir                      *** REQUIRED ***
-#   - _cube_mask          --> 'Y' or 'N'                                    [OPTIONAL]
-#   - _cube_mask_2d       --> required only when _cube_mask == 'Y'          [CONDITIONAL]
+# -----------------------------------------------------------------------------
+#   - _cube_mask_2d          --> 'Y' or 'N'                                 [OPTIONAL]
+#   - _cube_mask_2d_fits     --> required only when _cube_mask == 'Y'       [CONDITIONAL]
+# -----------------------------------------------------------------------------
+#   - _cube_mask_3d          --> 'Y' or 'N'   : SOFIA-2 mask                [OPTIONAL]
+#   - _cube_mask_3d_fits     --> required only when _cube_mask == 'Y'       [CONDITIONAL]
 # -----------------------------------------------------------------------------
 
 # ==============================================================================
@@ -58,14 +62,13 @@ num_hanning_passes: 0  # *** REQUIRED *** [IF YOU ARE NOT SURE, PUT 0]
 #  - 'Y' if a 2D signal mask is available (use _cube_mask_2d); 'N' otherwise.
 _cube_mask_2d: 'N'          # [OPTIONAL]
 # file name under wdir for the 2D mask FITS; ignored if _cube_mask_2d == 'N'.
-_cube_mask_2d_fits: ''        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
+_cube_mask_2d_fits: 'mask_2d.fit'        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
 
 # Optional 3D mask usage.
 #  - 'Y' if a 3D signal mask is available (use _cube_mask_3d); 'N' otherwise.
 _cube_mask_3d: 'N'          # [OPTIONAL]
 # file name under wdir for the 3D mask FITS; ignored if _cube_mask_3d == 'N'.
-_cube_mask_3d_fits: ''        # [CONDITIONAL] set only when _cube_mask_3d == 'Y'
-
+_cube_mask_3d_fits: 'sofia2_mask_3d.fits'        # [CONDITIONAL] set only when _cube_mask_3d == 'Y'
 
 
 
@@ -161,9 +164,9 @@ _bulk_delv_limit_factor: 1.0                                                 # [
 # Adjust to your galaxy if needed; defaults span a broad, safe range.
 # -----------------------------------------------------------------------------
 # 1) Global kinematics
-g_vlos_lower: 0       # km/s   *** REQUIRED ***
-g_vlos_upper: 400     # km/s   *** REQUIRED ***
-g_sigma_lower: 1.9889541038076373 # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
+g_vlos_lower: -999    # km/s   [DEFAULT OK] : this is set based on cube header
+g_vlos_upper: 999     # km/s   [DEFAULT OK] : this is set based on cube header 
+g_sigma_lower: 0      # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
 g_sigma_upper: 999    # km/s   *** REQUIRED ***
 
 # ==============================================================================
@@ -171,29 +174,29 @@ g_sigma_upper: 999    # km/s   *** REQUIRED ***
 # -----------------------------------------------------------------------------
 # 2) Kinematically cool components
 _cool_extraction: 'N'   # [OPTIONAL] 'Y' or 'N'
-g_vlos_lower_cool: 0    # km/s  *** REQUIRED *** if 'Y'
-g_vlos_upper_cool: 400  # km/s  *** REQUIRED *** if 'Y'
+g_vlos_lower_cool: -999 # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_cool: 999  # km/s  *** REQUIRED *** if 'Y'
 g_sigma_lower_cool: 5   # km/s  *** REQUIRED *** if 'Y'
 g_sigma_upper_cool: 12  # km/s  *** REQUIRED *** if 'Y'
 
 # 3) Kinematically warm components
 _warm_extraction: 'N'   # [OPTIONAL] 'Y' or 'N'
-g_vlos_lower_warm: 0    # km/s  *** REQUIRED *** if 'Y'
-g_vlos_upper_warm: 400  # km/s  *** REQUIRED *** if 'Y'
+g_vlos_lower_warm: -999 # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_warm: 999  # km/s  *** REQUIRED *** if 'Y'
 g_sigma_lower_warm: 12  # km/s  *** REQUIRED *** if 'Y'
 g_sigma_upper_warm: 40  # km/s  *** REQUIRED *** if 'Y'
 
 # 4) Kinematically hot components
 _hot_extraction: 'N'    # [OPTIONAL] 'Y' or 'N'
-g_vlos_lower_hot: 0     # km/s  *** REQUIRED *** if 'Y'
-g_vlos_upper_hot: 400   # km/s  *** REQUIRED *** if 'Y'
+g_vlos_lower_hot: -999  # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_hot: 999   # km/s  *** REQUIRED *** if 'Y'
 g_sigma_lower_hot: 40   # km/s  *** REQUIRED *** if 'Y'
 g_sigma_upper_hot: 999  # km/s  *** REQUIRED *** if 'Y'
 
 # 5) high-velocity cloud components
 _hvc_extraction: 'N'    # [OPTIONAL] 'Y' or 'N'
-g_vlos_lower_hvc: 0     # km/s  *** REQUIRED *** if 'Y'
-g_vlos_upper_hvc: 400   # km/s  *** REQUIRED *** if 'Y'
+g_vlos_lower_hvc: -999  # km/s  *** REQUIRED *** if 'Y'
+g_vlos_upper_hvc: 999   # km/s  *** REQUIRED *** if 'Y'
 g_sigma_lower_hvc: 0    # km/s  *** REQUIRED *** if 'Y'
 g_sigma_upper_hvc: 999  # km/s  *** REQUIRED *** if 'Y'
 # -----------------------------------------------------------------------------
@@ -263,7 +266,7 @@ sgfit_bounds:
 # -----------------------------------------------------------------------------
 y_chunk_size: 10          # tile size along Y (typical 20–50)       [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
-gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK]
+gather_batch: 5           # how many results to aggregate per wait   [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
 
 
@@ -299,6 +302,5 @@ threading:
   numexpr_num_threads: 1             # numexpr                              [RECOMMENDED]
 
 #-- END OF SUB-ROUTINE____________________________________#
-
 
 
