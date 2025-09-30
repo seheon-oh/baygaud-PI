@@ -67,7 +67,7 @@ from _dynesty_sampler import dynamic_baygaud_nested_sampling
 
 #|-----------------------------------------|
 # _fits_io.py
-from _fits_io import read_datacube, moment_analysis, min_sigma_from_cdelt3
+from _fits_io import read_datacube, moment_analysis, min_sigma_from_cdelt3, _prepare_mask_2d, _prepare_mask_3d
 
 #|-----------------------------------------|
 # import make_dirs
@@ -90,6 +90,8 @@ from _info_summary import print_cube_summary_from_info, get_ray_info, get_runtim
 
 
 import matplotlib.pyplot as plt
+
+from pathlib import Path
 
 
 #  _____________________________________________________________________________  #
@@ -173,11 +175,42 @@ def main():
     update_yaml_param(configfile, "y_chunk_size", _tile_opt['y_chunk_size'])
     update_yaml_param(configfile, "gather_batch", _tile_opt['gather_batch'])
 
-    # load cube_mask if provided
-    if _params['_cube_mask'] == 'Y':
-        _cube_mask_2d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_2d'])
+    # load 2D mask if provided
+    if _params['_cube_mask_2d'] == 'Y':
+        #_cube_mask_2d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_2d_fits'])
+
+        mask_valid, mask_vmin_norm, mask_vmax_norm = _prepare_mask_2d(
+            Path(_params['wdir']) / _params['_cube_mask_2d_fits'],
+            save_to_fits=True,
+            save_dir=Path(_params['wdir']) / "mask",
+            prefix="mask2d",
+            mef=False,
+            overwrite=True
+        )
     else:
-        _cube_mask_2d = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
+        mask_valid = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
+        mask_vmin_norm = np.full((_params['naxis2'], _params['naxis1']), 0.0, dtype=np.float32)
+        mask_vmax_norm = np.full((_params['naxis2'], _params['naxis1']), 1.0, dtype=np.float32)
+
+
+    # load sofia-2 3D mask if provided
+    if _params['_cube_mask_3d'] == 'Y':
+        #_cube_mask_3d = fits.getdata(_params['wdir'] + '/' + _params['_cube_mask_3d_fits'])
+
+        mask_valid, mask_vmin_norm, mask_vmax_norm = _prepare_mask_3d(
+            Path(_params['wdir']) / _params['_cube_mask_3d_fits'],
+            save_to_fits=True,
+            save_dir=Path(_params['wdir']) / "mask",
+            prefix="mask3d",
+            mef=False,
+            overwrite=True
+        )
+
+    else:
+        mask_valid = np.full((_params['naxis2'], _params['naxis1']), fill_value=1, dtype=np.float32)
+        mask_vmin_norm = np.full((_params['naxis2'], _params['naxis1']), 0.0, dtype=np.float32)
+        mask_vmax_norm = np.full((_params['naxis2'], _params['naxis1']), 1.0, dtype=np.float32)
+
 
     #------------------------------
     # make the segs output directory
@@ -196,7 +229,9 @@ def main():
     _inputDataCube_id = ray.put(_inputDataCube)
     _peak_sn_map_id   = ray.put(_peak_sn_map)
     _sn_int_map_id    = ray.put(_sn_int_map)
-    _cube_mask_2d_id  = ray.put(_cube_mask_2d)
+    _mask_valid_id  = ray.put(mask_valid)
+    _mask_vmin_norm_id  = ray.put(mask_vmin_norm)
+    _mask_vmax_norm_id  = ray.put(mask_vmax_norm)
     _x_id             = ray.put(_x)
     _params_id        = ray.put(_params)
 
@@ -276,7 +311,9 @@ def main():
             _peak_sn_map_id, _sn_int_map_id,
             _params_id,
             _is, _ie, int(i), int(j0), int(j1),
-            _cube_mask_2d_id
+            _mask_valid_id,
+            _mask_vmin_norm_id,
+            _mask_vmax_norm_id
         )
         inflight_refs.append(ref)
         meta[ref] = (i, j0, j1)
