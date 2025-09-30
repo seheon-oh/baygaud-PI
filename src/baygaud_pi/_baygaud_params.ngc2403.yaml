@@ -53,11 +53,20 @@ input_datacube: 'ngc2403.regrid.testcube.0.fits'  # *** REQUIRED ***
 # Number of discrete Hanning smoothing passes already applied to the spectrum/cube. Use 0 if no Hanning smoothing was applied.
 num_hanning_passes: 0  # *** REQUIRED *** [IF YOU ARE NOT SURE, PUT 0]
 
+
 # Optional 2D mask usage.
 #  - 'Y' if a 2D signal mask is available (use _cube_mask_2d); 'N' otherwise.
-_cube_mask: 'N'          # [OPTIONAL]
-# Path (or file name under wdir) for the 2D mask FITS; ignored if _cube_mask == 'N'.
-_cube_mask_2d: ''        # [CONDITIONAL] set only when _cube_mask == 'Y'
+_cube_mask_2d: 'N'          # [OPTIONAL]
+# file name under wdir for the 2D mask FITS; ignored if _cube_mask_2d == 'N'.
+_cube_mask_2d_fits: ''        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
+
+# Optional 3D mask usage.
+#  - 'Y' if a 3D signal mask is available (use _cube_mask_3d); 'N' otherwise.
+_cube_mask_3d: 'N'          # [OPTIONAL]
+# file name under wdir for the 3D mask FITS; ignored if _cube_mask_3d == 'N'.
+_cube_mask_3d_fits: ''        # [CONDITIONAL] set only when _cube_mask_3d == 'Y'
+
+
 
 
 # ==============================================================================
@@ -154,7 +163,7 @@ _bulk_delv_limit_factor: 1.0                                                 # [
 # 1) Global kinematics
 g_vlos_lower: 0       # km/s   *** REQUIRED ***
 g_vlos_upper: 400     # km/s   *** REQUIRED ***
-g_sigma_lower: 1.0    # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
+g_sigma_lower: 1.9889541038076373 # km/s   [DEFAULT OK] : this is set based on the channel resolution + hanning smoothing of the cube
 g_sigma_upper: 999    # km/s   *** REQUIRED ***
 
 # ==============================================================================
@@ -195,9 +204,9 @@ _j0: 20               # y-pixel    [OPTIONAL]
 
 # 6) Gaussian ordering rules (uncomment to enforce a default)
 _sort_gauss_wrt_integrated_int: 'Y'        # [RECOMMENDED] 'Y' or 'N'
-_sort_gauss_wrt_vdisp: 'Y'      # [RECOMMENDED] 'Y' or 'N'
-_sort_gauss_wrt_peak_amp: 'Y'   # [RECOMMENDED] 'Y' or 'N'
-_sort_gauss_wrt_vlos: 'Y'       # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_vdisp: 'N'      # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_peak_amp: 'N'   # [RECOMMENDED] 'Y' or 'N'
+_sort_gauss_wrt_vlos: 'N'       # [RECOMMENDED] 'Y' or 'N'
 
 
 # ==============================================================================
@@ -252,7 +261,7 @@ sgfit_bounds:
 # ==============================================================================
 # Defaults are okay; adjust for your memory/CPU characteristics if needed.
 # -----------------------------------------------------------------------------
-y_chunk_size: 5           # tile size along Y (typical 20–50)       [DEFAULT OK]
+y_chunk_size: 10          # tile size along Y (typical 20–50)       [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
 gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK]
                           # : this is set based on num_cpus_ray + num_cpus_nested_sampling + (naxis2_e0 - naxis2_s0)
@@ -269,7 +278,7 @@ gather_batch: 10          # how many results to aggregate per wait   [DEFAULT OK
 # On macOS you can check:
 #   sysctl -n hw.physicalcpu   --> physical cores
 #   sysctl -n hw.logicalcpu    --> logical cores (with HT)
-num_cpus_ray: 10                # *** REQUIRED ***
+num_cpus_ray: 5                # *** REQUIRED ***
 numba_num_threads: 1            # [RECOMMENDED]
 num_cpus_nested_sampling: 1     # [RECOMMENDED]
 
