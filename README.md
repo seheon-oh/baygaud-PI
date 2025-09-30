@@ -211,12 +211,25 @@ peak_sn_limit: 2
 int_sn_limit: 1.0
 
 # classification bounds
-g_vlos_lower: 0
-g_vlos_upper: 400
-g_sigma_upper: 999
+g_sigma_upper: 999 # DEFAULT WOULD BE OK IF YOU DON'T WANT TO PUT HARD LIMIT
 
 # parallelization
 num_cpus_ray: 8
+```
+
+**YOU CAN USE SOFIA MASK CUBE (OR 2D) FITS (RECOMMENDED):**
+```yaml
+# Optional 2D mask usage.
+#  - 'Y' if a 2D signal mask is available (use _cube_mask_2d); 'N' otherwise.
+_cube_mask_2d: 'N'          # [OPTIONAL]
+# file name under wdir for the 2D mask FITS; ignored if _cube_mask_2d == 'N'.
+_cube_mask_2d_fits: 'mask_2d.fit'        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
+
+# Optional 3D mask usage.
+#  - 'Y' if a 3D signal mask is available (use _cube_mask_3d); 'N' otherwise.
+_cube_mask_3d: 'Y'          # [OPTIONAL]
+# file name under wdir for the 3D mask FITS; ignored if _cube_mask_3d == 'N'.
+_cube_mask_3d_fits: 'sofia2_mask_3d.fits'        # [CONDITIONAL] set only when _cube_mask_3d == 'Y'
 ```
 
 **Defaults you can usually keep (RECOMMENDED):**
