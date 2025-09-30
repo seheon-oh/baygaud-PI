@@ -365,9 +365,18 @@ def print_cube_summary(
     print(_hline(W1, W2, W3, left_margin=left_margin))
     _inputcube = _mk_cube_wdir_row(_params['input_datacube'], "Input Cube:", "", "", W1, W2, W3, left_margin=0)
     _wdir = _mk_cube_wdir_row(_params['wdir'], "WDIR:", "", "", W1, W2, W3, left_margin=0)
+
+    if _params['_cube_mask_2d'] == 'Y':
+        _mask = _mk_cube_wdir_row(_params['_cube_mask_2d_fits'], "MASK:", "", "", W1, W2, W3, left_margin=0)
+    if _params['_cube_mask_3d'] == 'Y':
+        _mask = _mk_cube_wdir_row(_params['_cube_mask_3d_fits'], "MASK:", "", "", W1, W2, W3, left_margin=0)
     #--------------------------
     print(_inputcube)
     print(_wdir)
+
+    if _params['_cube_mask_2d'] == 'Y' or _params['_cube_mask_3d'] == 'Y':
+        print(_mask)
+
     #--------------------------
     print(_hline(W1, W2, W3, left_margin=left_margin))
     #--------------------------
