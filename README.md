@@ -223,7 +223,7 @@ num_cpus_ray: 8
 #  - 'Y' if a 2D signal mask is available (use _cube_mask_2d); 'N' otherwise.
 _cube_mask_2d: 'N'          # [OPTIONAL]
 # file name under wdir for the 2D mask FITS; ignored if _cube_mask_2d == 'N'.
-_cube_mask_2d_fits: 'mask_2d.fit'        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
+_cube_mask_2d_fits: ''        # [CONDITIONAL] set only when _cube_mask_2d == 'Y'
 
 # Optional 3D mask usage.
 #  - 'Y' if a 3D signal mask is available (use _cube_mask_3d); 'N' otherwise.
