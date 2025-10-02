@@ -1356,8 +1356,153 @@ def _prepare_mask_2d(
     return valid2d, vmin_norm2d, vmax_norm2d
 
 
-# ---------- 4) 3D mask ----------
+
+# ---------- 4) 3D mask (supports 3D and 4D cubes with STOKES axis) ----------
 def _prepare_mask_3d(
+    mask3d_fits_path,
+    *,
+    save_to_fits=False,
+    save_dir=None,
+    prefix=None,
+    mef=True,
+    overwrite=True,
+    ref_header=None,
+):
+    """
+    Prepare a 3D mask from a FITS cube. If the input is 4D and has a STOKES axis,
+    use only the first STOKES plane (index 0). If the input is 3D, use it as-is.
+
+    For each spatial pixel (j, i):
+      - If all spectral channels at (j, i) are <= 0 => valid2d[j, i] = 0
+      - Else valid2d[j, i] = 1 and:
+          vmin_phys2d[j, i] = min physical velocity where mask > 0
+          vmax_phys2d[j, i] = max physical velocity where mask > 0
+      - Also returns normalized [0..1] versions (relative to the global velocity
+        axis min/max). Invalid pixels are set to -1.
+
+    Returns
+    -------
+    valid2d      : (ny, nx) uint8  (0/1)
+    vmin_norm2d  : (ny, nx) float32 in [0,1] or -1 if invalid
+    vmax_norm2d  : (ny, nx) float32 in [0,1] or -1 if invalid
+    """
+    mask3d_fits_path = Path(mask3d_fits_path)
+
+    data, hdr = fits.getdata(mask3d_fits_path, header=True)
+    if data.ndim not in (3, 4):
+        raise ValueError(f"Mask FITS must be 3D or 4D; got ndim={data.ndim}")
+
+    # Build physical velocity axis from FITS header (handles CDELT sign)
+    vaxis, _spectral_axnum, v_unit = _velocity_axis_from_header(hdr)
+    nz_spec = int(len(vaxis))
+
+    # --- Find which numpy axis is spectral by matching length (fallback: last) ---
+    axis_matches = [int(dim) == nz_spec for dim in data.shape]
+    if any(axis_matches):
+        spec_axis = int(np.argmax(axis_matches))
+    else:
+        spec_axis = data.ndim - 1  # fallback: last axis
+
+    # --- Move spectral axis to position 0 -> shape becomes (nz, ...) ---
+    arr = np.moveaxis(data, spec_axis, 0)
+
+    # --- If 4D, try to locate a STOKES axis among the remaining ones and take plane 0 ---
+    if arr.ndim == 4:
+        # Try to find STOKES axis using header CTYPEk="STOKES"
+        naxis_hdr = int(hdr.get("NAXIS", arr.ndim))
+        stokes_len_hdr = None
+        stokes_ctypes = []
+        for k in range(1, naxis_hdr + 1):
+            ctype_k = str(hdr.get(f"CTYPE{k}", "")).upper()
+            if "STOKES" in ctype_k:
+                stokes_ctypes.append(k)
+                try:
+                    stokes_len_hdr = int(hdr.get(f"NAXIS{k}", 0) or 0)
+                except Exception:
+                    stokes_len_hdr = None
+                break
+
+        # Among axes 1..3 (since 0 is spectral), choose the one matching header NAXISk if available
+        st_ax = None
+        if stokes_len_hdr is not None and stokes_len_hdr > 0:
+            for ax in range(1, arr.ndim):  # skip spectral axis at 0
+                if int(arr.shape[ax]) == stokes_len_hdr:
+                    st_ax = ax
+                    break
+
+        # If still not found, pick a "small" axis (len <= 4) as likely STOKES axis; else fallback to axis 1
+        if st_ax is None:
+            small_axes = [ax for ax in range(1, arr.ndim) if int(arr.shape[ax]) <= 4]
+            st_ax = small_axes[0] if small_axes else 1
+
+        # Take the first plane along the chosen STOKES axis -> now 3D: (nz, ny, nx)
+        arr = np.take(arr, indices=0, axis=st_ax)
+
+    # At this point we expect a 3D array: (nz, ny, nx)
+    if arr.ndim != 3:
+        raise ValueError(f"Unexpected dimensionality after reduction: ndim={arr.ndim}")
+
+    # Optional sanity: if spectral length disagrees with vaxis length, still proceed
+    # (normalization uses vaxis min/max, which is fine)
+    nz, ny, nx = arr.shape
+    arr = arr.astype(np.float32, copy=False)
+
+    # --- Allocate outputs ---
+    valid2d = np.zeros((ny, nx), dtype=np.uint8)
+    vmin_phys2d = np.full((ny, nx), 0.0, dtype=np.float32)
+    vmax_phys2d = np.full((ny, nx), 1.0, dtype=np.float32)
+
+    # Global min/max of physical velocity axis (for normalization)
+    v_min = float(np.nanmin(vaxis))
+    v_max = float(np.nanmax(vaxis))
+    v_span = float(v_max - v_min)
+
+    # --- Per-pixel scan across spectral channels ---
+    # For each spatial pixel, check where mask>0 across channels.
+    for j in range(ny):
+        col = arr[:, j, :]          # shape: (nz, nx)
+        m = col > 0                 # True where mask>0
+        any_valid = m.any(axis=0)   # (nx,)
+        valid2d[j, any_valid] = 1
+
+        idxs = np.where(any_valid)[0]
+        for i in idxs:
+            v_sel = vaxis[m[:, i]]
+            if v_sel.size > 0:
+                vmin_phys2d[j, i] = float(np.nanmin(v_sel))
+                vmax_phys2d[j, i] = float(np.nanmax(v_sel))
+
+    # --- Normalized [0..1] maps (invalid -> -1) ---
+    vmin_norm2d = np.full((ny, nx), -1.0, dtype=np.float32)
+    vmax_norm2d = np.full((ny, nx), -1.0, dtype=np.float32)
+    if np.isfinite(v_span) and v_span > 0:
+        ok = valid2d > 0
+        vmin_norm2d[ok] = (vmin_phys2d[ok] - v_min) / v_span
+        vmax_norm2d[ok] = (vmax_phys2d[ok] - v_min) / v_span
+
+    # --- Optional: save outputs (vmin/vmax are PHYSICAL velocities) ---
+    if save_to_fits:
+        _save_mask_outputs_to_fits(
+            valid2d,
+            vmin2d=vmin_phys2d,   # physical velocities
+            vmax2d=vmax_phys2d,   # physical velocities
+            save_dir=(save_dir or mask3d_fits_path.parent),
+            prefix=(prefix or (mask3d_fits_path.stem + "_mask3d")),
+            mef=mef,
+            overwrite=overwrite,
+            ref_header=(ref_header or hdr),
+            vphys_min=v_min,
+            vphys_max=v_max,
+            vphys_unit=v_unit,
+        )
+
+    return valid2d, vmin_norm2d, vmax_norm2d
+
+
+
+
+# ---------- 4) 3D mask ----------
+def _prepare_mask_3d_nostokes(
     mask3d_fits_path,
     *,
     save_to_fits=False,
