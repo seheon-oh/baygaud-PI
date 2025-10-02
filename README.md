@@ -7,12 +7,12 @@
 | |_) | (_| | |_| | (_| | (_| | |_| | (_| |_____/ ___/\/ /_  
 |_.__/ \__,_|\__, |\__, |\__,_|\__,_|\__,_|     \/   \____/  
              |___/ |___/                                     
-                           v.2.0.0
+                           v.2.0.1
 ```
 
 **BAY**esian **GAU**ssian **D**ecomposer — a tool to decompose spectral-line profiles into multiple Gaussian components using Bayesian nested sampling.
 
-- **Version:** 2.0.0 (2025-09-12)  
+- **Version:** 2.0.1 (2025-10-02)  
 - **Author:** Se-Heon Oh (Department of Physics and Astronomy, Sejong University, South Korea)  
 - **Contact:** seheon.oh@gmail.com
 
