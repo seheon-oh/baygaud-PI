@@ -372,12 +372,12 @@ wdir/
   - The optional `.e` means the **error map** for that parameter
 
   Parameter index mapping:
-  - `0` → **integrated intensity** `[Jy/beam]`
-  - `1` → **line-of-sight velocity (vlos)** `[km/s]`
-  - `2` → **velocity dispersion (vdisp)** `[km/s]`
-  - `3` → **background** `[Jy/beam]`
-  - `4` → **rms** `[Jy/beam]`
-  - `5` → **peak flux** `[Jy/beam]`
+  - `0` → **integrated intensity** `[JY/BEAM * KM/S]`
+  - `1` → **line-of-sight velocity (vlos)** `[KM/S]`
+  - `2` → **velocity dispersion (vdisp)** `[KM/S]`
+  - `3` → **background** `[JY/BEAM]`
+  - `4` → **rms** `[JY/BEAM]`
+  - `5` → **peak flux** `[JY/BEAM]`
   - `6` → **peak-flux S/N** `[value]`
   - `7` → **N-Gauss** `[number]`
 
