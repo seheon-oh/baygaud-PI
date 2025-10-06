@@ -167,7 +167,7 @@ except Exception:
 
 # Map integer codes to BUNIT strings
 _BUNIT_MAP = {
-    0: "Jy/beam",           # integrated intensity
+    0: "Jy/beam*km/s",      # integrated intensity
     1: "km/s",              # line-of-sight velocity 
     2: "km/s",              # velocity dispersion (gaussian sigma)
     3: "Jy/beam",           # background
@@ -1231,7 +1231,7 @@ def _prepare_mask_2d(
         raise ValueError("2D mask must be a 2D image.")
 
     ny, nx = data.shape
-    valid2d = (np.asarray(data, dtype=float) > 0).astype(np.uint8)
+    valid2d = (np.asarray(data, dtype=float) > 0.01).astype(np.uint8) # use 0.01 in case
     vmin_norm2d = np.full((ny, nx), 0, dtype=np.float32)
     vmax_norm2d = np.full((ny, nx), 1.0, dtype=np.float32)
 
