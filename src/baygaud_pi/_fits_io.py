@@ -167,12 +167,12 @@ except Exception:
 
 # Map integer codes to BUNIT strings
 _BUNIT_MAP = {
-    0: "Jy/beam*km/s",      # integrated intensity
-    1: "km/s",              # line-of-sight velocity 
-    2: "km/s",              # velocity dispersion (gaussian sigma)
-    3: "Jy/beam",           # background
-    4: "Jy/beam",           # rms
-    5: "Jy/beam",           # peakflux
+    0: "JY/BEAM * KM/S",      # integrated intensity
+    1: "KM/S",              # line-of-sight velocity 
+    2: "KM/S",              # velocity dispersion (gaussian sigma)
+    3: "JY/BEAM",           # background
+    4: "JY/BEAM",           # rms
+    5: "JY/BEAM",           # peakflux
     6: "peakflux-s/n",      # peakflux S/N
     7: "n-gauss",           # N-Gauss
 }
