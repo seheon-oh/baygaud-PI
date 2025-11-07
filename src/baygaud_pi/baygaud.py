@@ -164,7 +164,6 @@ def main():
     # load the input datacube
     _inputDataCube, _x, cube_info = read_datacube(_params)
 
-
     #------------------------------
     # update g_vlos_lower / upper in YAML
     _g_vlos_lower = float(cube_info['vel_min_kms'])
@@ -247,6 +246,7 @@ def main():
     batch_k = max(1, min(batch_k, num_cpus_total))
     #------------------------------
 
+
     ray_info = get_ray_info()  # may be None if Ray is not used
     runtime_info = get_runtime_resource_info(_params)
 
@@ -272,7 +272,7 @@ def main():
     remaining = {}  # i -> remaining tile count
     pending = {}    # ObjectRef -> (i, j0, j1)
 
-    # ── Build tile queue ──
+    # -- Build tile queue --
     tiles = deque()
     for i in range(_is, _ie):
         j0 = _js
@@ -281,7 +281,7 @@ def main():
             tiles.append((i, j0, j1))
             j0 = j1
 
-    # ── Pre-allocation (no delayed allocation) ──
+    # -- Pre-allocation (no delayed allocation) --
     P = 2*(2 + 3*max_ngauss) + 7 + max_ngauss
     acc       = {i: np.empty(((_je - _js), max_ngauss, P), dtype=np.float32) for i in range(_is, _ie)}
     remaining = {i: ((_je - _js + tile - 1)//tile) for i in range(_is, _ie)}
@@ -294,7 +294,7 @@ def main():
     # Print progress bar at 0%
     _print_progress_classic(0, total_pixels, t0, width=85, divisions=20, min_interval=0.2)
 
-    # ── In-flight window settings ──
+    # -- In-flight window settings -- 
     # After building the tile queue:
     inflight_factor = int(_params.get("inflight_factor", 1))  # start at 1
     MAX_INFLIGHT    = max(1, min(len(tiles), num_cpus_total * inflight_factor))
@@ -321,8 +321,19 @@ def main():
         inflight_refs.append(ref)
         meta[ref] = (i, j0, j1)
 
+
+        # CHECK POINT
+        #if i == 230 and j0 == 215:
+        #    fff = _inputDataCube[:, j0, i]
+        #    #plt.plot(_x, fff)
+        #    #plt.show()
+        #    check = ray.get(ref)
+        #    print(check)
+        #    sys.exit()
+
     for _ in range(MAX_INFLIGHT):
         _submit_one()
+
 
     # ── Collection loop: single wait + timeout + lightweight heartbeat ──
     while inflight_refs:

@@ -129,7 +129,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
         _mask_vmax_norm_id):
 
         # Pin all thread counts inside this worker process (Numba included).
-        # Doing it once per process is sufficient; re-calling is harmless.
+        # Doing it once per process is sufficient; re-calling is harmless though... now it's ok...
         pin_threads_single()
 
         # Materialize objects from Ray object refs
@@ -212,7 +212,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             )
 
             #print("----------")
-            #print(i, j+_js, _gaussian_seeds)
+            #print(i, j+_js, _gaussian_seeds, _mask_vmin_norm[j+_js, i], _mask_vmax_norm[j+_js, i])
             #print("----------")
 
 
@@ -262,13 +262,17 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 #x_min_norm= 0,
                 #x_max_norm= 1
             )
-
-
             gfit_priors_init = _seed_priors_using_matched_filter # single gaussian inits --> update multi-gaussians below
+
+            #print("----------")
+            #print("+++", i, j+_js, _seed_priors_using_matched_filter)
+            #print("----------")
+
+
 
             # __________________________________________________________________ #
             # CHECK POINT
-            # if i == 472 and j+_js == 407:
+            #if i == 233 and j+_js == 229:
             #     print("-------------------")
             #     print("pixel:", i, j+_js, "ncomp:", _gaussian_seeds['ncomp'])
             #     print("model_sigma(norm):", _gaussian_seeds['rms'], "rms(phys):", _gaussian_seeds['rms'] * denom)
@@ -278,11 +282,11 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
             #     print("-------------------")
             #     print_priors_both(gfit_priors_init, _f_min, _f_max, v_min_phys, v_max_phys,
             #       cdelt3=_cdelt3, unit_flux="Jy/beam", unit_vel="km/s")
-            #
+            # 
             #     print("-------------------")
             #     print_gaussian_seeds_matched_filter(_gaussian_seeds, _f_min, _f_max, v_min_phys, v_max_phys, cdelt3=_cdelt3,
             #         unit_flux="Jy/beam", unit_vel="km/s") 
-            #     print("-------------------")
+            #    print("-------------------")
             # __________________________________________________________________ #
 
 
@@ -299,6 +303,7 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 # if masked, skip. NOTE: mask value must be zero or negative.
                 # print("mask filtered: %d %d | peak S/N: %.1f :: S/N limit: %.1f | integrated S/N: %.1f :: S/N limit: %.1f :: f_min: %e :: f_max: %e" \
                 #     % (i, j+_js, _peak_sn_map[j+_js, i], _params['peak_sn_limit'], _sn_int_map[j+_js, i], _params['int_sn_limit'], _f_min, _f_max))
+
 
                 # Save current profile location
                 l_range = np.arange(_max_ngauss)
@@ -474,6 +479,29 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         #x_max_norm=1.0
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
+
+
+                    # __________________________________________________________________ #
+                    # CHECK POINT
+                    #if i == 233 and j+_js == 229:
+                    #    print("-------------------")
+                    #    print("pixel:", i, j+_js, "ncomp:", _gaussian_seeds['ncomp'])
+                    #    print("model_sigma(norm):", _gaussian_seeds['rms'], "rms(phys):", _gaussian_seeds['rms'] * denom)
+                    #    print("bg(norm):", _gaussian_seeds['bg'], "bg(phys):", _gaussian_seeds['bg'] * denom + _f_min)
+                    #    print("components (x_norm, sigma_norm, peakflux_norm):\n", _gaussian_seeds['components'])
+                    #    print("priors(single-gauss, normalized):", gfit_priors_init)
+                    #    print("-------------------")
+                    #    print_priors_both(gfit_priors_init, _f_min, _f_max, v_min_phys, v_max_phys,
+                    #      cdelt3=_cdelt3, unit_flux="Jy/beam", unit_vel="km/s")
+                    # 
+                    #    print("-------------------")
+                    #    print_gaussian_seeds_matched_filter(_gaussian_seeds, _f_min, _f_max, v_min_phys, v_max_phys, cdelt3=_cdelt3,
+                    #         unit_flux="Jy/beam", unit_vel="km/s") 
+                    #    print("-------------------")
+                    ## __________________________________________________________________ #
+
+
+
 
                 # |_______________________________________________________________________________________|
                 # |---------------------------------------------------------------------------------------|

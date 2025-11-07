@@ -718,19 +718,18 @@ def search_gaussian_seeds_matched_filter_norm(
     hi = float(np.clip(hi, 0.0, 1.0))
     win_idx = (v_norm >= lo) & (v_norm <= hi)
     if not np.any(win_idx):
-        # 창이 비정상적으로 비어 있으면 interior로 대체하되,
-        # synthetic seed는 여전히 [lo,hi] 기준으로 생성
+        # synthetic seed [lo,hi]
         win_idx = valid_idx
 
     # --- filter bank ----------------------------------------------------------
     sigmas, cap1 = _make_sigma_list(N, sigma_list_ch, k_sigma, max_frac=0.48)
     bank = gaussian_kernel_bank(sigmas, k_sigma=k_sigma)
     if not bank:
-        # 폴백: 필터 없이 synthetic seed
+        # fallback: synthetic seed
         comps, indices, info = _make_synthetic_seed(v, y, v_min, span, lo, hi, dv)
         debug = {"reason": "empty_bank_after_cap",
                  "N": int(N), "cap": float(cap1), **info}
-        # max_ngauss==0이면 0개 반환 허용
+        # max_ngauss==0
         if (max_ngauss is not None) and (int(max_ngauss) <= 0):
             return dict(ncomp=0, components=np.zeros((0,3)),
                         bg=float(bg), rms=float(rms), indices=[], debug=debug)
@@ -866,7 +865,7 @@ def search_gaussian_seeds_matched_filter_norm(
         if max_components is not None and len(kept_idx) >= int(max_components):
             break
 
-    # 모두 게이트에서 탈락 -> synthetic 폴백
+    # all rejected -> synthetic
     if not kept_idx:
         comps, indices, info = _make_synthetic_seed(v, y, v_min, span, lo, hi, dv)
         debug.update({"reason": "all_candidates_failed_amp_gate", **info})
@@ -1895,8 +1894,9 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     # Defaults in case we have no seeds
     x_lo = 0.0
     x_hi = 1.0
-    s_lo = max(min_sigma, 1e-3)
-    s_hi = 0.3
+    #s_lo = max(min_sigma, 1e-3)
+    s_lo = 0.01
+    s_hi = 0.9
     p_lo = 0.0
     p_hi = 1.0
 
@@ -1935,6 +1935,7 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             x_hi = float(np.clip(x_hi, 0.0, 1.0))
             if x_lo > x_hi:
                 x_lo, x_hi = x_hi, x_lo
+
         else:
             # Work directly on normalized axis
             idx_min = int(np.argmin(centers_n))
@@ -1950,6 +1951,11 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
 
         # Clamp x-bounds to the requested window
         x_lo, x_hi = _clamp_window(x_lo, x_hi, w_lo, w_hi, min_span=max(min_x_span, 2e-2))
+
+        # to avoid narrow priors for x
+        if np.fabs(x_hi - x_lo) < 0.3:
+            x_lo = 0.01
+            x_hi = 0.99
 
         # ----- sigma bounds -----
         k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
@@ -1972,6 +1978,12 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             # Respect user's request: do not exceed the window width
             s_hi = float(min(s_hi, window_width))
 
+        # to avoid narrow priors for sigma
+        if np.fabs(s_hi - s_lo) < 0.2:
+            s_lo = 0.01
+            s_hi = 0.2
+
+
         # ----- peak bounds (amplitude) -----
         a_min = float(np.min(amps))
         a_max = float(np.max(amps))
@@ -1983,9 +1995,20 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             p_lo = max(0.0, mid - 0.05)
             p_hi = min(1.0, mid + 0.05)
 
+        # to avoid narrow priors for amp
+        if np.fabs(p_hi - p_lo) < 0.2:
+            p_lo = 0.001
+            p_hi = 0.999
+
+
         # Model residual sigma bounds
         msig_lo = float(msig_lo_seed)
         msig_hi = float(msig_hi_seed)
+
+        # to avoid narrow priors for model sigma
+        if np.fabs(msig_hi - msig_lo) < 0.2:
+            msig_lo = 0.001
+            msig_hi = 0.9
 
     else:
         # ------------------ Fallback: no seeds in the window ------------------
@@ -2001,11 +2024,14 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
         # Respect request: sigma upper bound = window width (capped)
         s_hi = float(min(clip_sigma_hi, max(s_lo * 1.05, window_width)))
 
-        p_lo = 0.0
-        p_hi = 1.0
-
-        msig_lo = float(msig_lo_seed)
-        msig_hi = float(msig_hi_seed)
+        x_lo = 0.01
+        x_hi = 0.99
+        s_lo = 0.01
+        s_hi = 0.6
+        p_lo = 0.001
+        p_hi = 0.999
+        msig_lo = 0.001
+        msig_hi = 0.9
 
     return [msig_lo, bg_lo, x_lo, s_lo, p_lo,
             msig_hi, bg_hi, x_hi, s_hi, p_hi]
@@ -2735,6 +2761,9 @@ def set_init_priors_multiple_gaussians(
         hi_parts += [x_hi, s_hi, p_hi]
 
     # 2) For remaining components: replicate (clamped) seed-based bounds
+    p_lo_seed = p_lo # copy the previous' amp_lo to make the fit fair
+    p_hi_seed = p_lo # copy the previous' amp_hi to make the fit fair
+
     for m in range(n_prev, M):
         lo_parts += [x_lo_seed, s_lo_seed, p_lo_seed]
         hi_parts += [x_hi_seed, s_hi_seed, p_hi_seed]
