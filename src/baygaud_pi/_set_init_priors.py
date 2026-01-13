@@ -2648,7 +2648,7 @@ def set_init_priors_multiple_gaussians(
     k_bg=3.0,
     k_msig=3.0,
     # Stabilization / clipping
-    min_x_span=1e-5,
+    min_x_span=0.1,
     min_sigma=1e-4,
     clip_sigma_hi=0.999,
     peak_upper_cap=1.0,
@@ -2732,6 +2732,7 @@ def set_init_priors_multiple_gaussians(
 
     # 1) Tight bounds around previous components
     for m in range(n_prev):
+
         x_c, s, amp = map(float, prev_components[m, :3])
 
         # x bounds from previous fit
@@ -2739,8 +2740,8 @@ def set_init_priors_multiple_gaussians(
         x_hi = float(np.clip(x_c + k_x * s, 0.0, 1.0))
         if (x_hi - x_lo) < min_x_span:
             mid = 0.5 * (x_lo + x_hi)
-            x_lo = max(0.0, mid - 0.02)
-            x_hi = min(1.0, mid + 0.02)
+            x_lo = max(0.0, mid - 0.2)
+            x_hi = min(1.0, mid + 0.2)
 
         # --- NEW: clamp to window ---
         x_lo, x_hi = _clamp_window(x_lo, x_hi, x_min_norm, x_max_norm, min_x_span)
@@ -2761,8 +2762,15 @@ def set_init_priors_multiple_gaussians(
         hi_parts += [x_hi, s_hi, p_hi]
 
     # 2) For remaining components: replicate (clamped) seed-based bounds
+        
+    x_lo_seed = x_lo # copy the previous' x_lo to make the fit fair
+    x_hi_seed = x_hi # copy the previous' x_hi to make the fit fair
+
+    s_lo_seed = s_lo # copy the previous' s_lo to make the fit fair
+    s_hi_seed = s_hi # copy the previous' s_hi to make the fit fair
+
     p_lo_seed = p_lo # copy the previous' amp_lo to make the fit fair
-    p_hi_seed = p_lo # copy the previous' amp_hi to make the fit fair
+    p_hi_seed = p_hi # copy the previous' amp_hi to make the fit fair
 
     for m in range(n_prev, M):
         lo_parts += [x_lo_seed, s_lo_seed, p_lo_seed]

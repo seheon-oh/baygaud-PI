@@ -249,12 +249,12 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 use_phys_for_x_bounds = bool(sb.get("use_phys_for_x_bounds", False)),
                 v_min = v_min_phys, v_max = v_max_phys,
                 cdelt3 = _cdelt3,
-                model_sigma_bounds = tuple(sb.get("model_sigma_bounds", (0.0, 0.7))),
-                k_bg = float(sb.get("k_bg", 3.0)),
+                model_sigma_bounds = tuple(sb.get("model_sigma_bounds", (0.0, 0.9))),
+                k_bg = float(sb.get("k_bg", 5.0)),
                 k_x  = float(sb.get("k_x", 5.0)),
-                sigma_scale_bounds = tuple(sb.get("sigma_scale_bounds", (0.1, 3.0))),
-                peak_scale_bounds  = tuple(sb.get("peak_scale_bounds",  (0.3, 1.5))),
-                min_x_span   = float(sb.get("min_x_span", 1e-5)),
+                sigma_scale_bounds = tuple(sb.get("sigma_scale_bounds", (0.01, 10.0))),
+                peak_scale_bounds  = tuple(sb.get("peak_scale_bounds",  (0.1, 2.0))),
+                min_x_span   = float(sb.get("min_x_span", 0.2)),
                 min_sigma    = float(sb.get("min_sigma", 1e-4)),
                 clip_sigma_hi= float(sb.get("clip_sigma_hi", 0.999)),
                 x_min_norm= _mask_vmin_norm[j+_js, i],
@@ -462,16 +462,19 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                     )
 
                     # 3) Build multi-Gaussian priors for this stage (e.g., M=2, 3, 4, ...)
+                    # ------------------------------------------------------------------- #
+                    #For checking initial values for multi-gaussians update 'set_init_priors_multiple_gaussians'
+                    # ------------------------------------------------------------------- #
                     gfit_priors_init = set_init_priors_multiple_gaussians(
                         M=ngauss+1,  # for the next Gaussian model
                         seed_bounds=_seed_priors_using_matched_filter,
-                        seed_out=_gaussian_seeds,     # used to compose bg±k_bg*rms
+                        seed_out=_gaussian_seeds,     # used to compose bg +/- k_bg*rms
                         prev_fit=prev_fit,            # pass previous result if present
-                        k_x=3.0, # for x_norm range but restricted within the window [x_min_norm ~ x_max_norm]
-                        sigma_scale_bounds=(0.5, 2.0), # for sigma range
-                        peak_scale_bounds=(0.5, 1.5), # for peak_flux range
-                        k_bg=3.0, # for bg range
-                        k_msig=3.0, # for model sigma range
+                        k_x=5.0, # for x_norm range but restricted within the window [x_min_norm ~ x_max_norm]
+                        sigma_scale_bounds=(0.01, 10.0), # for sigma range
+                        peak_scale_bounds=(0.1, 2.0), # for peak_flux range
+                        k_bg=5.0, # for bg range
+                        k_msig=5.0, # for model sigma range
                         peak_upper_cap=1.0,
                         x_min_norm=_mask_vmin_norm[j+_js, i],
                         x_max_norm=_mask_vmax_norm[j+_js, i]
@@ -479,6 +482,8 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         #x_max_norm=1.0
                     )
                     # nsigma_prior_range_gfit=3.0 (default)
+                    #print(ngauss, gfit_priors_init)
+
 
 
                     # __________________________________________________________________ #
