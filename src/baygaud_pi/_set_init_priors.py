@@ -1829,18 +1829,21 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     _gaussian_seeds,
     *,
     # (1) model residual sigma bounds
-    model_sigma_bounds=(0.0, 0.7),
+    model_sigma_bounds=(0.0, 0.9),
     # (2) background upper bound = bg + k_bg * rms  (clipped to 1.0 for safety)
-    k_bg=3.0,
+    k_bg=5.0,
     # (3) center bounds = [min(center) - k_x * sigma, max(center) + k_x * sigma]
     k_x=5.0,
     # (4) sigma bounds = [k_sig_lo * s_min, k_sig_hi * s_max]
-    sigma_scale_bounds=(0.1, 3.0),
+    sigma_scale_bounds=(0.0, 5.0),
     # (5) peak bounds = [k_p_lo * A_min, k_p_hi * A_max]
-    peak_scale_bounds=(0.3, 2.0),
+    peak_scale_bounds=(0.0, 2.0),
     # Stabilization (minimum width)
-    min_x_span=1e-5,
-    min_sigma=1e-4,
+    min_x_span=0.1, # if happened, something wrong for the first sgfit
+    min_s_span=0.1, # if happened, something wrong  for the first sgfit
+    min_p_span=0.5,
+    min_m_sigma_span=0.1,
+    min_s=0.0,
     # Clipping upper bound (normalized axis is 0..1)
     clip_sigma_hi=0.999,
     # Physical axis options for computing x-bounds and sigma scaling
@@ -1865,8 +1868,8 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
 
     Fallback (no seeds inside window):
       x_lo = x_min_norm (or 0), x_hi = x_max_norm (or 1)
-      s_lo = min_sigma
-      s_hi = min(clip_sigma_hi, max(min_sigma*1.05, window_width))
+      s_lo = min_s
+      s_hi = min(clip_sigma_hi, max(min_s*1.05, window_width))
       p_lo = 0.0, p_hi = 1.0
     """
     msig_lo_seed, msig_hi_seed = map(float, model_sigma_bounds)
@@ -1894,8 +1897,8 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     # Defaults in case we have no seeds
     x_lo = 0.0
     x_hi = 1.0
-    #s_lo = max(min_sigma, 1e-3)
-    s_lo = 0.01
+    #s_lo = max(min_s, 1e-3)
+    s_lo = 0.0
     s_hi = 0.9
     p_lo = 0.0
     p_hi = 1.0
@@ -1903,11 +1906,13 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
     if ncomp > 0 and comps is not None and getattr(comps, "size", 0):
         comps = np.asarray(comps, dtype=float)
         # comps: [center_norm, sigma_norm, |amp|]
-        centers_n = comps[:, 0]
-        sigs_n    = comps[:, 1]
-        amps      = comps[:, 2]
+        centers_n = comps[:, 0] # x
+        sigs_n    = comps[:, 1] # s
+        amps      = comps[:, 2] # peak-flux : A / [sqrt(2pi)*sigma]
 
+        # _________________________________________________________________
         # ----- x bounds (either via physical axis, or on normalized) -----
+        # _________________________________________________________________
         if use_phys_for_x_bounds:
             if (v_min is None) or (v_max is None):
                 raise ValueError("use_phys_for_x_bounds=True requires v_min and v_max.")
@@ -1946,59 +1951,65 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
             x_hi = float(np.clip(xh_n + float(k_x) * xh_sig_n, 0.0, 1.0))
             if (x_hi - x_lo) < min_x_span:
                 mid = 0.5 * (x_lo + x_hi)
-                x_lo = max(0.0, mid - 0.02)
-                x_hi = min(1.0, mid + 0.02)
+                x_lo = max(0.0, mid - 0.2)
+                x_hi = min(1.0, mid + 0.2)
 
         # Clamp x-bounds to the requested window
         x_lo, x_hi = _clamp_window(x_lo, x_hi, w_lo, w_hi, min_span=max(min_x_span, 2e-2))
 
         # to avoid narrow priors for x
-        if np.fabs(x_hi - x_lo) < 0.3:
+        if np.fabs(x_hi - x_lo) < min_x_span:
             x_lo = 0.01
             x_hi = 0.99
 
+        # _________________________________________________________________
         # ----- sigma bounds -----
+        # _________________________________________________________________
         k_sig_lo, k_sig_hi = map(float, sigma_scale_bounds)
         if use_phys_for_x_bounds:
             s_min_p = float(np.min(abs(v1 - v0) * sigs_n))
             s_max_p = float(np.max(abs(v1 - v0) * sigs_n))
             # Convert back to normalized
             v_scale_abs = abs(v1 - v0) if abs(v1 - v0) > 0 else 1.0
-            s_lo = max(min_sigma, (k_sig_lo * s_min_p) / v_scale_abs)
-            s_hi = max(s_lo * 1.05, (k_sig_hi * s_max_p) / v_scale_abs)
+            s_lo = max(min_s, (k_sig_lo * s_min_p) / v_scale_abs)
+            s_hi = max(s_lo * 2.0, (k_sig_hi * s_max_p) / v_scale_abs)
         else:
             s_min_n = float(np.min(sigs_n))
             s_max_n = float(np.max(sigs_n))
-            s_lo = max(min_sigma, k_sig_lo * s_min_n)
-            s_hi = max(s_lo * 1.05, k_sig_hi * s_max_n)
+            s_lo = max(min_s, k_sig_lo * s_min_n)
+            s_hi = max(s_lo * 2.0, k_sig_hi * s_max_n)
 
         # Cap sigma upper bound
         s_hi = float(min(clip_sigma_hi, s_hi))
         if window_width > 0:
-            # Respect user's request: do not exceed the window width
+            # do not exceed the window width
             s_hi = float(min(s_hi, window_width))
 
         # to avoid narrow priors for sigma
-        if np.fabs(s_hi - s_lo) < 0.2:
-            s_lo = 0.01
-            s_hi = 0.2
+        if np.fabs(s_hi - s_lo) < min_s_span:
+            s_lo = 0.0
+            s_hi = 0.6
 
 
+        # _________________________________________________________________
         # ----- peak bounds (amplitude) -----
-        a_min = float(np.min(amps))
-        a_max = float(np.max(amps))
+        # _________________________________________________________________
+        a_min = float(np.min(amps)) # peak-flux
+        a_max = float(np.max(amps)) # peak-flux
         k_p_lo, k_p_hi = map(float, peak_scale_bounds)
-        p_lo = float(np.clip(k_p_lo * a_min, 0.0, 1.0))
-        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 1.0))
-        if (p_hi - p_lo) < min_x_span:
+        p_lo = float(np.clip(k_p_lo * a_min, 0.0, 2.0))
+        p_hi = float(np.clip(k_p_hi * a_max, 0.0, 2.0))
+        if (p_hi - p_lo) < min_p_span:
             mid = 0.5 * (p_lo + p_hi)
-            p_lo = max(0.0, mid - 0.05)
-            p_hi = min(1.0, mid + 0.05)
+            p_lo = max(0.0, mid - 0.3)
+            p_hi = min(1.0, mid + 0.3)
 
-        # to avoid narrow priors for amp
-        if np.fabs(p_hi - p_lo) < 0.2:
-            p_lo = 0.001
-            p_hi = 0.999
+        # to avoid narrow priors for peak-flux
+        # forced to lower/upper limits to [0.0 ~ 1.1] to remove VDISP lower or upper ceiling issue : sh
+        # default: min_p_span = 1.0
+        if np.fabs(p_hi - p_lo) < 1.0:
+            p_lo = 0.0
+            p_hi = 2.0
 
 
         # Model residual sigma bounds
@@ -2006,8 +2017,8 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
         msig_hi = float(msig_hi_seed)
 
         # to avoid narrow priors for model sigma
-        if np.fabs(msig_hi - msig_lo) < 0.2:
-            msig_lo = 0.001
+        if np.fabs(msig_hi - msig_lo) < min_m_sigma_span:
+            msig_lo = 0.0
             msig_hi = 0.9
 
     else:
@@ -2020,23 +2031,21 @@ def set_sgfit_bounds_from_matched_filter_seeds_norm(
         x_lo, x_hi = _clamp_window(x_lo, x_hi, x_lo, x_hi, min_span=max(min_x_span, 2e-2))
 
         window_width = max(0.0, x_hi - x_lo)
-        s_lo = max(min_sigma, 1e-3)
+        s_lo = max(min_s, 1e-3)
         # Respect request: sigma upper bound = window width (capped)
         s_hi = float(min(clip_sigma_hi, max(s_lo * 1.05, window_width)))
 
         x_lo = 0.01
         x_hi = 0.99
-        s_lo = 0.01
+        s_lo = 0.0
         s_hi = 0.6
-        p_lo = 0.001
-        p_hi = 0.999
-        msig_lo = 0.001
+        p_lo = 0.0
+        p_hi = 2.0
+        msig_lo = 0.0
         msig_hi = 0.9
 
     return [msig_lo, bg_lo, x_lo, s_lo, p_lo,
             msig_hi, bg_hi, x_hi, s_hi, p_hi]
-
-
 
 
 
@@ -2641,17 +2650,19 @@ def set_init_priors_multiple_gaussians(
     seed_out=None,      # search_gaussian_seeds_matched_filter_norm out(dict); use bg/rms (normalized)
     prev_fit=None,      # output of prev_fit_from_results_slice(...)
     # Tighter bounds around previous components if available
-    k_x=3.0, # x - k_x*sigma ~ x + k_x*sigma
-    sigma_scale_bounds=(0.5, 2.0),
-    peak_scale_bounds=(0.5, 1.5),
+    k_x=5.0, # x - k_x*sigma ~ x + k_x*sigma
+    sigma_scale_bounds=(0.0, 5.0),
+    peak_scale_bounds=(0.0, 2.0),
     # bg width: bg +/- k_bg * rms(seed)
-    k_bg=3.0,
-    k_msig=3.0,
+    k_bg=5.0,
+    k_msig=5.0,
     # Stabilization / clipping
-    min_x_span=0.1,
-    min_sigma=1e-4,
+    min_x_span=0.2, # if happened, something wrong for the first sgfit 
+    min_s_span=0.1, # if happened, something wrong  for the first sgfit
+    min_p_span=0.5,
+    min_s=0.0,
     clip_sigma_hi=0.999,
-    peak_upper_cap=1.0,
+    peak_upper_cap=2.0,
     # ---- NEW: clamp x bounds to normalized window ----
     x_min_norm=None,
     x_max_norm=None,
@@ -2730,7 +2741,7 @@ def set_init_priors_multiple_gaussians(
     lo_parts = [msig_lo, bg_lo]
     hi_parts = [msig_hi, bg_hi]
 
-    # 1) Tight bounds around previous components
+    # 1) updated bounds around previous components
     for m in range(n_prev):
 
         x_c, s, amp = map(float, prev_components[m, :3])
@@ -2738,25 +2749,38 @@ def set_init_priors_multiple_gaussians(
         # x bounds from previous fit
         x_lo = float(np.clip(x_c - k_x * s, 0.0, 1.0))
         x_hi = float(np.clip(x_c + k_x * s, 0.0, 1.0))
+
         if (x_hi - x_lo) < min_x_span:
             mid = 0.5 * (x_lo + x_hi)
             x_lo = max(0.0, mid - 0.2)
             x_hi = min(1.0, mid + 0.2)
 
-        # --- NEW: clamp to window ---
+        # --- clamp to window ---
         x_lo, x_hi = _clamp_window(x_lo, x_hi, x_min_norm, x_max_norm, min_x_span)
 
         # sigma bounds
-        s_lo = max(min_sigma, k_sig_lo * s)
-        s_hi = min(clip_sigma_hi, max(s_lo * 1.05, k_sig_hi * s))
+        s_lo = max(min_s, k_sig_lo * s)
+        s_hi = min(clip_sigma_hi, max(s_lo * 2.0, k_sig_hi * s))
+        if (s_hi - s_lo) < min_s_span:
+            s_lo = 0
+            s_hi = 0.6
+
 
         # peak bounds
         p_lo = float(np.clip(k_p_lo * amp, 0.0, peak_upper_cap))
         p_hi = float(np.clip(k_p_hi * amp, 0.0, peak_upper_cap))
-        if (p_hi - p_lo) < min_x_span:
+        if (p_hi - p_lo) < min_p_span:
             mid = 0.5 * (p_lo + p_hi)
-            p_lo = max(0.0, mid - 0.05)
-            p_hi = min(peak_upper_cap, mid + 0.05)
+            p_lo = max(0.0, mid - 0.3)
+            p_hi = min(peak_upper_cap, mid + 0.3)
+
+
+        # to avoid narrow priors for peak-flux
+        # forced to lower/upper limits to [0.0 ~ 1.1] to remove VDISP lower or upper ceiling issue : sh
+        # default: min_p_span = 0
+        if np.fabs(p_hi - p_lo) < 1.0:
+            p_lo = 0.0
+            p_hi = 1.5
 
         lo_parts += [x_lo, s_lo, p_lo]
         hi_parts += [x_hi, s_hi, p_hi]

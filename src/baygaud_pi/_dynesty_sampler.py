@@ -244,6 +244,10 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
 
             # --- (3) Build single-Gaussian bounds using YAML parameters (normalized units) ---
             # gfit_priors_init = [sig1, bg1, x1, std1, p1, sig2, bg2, x2, std2, p2]
+            # ------------------
+            # _______________________________________________________________________________
+            # FIRST SGFIT STEP: in case check set_sgfit_bounds_from_matched_filter_seeds_norm 
+            # _______________________________________________________________________________
             _seed_priors_using_matched_filter = set_sgfit_bounds_from_matched_filter_seeds_norm(
                 _gaussian_seeds,
                 use_phys_for_x_bounds = bool(sb.get("use_phys_for_x_bounds", False)),
@@ -252,16 +256,17 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                 model_sigma_bounds = tuple(sb.get("model_sigma_bounds", (0.0, 0.9))),
                 k_bg = float(sb.get("k_bg", 5.0)),
                 k_x  = float(sb.get("k_x", 5.0)),
-                sigma_scale_bounds = tuple(sb.get("sigma_scale_bounds", (0.01, 10.0))),
-                peak_scale_bounds  = tuple(sb.get("peak_scale_bounds",  (0.1, 2.0))),
-                min_x_span   = float(sb.get("min_x_span", 0.2)),
-                min_sigma    = float(sb.get("min_sigma", 1e-4)),
+                sigma_scale_bounds = tuple(sb.get("sigma_scale_bounds", (0.0, 5.0))),
+                peak_scale_bounds  = tuple(sb.get("peak_scale_bounds",  (0.0, 2.0))),
+                min_x_span   = float(sb.get("min_x_span", 0.01)),
+                min_s    = float(sb.get("min_sigma", 0)),
                 clip_sigma_hi= float(sb.get("clip_sigma_hi", 0.999)),
                 x_min_norm= _mask_vmin_norm[j+_js, i],
                 x_max_norm= _mask_vmax_norm[j+_js, i]
                 #x_min_norm= 0,
                 #x_max_norm= 1
             )
+            # __________________________________________________
             gfit_priors_init = _seed_priors_using_matched_filter # single gaussian inits --> update multi-gaussians below
 
             #print("----------")
@@ -471,11 +476,11 @@ def dynamic_baygaud_nested_sampling(num_cpus_nested_sampling, _params):
                         seed_out=_gaussian_seeds,     # used to compose bg +/- k_bg*rms
                         prev_fit=prev_fit,            # pass previous result if present
                         k_x=5.0, # for x_norm range but restricted within the window [x_min_norm ~ x_max_norm]
-                        sigma_scale_bounds=(0.01, 10.0), # for sigma range
-                        peak_scale_bounds=(0.1, 2.0), # for peak_flux range
+                        sigma_scale_bounds=(0.0, 5.0), # for sigma range
+                        peak_scale_bounds=(0.0, 2.0), # for peak_flux range
                         k_bg=5.0, # for bg range
                         k_msig=5.0, # for model sigma range
-                        peak_upper_cap=1.0,
+                        peak_upper_cap=2.0,
                         x_min_norm=_mask_vmin_norm[j+_js, i],
                         x_max_norm=_mask_vmax_norm[j+_js, i]
                         #x_min_norm=0.0,
